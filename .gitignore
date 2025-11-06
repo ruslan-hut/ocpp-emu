@@ -1,0 +1,71 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.txt
+coverage.html
+
+# Go workspace file
+go.work
+
+# Build output
+/bin/
+/dist/
+ocpp-emu
+server
+
+# Dependency directories
+/vendor/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Configuration files with sensitive data
+configs/config.local.yaml
+configs/config.prod.yaml
+*.pem
+*.key
+*.crt
+
+# MongoDB data
+/data/
+
+# Logs
+*.log
+logs/
+
+# Frontend
+web/node_modules/
+web/dist/
+web/build/
+web/.next/
+web/.cache/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Docker volumes
+docker-compose.override.yml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS files
+Thumbs.db

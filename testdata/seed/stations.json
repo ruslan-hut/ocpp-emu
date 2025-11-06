@@ -1,0 +1,103 @@
+[
+  {
+    "station_id": "CP001",
+    "name": "Station 1 - Main Entrance",
+    "enabled": true,
+    "auto_start": false,
+    "protocol_version": "1.6",
+    "vendor": "VendorName",
+    "model": "ModelX",
+    "serial_number": "SN123456",
+    "firmware_version": "1.0.0",
+    "connectors": [
+      {
+        "id": 1,
+        "type": "Type2",
+        "max_power": 22000,
+        "status": "Available",
+        "current_transaction_id": null
+      }
+    ],
+    "supported_profiles": [
+      "Core",
+      "FirmwareManagement",
+      "RemoteControl"
+    ],
+    "meter_values_config": {
+      "interval": 60,
+      "measurands": [
+        "Energy.Active.Import.Register",
+        "Power.Active.Import"
+      ],
+      "aligned_data_interval": 900
+    },
+    "csms_url": "ws://localhost:9000/ocpp/CP001",
+    "csms_auth": {
+      "type": "basic",
+      "username": "cp001",
+      "password": "password"
+    },
+    "simulation": {
+      "boot_delay": 5,
+      "heartbeat_interval": 60,
+      "status_notification_on_change": true,
+      "default_id_tag": "TAG123456",
+      "energy_delivery_rate": 7000,
+      "randomize_meter_values": true,
+      "meter_value_variance": 0.05
+    },
+    "connection_status": "disconnected",
+    "tags": ["development", "test"]
+  },
+  {
+    "station_id": "CP002",
+    "name": "Station 2 - Parking Lot A",
+    "enabled": true,
+    "auto_start": false,
+    "protocol_version": "2.0.1",
+    "vendor": "VendorName",
+    "model": "ModelY",
+    "serial_number": "SN789012",
+    "firmware_version": "2.0.0",
+    "connectors": [
+      {
+        "id": 1,
+        "type": "CCS",
+        "max_power": 50000,
+        "status": "Available",
+        "current_transaction_id": null
+      }
+    ],
+    "supported_profiles": [
+      "Core",
+      "SmartCharging"
+    ],
+    "meter_values_config": {
+      "interval": 30,
+      "measurands": [
+        "Energy.Active.Import.Register",
+        "Power.Active.Import",
+        "Voltage",
+        "Current.Import"
+      ],
+      "aligned_data_interval": 900
+    },
+    "csms_url": "ws://localhost:9000/ocpp/CP002",
+    "csms_auth": {
+      "type": "basic",
+      "username": "cp002",
+      "password": "password"
+    },
+    "simulation": {
+      "boot_delay": 3,
+      "heartbeat_interval": 60,
+      "status_notification_on_change": true,
+      "default_id_tag": "TAG789012",
+      "energy_delivery_rate": 45000,
+      "randomize_meter_values": true,
+      "meter_value_variance": 0.03
+    },
+    "connection_status": "disconnected",
+    "tags": ["development", "dc-fast"]
+  }
+]

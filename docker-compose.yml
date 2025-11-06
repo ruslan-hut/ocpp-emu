@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: ocpp-emu-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: ocpp_emu
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - ocpp-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/ocpp_emu --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: ocpp-emu-backend
+    ports:
+      - "8080:8080"
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017
+      MONGODB_DATABASE: ocpp_emu
+    volumes:
+      - ./configs:/app/configs:ro
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - ocpp-network
+    restart: unless-stopped
+
+  # Frontend service (placeholder for future implementation)
+  # frontend:
+  #   build:
+  #     context: ./web
+  #     dockerfile: Dockerfile
+  #   container_name: ocpp-emu-frontend
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - ocpp-network
+  #   restart: unless-stopped
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  ocpp-network:
+    driver: bridge
