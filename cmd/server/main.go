@@ -13,6 +13,7 @@ import (
 
 	"github.com/ruslanhut/ocpp-emu/internal/config"
 	"github.com/ruslanhut/ocpp-emu/internal/connection"
+	"github.com/ruslanhut/ocpp-emu/internal/station"
 	"github.com/ruslanhut/ocpp-emu/internal/storage"
 )
 
@@ -63,26 +64,35 @@ func main() {
 	connManager := connection.NewManager(&cfg.CSMS, logger)
 	logger.Info("WebSocket connection manager initialized")
 
-	// Set up connection callbacks
+	// Initialize Station Manager
+	stationManager := station.NewManager(
+		mongoClient,
+		connManager,
+		logger,
+		station.ManagerConfig{
+			SyncInterval: 30 * time.Second,
+		},
+	)
+	logger.Info("Station manager initialized")
+
+	// Load stations from MongoDB
+	if err := stationManager.LoadStations(ctx); err != nil {
+		logger.Error("Failed to load stations", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	logger.Info("Stations loaded from MongoDB")
+
+	// Set up connection callbacks to route through station manager
 	connManager.OnMessageReceived = func(stationID string, message []byte) {
-		logger.Debug("Message received from station",
-			slog.String("station_id", stationID),
-			slog.Int("size", len(message)),
-		)
-		// TODO: Route message to OCPP message handler
+		stationManager.OnMessageReceived(stationID, message)
 	}
 
 	connManager.OnStationConnected = func(stationID string) {
-		logger.Info("Station connected", slog.String("station_id", stationID))
-		// TODO: Update station state in MongoDB
+		stationManager.OnStationConnected(stationID)
 	}
 
 	connManager.OnStationDisconnected = func(stationID string, err error) {
-		logger.Info("Station disconnected",
-			slog.String("station_id", stationID),
-			slog.Any("error", err),
-		)
-		// TODO: Update station state in MongoDB
+		stationManager.OnStationDisconnected(stationID, err)
 	}
 
 	connManager.OnStationError = func(stationID string, err error) {
@@ -92,8 +102,14 @@ func main() {
 		)
 	}
 
-	// Initialize Station Manager
-	// TODO: Implement Station Manager to load stations from MongoDB
+	// Start background state synchronization
+	stationManager.StartSync()
+	logger.Info("Station state synchronization started")
+
+	// Auto-start enabled stations
+	if err := stationManager.AutoStart(ctx); err != nil {
+		logger.Error("Failed to auto-start stations", slog.String("error", err.Error()))
+	}
 
 	// Set up HTTP server
 	mux := http.NewServeMux()
@@ -109,13 +125,21 @@ func main() {
 			return
 		}
 
-		// Get connection stats
-		connectedStations := connManager.GetConnectedCount()
-		totalStations := connManager.GetTotalCount()
+		// Get station manager stats
+		stats := stationManager.GetStats()
 
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"status":"healthy","version":"%s","database":"connected","stations":{"connected":%d,"total":%d}}`,
-			appVersion, connectedStations, totalStations)
+		response := map[string]interface{}{
+			"status":   "healthy",
+			"version":  appVersion,
+			"database": "connected",
+			"stations": stats,
+		}
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+			return
+		}
 	})
 
 	// Connection status endpoint
@@ -167,16 +191,18 @@ func main() {
 	logger.Info("Shutting down server...")
 
 	// Graceful shutdown with 30 second timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := server.Shutdown(ctx); err != nil {
+	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("Server forced to shutdown", slog.String("error", err.Error()))
 	}
 
-	// Close MongoDB connection
-	if err := mongoClient.Close(ctx); err != nil {
-		logger.Error("Failed to close MongoDB connection", slog.String("error", err.Error()))
+	// Shutdown station manager (stops all stations)
+	if err := stationManager.Shutdown(shutdownCtx); err != nil {
+		logger.Error("Failed to shutdown station manager", slog.String("error", err.Error()))
+	} else {
+		logger.Info("Station manager shutdown complete")
 	}
 
 	// Shutdown connection manager
@@ -184,7 +210,10 @@ func main() {
 		logger.Error("Failed to shutdown connection manager", slog.String("error", err.Error()))
 	}
 
-	// TODO: Stop all running stations
+	// Close MongoDB connection
+	if err := mongoClient.Close(shutdownCtx); err != nil {
+		logger.Error("Failed to close MongoDB connection", slog.String("error", err.Error()))
+	}
 
 	logger.Info("Server stopped")
 }
