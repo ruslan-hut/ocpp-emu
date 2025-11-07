@@ -13,6 +13,7 @@ import (
 
 	"github.com/ruslanhut/ocpp-emu/internal/config"
 	"github.com/ruslanhut/ocpp-emu/internal/connection"
+	"github.com/ruslanhut/ocpp-emu/internal/logging"
 	"github.com/ruslanhut/ocpp-emu/internal/station"
 	"github.com/ruslanhut/ocpp-emu/internal/storage"
 )
@@ -64,10 +65,25 @@ func main() {
 	connManager := connection.NewManager(&cfg.CSMS, logger)
 	logger.Info("WebSocket connection manager initialized")
 
+	// Initialize Message Logger
+	messageLogger := logging.NewMessageLogger(
+		mongoClient,
+		logger,
+		logging.LoggerConfig{
+			BufferSize:    1000,
+			BatchSize:     100,
+			FlushInterval: 5 * time.Second,
+			LogLevel:      "info",
+		},
+	)
+	messageLogger.Start()
+	logger.Info("Message logger initialized and started")
+
 	// Initialize Station Manager
 	stationManager := station.NewManager(
 		mongoClient,
 		connManager,
+		messageLogger,
 		logger,
 		station.ManagerConfig{
 			SyncInterval: 30 * time.Second,
@@ -160,7 +176,138 @@ func main() {
 		}
 	})
 
-	// TODO: Set up API routes
+	// Message history endpoint
+	mux.HandleFunc("/api/messages", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// Parse query parameters
+		query := r.URL.Query()
+		filter := logging.MessageFilter{
+			StationID:   query.Get("stationId"),
+			Direction:   query.Get("direction"),
+			MessageType: query.Get("messageType"),
+			Action:      query.Get("action"),
+			Limit:       100, // default
+			Skip:        0,
+		}
+
+		// Parse limit and skip
+		if limitStr := query.Get("limit"); limitStr != "" {
+			fmt.Sscanf(limitStr, "%d", &filter.Limit)
+		}
+		if skipStr := query.Get("skip"); skipStr != "" {
+			fmt.Sscanf(skipStr, "%d", &filter.Skip)
+		}
+
+		// Parse time range
+		if startStr := query.Get("startTime"); startStr != "" {
+			if t, err := time.Parse(time.RFC3339, startStr); err == nil {
+				filter.StartTime = t
+			}
+		}
+		if endStr := query.Get("endTime"); endStr != "" {
+			if t, err := time.Parse(time.RFC3339, endStr); err == nil {
+				filter.EndTime = t
+			}
+		}
+
+		// Get messages
+		messages, err := messageLogger.GetMessages(r.Context(), filter)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get messages: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		// Get total count
+		totalCount, err := messageLogger.CountMessages(r.Context(), filter)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to count messages: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]interface{}{
+			"messages": messages,
+			"total":    totalCount,
+			"count":    len(messages),
+			"limit":    filter.Limit,
+			"skip":     filter.Skip,
+		}
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+			return
+		}
+	})
+
+	// Message search endpoint
+	mux.HandleFunc("/api/messages/search", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		query := r.URL.Query()
+		searchTerm := query.Get("q")
+		if searchTerm == "" {
+			http.Error(w, "Search term required", http.StatusBadRequest)
+			return
+		}
+
+		filter := logging.MessageFilter{
+			StationID:   query.Get("stationId"),
+			Direction:   query.Get("direction"),
+			MessageType: query.Get("messageType"),
+			Limit:       100,
+			Skip:        0,
+		}
+
+		if limitStr := query.Get("limit"); limitStr != "" {
+			fmt.Sscanf(limitStr, "%d", &filter.Limit)
+		}
+		if skipStr := query.Get("skip"); skipStr != "" {
+			fmt.Sscanf(skipStr, "%d", &filter.Skip)
+		}
+
+		messages, err := messageLogger.SearchMessages(r.Context(), searchTerm, filter)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to search messages: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]interface{}{
+			"messages":   messages,
+			"count":      len(messages),
+			"searchTerm": searchTerm,
+		}
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+			return
+		}
+	})
+
+	// Message logger stats endpoint
+	mux.HandleFunc("/api/messages/stats", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		stats := messageLogger.GetStats()
+
+		response := map[string]interface{}{
+			"total":              stats.TotalMessages,
+			"sent":               stats.SentMessages,
+			"received":           stats.ReceivedMessages,
+			"buffered":           stats.BufferedMessages,
+			"dropped":            stats.DroppedMessages,
+			"callMessages":       stats.CallMessages,
+			"callResultMessages": stats.CallResultMessages,
+			"callErrorMessages":  stats.CallErrorMessages,
+			"lastFlush":          stats.LastFlush,
+			"flushCount":         stats.FlushCount,
+		}
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+			return
+		}
+	})
+
 	// TODO: Set up WebSocket handlers
 
 	serverAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ruslanhut/ocpp-emu/internal/connection"
+	"github.com/ruslanhut/ocpp-emu/internal/logging"
 	"github.com/ruslanhut/ocpp-emu/internal/ocpp"
 	"github.com/ruslanhut/ocpp-emu/internal/ocpp/v16"
 	"github.com/ruslanhut/ocpp-emu/internal/storage"
@@ -17,15 +18,16 @@ import (
 
 // Manager manages all charging stations
 type Manager struct {
-	stations     map[string]*Station
-	mu           sync.RWMutex
-	db           *storage.MongoDBClient
-	connManager  *connection.Manager
-	logger       *slog.Logger
-	ctx          context.Context
-	cancel       context.CancelFunc
-	syncInterval time.Duration
-	syncWg       sync.WaitGroup
+	stations      map[string]*Station
+	mu            sync.RWMutex
+	db            *storage.MongoDBClient
+	connManager   *connection.Manager
+	messageLogger *logging.MessageLogger
+	logger        *slog.Logger
+	ctx           context.Context
+	cancel        context.CancelFunc
+	syncInterval  time.Duration
+	syncWg        sync.WaitGroup
 }
 
 // Station represents a managed charging station instance
@@ -46,6 +48,7 @@ type ManagerConfig struct {
 func NewManager(
 	db *storage.MongoDBClient,
 	connManager *connection.Manager,
+	messageLogger *logging.MessageLogger,
 	logger *slog.Logger,
 	config ManagerConfig,
 ) *Manager {
@@ -56,13 +59,14 @@ func NewManager(
 	}
 
 	return &Manager{
-		stations:     make(map[string]*Station),
-		db:           db,
-		connManager:  connManager,
-		logger:       logger,
-		ctx:          ctx,
-		cancel:       cancel,
-		syncInterval: config.SyncInterval,
+		stations:      make(map[string]*Station),
+		db:            db,
+		connManager:   connManager,
+		messageLogger: messageLogger,
+		logger:        logger,
+		ctx:           ctx,
+		cancel:        cancel,
+		syncInterval:  config.SyncInterval,
 	}
 }
 
@@ -613,60 +617,27 @@ func (m *Manager) sendNotImplementedError(stationID, uniqueID, action string) {
 	}
 }
 
-// storeMessage stores a message in MongoDB
+// storeMessage stores a message using the message logger
 func (m *Manager) storeMessage(stationID, direction string, message interface{}) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// Get protocol version from station
+	m.mu.RLock()
+	station, exists := m.stations[stationID]
+	m.mu.RUnlock()
 
-	var messageType, action, uniqueID string
-	var payload interface{}
-
-	switch msg := message.(type) {
-	case *ocpp.Call:
-		messageType = "Call"
-		action = msg.Action
-		uniqueID = msg.UniqueID
-		payload = msg.Payload
-	case *ocpp.CallResult:
-		messageType = "CallResult"
-		uniqueID = msg.UniqueID
-		payload = msg.Payload
-	case *ocpp.CallError:
-		messageType = "CallError"
-		uniqueID = msg.UniqueID
-		errorPayload := make(map[string]interface{})
-		errorPayload["errorCode"] = msg.ErrorCode
-		errorPayload["errorDesc"] = msg.ErrorDesc
-		errorPayload["details"] = msg.ErrorDetails
-		payload = errorPayload
+	protocolVersion := "ocpp1.6" // default
+	if exists {
+		station.mu.RLock()
+		protocolVersion = station.Config.ProtocolVersion
+		station.mu.RUnlock()
 	}
 
-	// Convert payload to map[string]interface{} if needed
-	var payloadMap map[string]interface{}
-	if payload != nil {
-		if m, ok := payload.(map[string]interface{}); ok {
-			payloadMap = m
-		} else {
-			// Payload is json.RawMessage, create a wrapper
-			payloadMap = make(map[string]interface{})
-			payloadMap["data"] = payload
-		}
-	}
-
-	dbMessage := storage.Message{
-		StationID:   stationID,
-		Direction:   direction,
-		MessageType: messageType,
-		Action:      action,
-		MessageID:   uniqueID,
-		Payload:     payloadMap,
-		Timestamp:   time.Now(),
-	}
-
-	collection := m.db.MessagesCollection
-	_, err := collection.InsertOne(ctx, dbMessage)
-	if err != nil {
-		m.logger.Error("Failed to store message", "error", err)
+	// Log message using message logger
+	if err := m.messageLogger.LogMessage(stationID, direction, message, protocolVersion); err != nil {
+		m.logger.Error("Failed to log message",
+			"stationId", stationID,
+			"direction", direction,
+			"error", err,
+		)
 	}
 }
 
@@ -836,6 +807,13 @@ func (m *Manager) Shutdown(ctx context.Context) error {
 	// Final state sync
 	m.syncState()
 
+	// Shutdown message logger
+	if m.messageLogger != nil {
+		if err := m.messageLogger.Shutdown(); err != nil {
+			m.logger.Error("Failed to shutdown message logger", "error", err)
+		}
+	}
+
 	m.logger.Info("Station manager shutdown complete")
 	return nil
 }
@@ -866,7 +844,7 @@ func (m *Manager) GetStats() map[string]interface{} {
 		}
 	}
 
-	return map[string]interface{}{
+	stats := map[string]interface{}{
 		"total":        len(m.stations),
 		"connected":    connected,
 		"disconnected": disconnected,
@@ -875,4 +853,23 @@ func (m *Manager) GetStats() map[string]interface{} {
 		"faulted":      faulted,
 		"syncInterval": m.syncInterval.String(),
 	}
+
+	// Add message logger stats if available
+	if m.messageLogger != nil {
+		loggerStats := m.messageLogger.GetStats()
+		stats["messages"] = map[string]interface{}{
+			"total":              loggerStats.TotalMessages,
+			"sent":               loggerStats.SentMessages,
+			"received":           loggerStats.ReceivedMessages,
+			"buffered":           loggerStats.BufferedMessages,
+			"dropped":            loggerStats.DroppedMessages,
+			"callMessages":       loggerStats.CallMessages,
+			"callResultMessages": loggerStats.CallResultMessages,
+			"callErrorMessages":  loggerStats.CallErrorMessages,
+			"lastFlush":          loggerStats.LastFlush,
+			"flushCount":         loggerStats.FlushCount,
+		}
+	}
+
+	return stats
 }

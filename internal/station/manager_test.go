@@ -17,7 +17,7 @@ func TestNewManager(t *testing.T) {
 		SyncInterval: 10 * time.Second,
 	}
 
-	manager := NewManager(nil, nil, logger, config)
+	manager := NewManager(nil, nil, nil, logger, config)
 
 	if manager == nil {
 		t.Fatal("Expected manager to be created")
@@ -37,7 +37,7 @@ func TestNewManagerDefaultConfig(t *testing.T) {
 
 	config := ManagerConfig{} // Empty config
 
-	manager := NewManager(nil, nil, logger, config)
+	manager := NewManager(nil, nil, nil, logger, config)
 
 	if manager.syncInterval != 30*time.Second {
 		t.Errorf("Expected default sync interval 30s, got %v", manager.syncInterval)
@@ -46,7 +46,7 @@ func TestNewManagerDefaultConfig(t *testing.T) {
 
 func TestAddStation(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	manager := NewManager(nil, nil, logger, ManagerConfig{})
+	manager := NewManager(nil, nil, nil, logger, ManagerConfig{})
 
 	config := Config{
 		StationID:       "TEST001",
@@ -91,7 +91,7 @@ func TestAddStation(t *testing.T) {
 
 func TestGetStation(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	manager := NewManager(nil, nil, logger, ManagerConfig{})
+	manager := NewManager(nil, nil, nil, logger, ManagerConfig{})
 
 	// Try to get non-existent station
 	_, err := manager.GetStation("NONEXISTENT")
@@ -125,7 +125,7 @@ func TestGetStation(t *testing.T) {
 
 func TestGetAllStations(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	manager := NewManager(nil, nil, logger, ManagerConfig{})
+	manager := NewManager(nil, nil, nil, logger, ManagerConfig{})
 
 	// Initially empty
 	stations := manager.GetAllStations()
@@ -156,7 +156,7 @@ func TestGetAllStations(t *testing.T) {
 func TestOnStationConnected(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	connMgr := connection.NewManager(nil, logger)
-	manager := NewManager(nil, connMgr, logger, ManagerConfig{})
+	manager := NewManager(nil, connMgr, nil, logger, ManagerConfig{})
 
 	// Add station
 	config := Config{
@@ -196,7 +196,7 @@ func TestOnStationConnected(t *testing.T) {
 
 func TestOnStationDisconnected(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	manager := NewManager(nil, nil, logger, ManagerConfig{})
+	manager := NewManager(nil, nil, nil, logger, ManagerConfig{})
 
 	// Add connected station
 	config := Config{
@@ -237,7 +237,7 @@ func TestOnStationDisconnected(t *testing.T) {
 
 func TestGetStats(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	manager := NewManager(nil, nil, logger, ManagerConfig{})
+	manager := NewManager(nil, nil, nil, logger, ManagerConfig{})
 
 	// Add stations in different states
 	states := []State{
@@ -303,7 +303,7 @@ func TestConvertStorageToConfig(t *testing.T) {
 
 func TestShutdown(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	manager := NewManager(nil, nil, logger, ManagerConfig{
+	manager := NewManager(nil, nil, nil, logger, ManagerConfig{
 		SyncInterval: 100 * time.Millisecond,
 	})
 
@@ -333,7 +333,7 @@ func TestShutdown(t *testing.T) {
 
 func TestStartStationValidation(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	manager := NewManager(nil, nil, logger, ManagerConfig{})
+	manager := NewManager(nil, nil, nil, logger, ManagerConfig{})
 
 	ctx := context.Background()
 
@@ -368,7 +368,7 @@ func TestStartStationValidation(t *testing.T) {
 
 func TestStopStationValidation(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	manager := NewManager(nil, nil, logger, ManagerConfig{})
+	manager := NewManager(nil, nil, nil, logger, ManagerConfig{})
 
 	ctx := context.Background()
 
