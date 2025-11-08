@@ -28,6 +28,7 @@ type Manager struct {
 	cancel        context.CancelFunc
 	syncInterval  time.Duration
 	syncWg        sync.WaitGroup
+	v16Handler    *v16.Handler // OCPP 1.6 message handler
 }
 
 // Station represents a managed charging station instance
@@ -65,7 +66,7 @@ func NewManager(
 		config.SyncInterval = 30 * time.Second
 	}
 
-	return &Manager{
+	m := &Manager{
 		stations:      make(map[string]*Station),
 		db:            db,
 		connManager:   connManager,
@@ -74,6 +75,116 @@ func NewManager(
 		ctx:           ctx,
 		cancel:        cancel,
 		syncInterval:  config.SyncInterval,
+	}
+
+	// Initialize OCPP 1.6 handler
+	m.v16Handler = v16.NewHandler(logger)
+	m.v16Handler.SendMessage = connManager.SendMessage
+	m.setupV16HandlerCallbacks()
+
+	return m
+}
+
+// setupV16HandlerCallbacks sets up callbacks for OCPP 1.6 handler
+func (m *Manager) setupV16HandlerCallbacks() {
+	// RemoteStartTransaction handler
+	m.v16Handler.OnRemoteStartTransaction = func(stationID string, req *v16.RemoteStartTransactionRequest) (*v16.RemoteStartTransactionResponse, error) {
+		m.logger.Info("Handling RemoteStartTransaction", "stationId", stationID, "idTag", req.IdTag)
+
+		// TODO: Implement actual transaction start logic
+		// For now, accept the request
+		return &v16.RemoteStartTransactionResponse{
+			Status: "Accepted",
+		}, nil
+	}
+
+	// RemoteStopTransaction handler
+	m.v16Handler.OnRemoteStopTransaction = func(stationID string, req *v16.RemoteStopTransactionRequest) (*v16.RemoteStopTransactionResponse, error) {
+		m.logger.Info("Handling RemoteStopTransaction", "stationId", stationID, "transactionId", req.TransactionId)
+
+		// TODO: Implement actual transaction stop logic
+		// For now, accept the request
+		return &v16.RemoteStopTransactionResponse{
+			Status: "Accepted",
+		}, nil
+	}
+
+	// Reset handler
+	m.v16Handler.OnReset = func(stationID string, req *v16.ResetRequest) (*v16.ResetResponse, error) {
+		m.logger.Info("Handling Reset", "stationId", stationID, "type", req.Type)
+
+		// TODO: Implement actual reset logic
+		// For now, accept the request
+		return &v16.ResetResponse{
+			Status: "Accepted",
+		}, nil
+	}
+
+	// UnlockConnector handler
+	m.v16Handler.OnUnlockConnector = func(stationID string, req *v16.UnlockConnectorRequest) (*v16.UnlockConnectorResponse, error) {
+		m.logger.Info("Handling UnlockConnector", "stationId", stationID, "connectorId", req.ConnectorId)
+
+		// TODO: Implement actual unlock logic
+		// For now, return not supported
+		return &v16.UnlockConnectorResponse{
+			Status: "NotSupported",
+		}, nil
+	}
+
+	// ChangeAvailability handler
+	m.v16Handler.OnChangeAvailability = func(stationID string, req *v16.ChangeAvailabilityRequest) (*v16.ChangeAvailabilityResponse, error) {
+		m.logger.Info("Handling ChangeAvailability", "stationId", stationID, "connectorId", req.ConnectorId, "type", req.Type)
+
+		// TODO: Implement actual availability change logic
+		// For now, accept the request
+		return &v16.ChangeAvailabilityResponse{
+			Status: "Accepted",
+		}, nil
+	}
+
+	// ChangeConfiguration handler
+	m.v16Handler.OnChangeConfiguration = func(stationID string, req *v16.ChangeConfigurationRequest) (*v16.ChangeConfigurationResponse, error) {
+		m.logger.Info("Handling ChangeConfiguration", "stationId", stationID, "key", req.Key, "value", req.Value)
+
+		// TODO: Implement actual configuration change logic
+		// For now, return not supported
+		return &v16.ChangeConfigurationResponse{
+			Status: "NotSupported",
+		}, nil
+	}
+
+	// GetConfiguration handler
+	m.v16Handler.OnGetConfiguration = func(stationID string, req *v16.GetConfigurationRequest) (*v16.GetConfigurationResponse, error) {
+		m.logger.Info("Handling GetConfiguration", "stationId", stationID, "keys", req.Key)
+
+		// TODO: Implement actual configuration retrieval logic
+		// For now, return empty response
+		return &v16.GetConfigurationResponse{
+			ConfigurationKey: []v16.KeyValue{},
+			UnknownKey:       req.Key,
+		}, nil
+	}
+
+	// ClearCache handler
+	m.v16Handler.OnClearCache = func(stationID string, req *v16.ClearCacheRequest) (*v16.ClearCacheResponse, error) {
+		m.logger.Info("Handling ClearCache", "stationId", stationID)
+
+		// TODO: Implement actual cache clear logic
+		// For now, accept the request
+		return &v16.ClearCacheResponse{
+			Status: "Accepted",
+		}, nil
+	}
+
+	// DataTransfer handler
+	m.v16Handler.OnDataTransfer = func(stationID string, req *v16.DataTransferRequest) (*v16.DataTransferResponse, error) {
+		m.logger.Info("Handling DataTransfer", "stationId", stationID, "vendorId", req.VendorId, "messageId", req.MessageId)
+
+		// TODO: Implement actual data transfer logic
+		// For now, return unknown vendor
+		return &v16.DataTransferResponse{
+			Status: "UnknownVendorId",
+		}, nil
 	}
 }
 
@@ -517,19 +628,44 @@ func (m *Manager) handleCall(stationID string, call *ocpp.Call) {
 	// Store message in MongoDB
 	go m.storeMessage(stationID, "received", call)
 
-	// Handle different actions (to be implemented)
-	switch call.Action {
-	case string(v16.ActionRemoteStartTransaction):
-		// TODO: Handle RemoteStartTransaction
-	case string(v16.ActionRemoteStopTransaction):
-		// TODO: Handle RemoteStopTransaction
-	case string(v16.ActionReset):
-		// TODO: Handle Reset
-	case string(v16.ActionChangeConfiguration):
-		// TODO: Handle ChangeConfiguration
-	default:
-		// Send NotImplemented error
+	// Get station to determine protocol version
+	m.mu.RLock()
+	station, exists := m.stations[stationID]
+	m.mu.RUnlock()
+
+	if !exists {
+		m.logger.Error("Station not found", "stationId", stationID)
 		m.sendNotImplementedError(stationID, call.UniqueID, call.Action)
+		return
+	}
+
+	station.mu.RLock()
+	protocolVersion := station.Config.ProtocolVersion
+	station.mu.RUnlock()
+
+	// Route to appropriate handler based on protocol version
+	var response interface{}
+	var err error
+
+	switch protocolVersion {
+	case "ocpp1.6", "1.6":
+		response, err = m.v16Handler.HandleCall(stationID, call)
+	default:
+		m.logger.Error("Unsupported protocol version", "stationId", stationID, "version", protocolVersion)
+		m.sendNotImplementedError(stationID, call.UniqueID, call.Action)
+		return
+	}
+
+	// Handle errors
+	if err != nil {
+		m.logger.Error("Failed to handle call", "stationId", stationID, "action", call.Action, "error", err)
+		m.sendNotImplementedError(stationID, call.UniqueID, call.Action)
+		return
+	}
+
+	// Send response
+	if err := m.sendCallResult(stationID, call.UniqueID, response); err != nil {
+		m.logger.Error("Failed to send response", "stationId", stationID, "error", err)
 	}
 }
 
@@ -622,6 +758,28 @@ func (m *Manager) sendNotImplementedError(stationID, uniqueID, action string) {
 	if err := m.connManager.SendMessage(stationID, data); err != nil {
 		m.logger.Error("Failed to send CallError", "stationId", stationID, "error", err)
 	}
+}
+
+// sendCallResult sends a CallResult response
+func (m *Manager) sendCallResult(stationID, uniqueID string, payload interface{}) error {
+	callResult, err := ocpp.NewCallResult(uniqueID, payload)
+	if err != nil {
+		return fmt.Errorf("failed to create CallResult: %w", err)
+	}
+
+	data, err := callResult.ToBytes()
+	if err != nil {
+		return fmt.Errorf("failed to marshal CallResult: %w", err)
+	}
+
+	if err := m.connManager.SendMessage(stationID, data); err != nil {
+		return fmt.Errorf("failed to send CallResult: %w", err)
+	}
+
+	// Store sent message
+	go m.storeMessage(stationID, "sent", callResult)
+
+	return nil
 }
 
 // storeMessage stores a message using the message logger
