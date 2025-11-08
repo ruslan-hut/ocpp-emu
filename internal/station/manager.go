@@ -652,12 +652,16 @@ func (m *Manager) storeMessage(stationID, direction string, message interface{})
 func (m *Manager) saveStationToDB(ctx context.Context, station *Station) error {
 	dbStation := m.convertConfigToStorage(station.Config)
 
+	// Don't include _id in the replacement document (it's immutable)
+	// MongoDB will preserve the existing _id
+	dbStation.ID = ""
+
 	collection := m.db.StationsCollection
 
 	opts := options.Replace().SetUpsert(true)
 	_, err := collection.ReplaceOne(
 		ctx,
-		bson.M{"stationId": station.Config.StationID},
+		bson.M{"station_id": station.Config.StationID},
 		dbStation,
 		opts,
 	)
