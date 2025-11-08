@@ -378,3 +378,60 @@ func TestStopStationValidation(t *testing.T) {
 		t.Error("Expected error when stopping non-existent station")
 	}
 }
+
+func TestSyncStateNoDeadlock(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+	manager := NewManager(nil, nil, nil, logger, ManagerConfig{
+		SyncInterval: 200 * time.Millisecond,
+	})
+
+	station := &Station{
+		Config: Config{
+			StationID: "test-station",
+		},
+		StateMachine: NewStateMachine(),
+		RuntimeState: RuntimeState{
+			State:            StateDisconnected,
+			ConnectionStatus: "not_connected",
+		},
+	}
+	// Set lastSync in the future so syncState skips persisting to Mongo.
+	station.lastSync = time.Now().Add(time.Hour)
+
+	manager.mu.Lock()
+	manager.stations[station.Config.StationID] = station
+	manager.mu.Unlock()
+
+	done := make(chan error, 2)
+
+	go func() {
+		for i := 0; i < 50; i++ {
+			manager.syncState()
+			time.Sleep(10 * time.Millisecond)
+		}
+		done <- nil
+	}()
+
+	go func() {
+		for i := 0; i < 200; i++ {
+			if _, err := manager.GetStation("test-station"); err != nil {
+				done <- err
+				return
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		done <- nil
+	}()
+
+	timeout := time.After(5 * time.Second)
+	for i := 0; i < 2; i++ {
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		case <-timeout:
+			t.Fatal("syncState deadlocked with concurrent station access")
+		}
+	}
+}

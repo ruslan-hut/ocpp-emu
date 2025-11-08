@@ -67,29 +67,27 @@ func main() {
 	connManager := connection.NewManager(&cfg.CSMS, logger)
 	logger.Info("WebSocket connection manager initialized")
 
-	// TEMPORARILY DISABLED: Message Broadcaster for real-time WebSocket streaming
+	// Message Broadcaster for real-time WebSocket streaming
 	// Testing if this is causing the backend to become unresponsive
-	// messageBroadcaster := api.NewMessageBroadcaster(logger)
-	// messageBroadcaster.Start()
-	// logger.Info("Message broadcaster initialized and started")
+	messageBroadcaster := api.NewMessageBroadcaster(logger)
+	messageBroadcaster.Start()
+	logger.Info("Message broadcaster initialized and started")
 
-	// TEMPORARILY DISABLED: Message Logger
+	// Message Logger
 	// Testing if this is causing the backend to become unresponsive
-	// messageLogger := logging.NewMessageLogger(
-	// 	mongoClient,
-	// 	logger,
-	// 	logging.LoggerConfig{
-	// 		BufferSize:    1000,
-	// 		BatchSize:     100,
-	// 		FlushInterval: 5 * time.Second,
-	// 		LogLevel:      "info",
-	// 	},
-	// )
-	// messageLogger.SetBroadcaster(messageBroadcaster)  // TEMPORARILY DISABLED
-	// messageLogger.Start()
-	// logger.Info("Message logger initialized and started")
-	var messageLogger *logging.MessageLogger = nil
-	logger.Info("Message logger DISABLED for testing")
+	messageLogger := logging.NewMessageLogger(
+		mongoClient,
+		logger,
+		logging.LoggerConfig{
+			BufferSize:    1000,
+			BatchSize:     100,
+			FlushInterval: 5 * time.Second,
+			LogLevel:      "info",
+		},
+	)
+	messageLogger.SetBroadcaster(messageBroadcaster)
+	messageLogger.Start()
+	logger.Info("Message logger initialized and started")
 
 	// Initialize Station Manager
 	stationManager := station.NewManager(
@@ -130,11 +128,9 @@ func main() {
 		)
 	}
 
-	// TEMPORARILY DISABLED: Background state synchronization
-	// Testing if this is causing the deadlock after 60-70 seconds
-	// stationManager.StartSync()
-	// logger.Info("Station state synchronization started")
-	logger.Info("Station state synchronization DISABLED for testing")
+	// Background state synchronization
+	stationManager.StartSync()
+	logger.Info("Station state synchronization started")
 
 	// Auto-start enabled stations
 	if err := stationManager.AutoStart(ctx); err != nil {
@@ -385,9 +381,9 @@ func main() {
 	stationHandler := api.NewStationHandler(stationManager, logger)
 	logger.Info("Station API handler initialized")
 
-	// TEMPORARILY DISABLED: WebSocket Handler for real-time message streaming
-	// wsHandler := api.NewWebSocketHandler(messageBroadcaster, logger)
-	// logger.Info("WebSocket handler initialized")
+	// WebSocket Handler for real-time message streaming
+	wsHandler := api.NewWebSocketHandler(messageBroadcaster, logger)
+	logger.Info("WebSocket handler initialized")
 
 	// Station CRUD endpoints
 	mux.HandleFunc("/api/stations", func(w http.ResponseWriter, r *http.Request) {
@@ -426,10 +422,10 @@ func main() {
 		}
 	})
 
-	// TEMPORARILY DISABLED: WebSocket endpoints
-	// mux.HandleFunc("/api/ws/messages", wsHandler.HandleMessages)
-	// mux.HandleFunc("/api/ws/stats", wsHandler.HandleBroadcasterStats)
-	// logger.Info("WebSocket endpoints registered")
+	// WebSocket endpoints
+	mux.HandleFunc("/api/ws/messages", wsHandler.HandleMessages)
+	mux.HandleFunc("/api/ws/stats", wsHandler.HandleBroadcasterStats)
+	logger.Info("WebSocket endpoints registered")
 
 	serverAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	server := &http.Server{
@@ -478,15 +474,15 @@ func main() {
 		logger.Error("Failed to shutdown connection manager", slog.String("error", err.Error()))
 	}
 
-	// TEMPORARILY DISABLED: Shutdown message logger
-	// if err := messageLogger.Shutdown(); err != nil {
-	// 	logger.Error("Failed to shutdown message logger", slog.String("error", err.Error()))
-	// }
+	// Shutdown message logger
+	if err := messageLogger.Shutdown(); err != nil {
+		logger.Error("Failed to shutdown message logger", slog.String("error", err.Error()))
+	}
 
-	// TEMPORARILY DISABLED: Shutdown message broadcaster
-	// if err := messageBroadcaster.Shutdown(); err != nil {
-	// 	logger.Error("Failed to shutdown message broadcaster", slog.String("error", err.Error()))
-	// }
+	// Shutdown message broadcaster
+	if err := messageBroadcaster.Shutdown(); err != nil {
+		logger.Error("Failed to shutdown message broadcaster", slog.String("error", err.Error()))
+	}
 
 	// Close MongoDB connection
 	if err := mongoClient.Close(shutdownCtx); err != nil {

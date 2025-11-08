@@ -10,7 +10,7 @@ import (
 	"github.com/ruslanhut/ocpp-emu/internal/connection"
 	"github.com/ruslanhut/ocpp-emu/internal/logging"
 	"github.com/ruslanhut/ocpp-emu/internal/ocpp"
-	"github.com/ruslanhut/ocpp-emu/internal/ocpp/v16"
+	v16 "github.com/ruslanhut/ocpp-emu/internal/ocpp/v16"
 	"github.com/ruslanhut/ocpp-emu/internal/storage"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -665,33 +665,52 @@ func (m *Manager) syncLoop() {
 
 // syncState synchronizes runtime state to MongoDB
 func (m *Manager) syncState() {
+	// Copy station references while holding the manager lock so we can release it
+	// before taking individual station locks. This prevents lock-order inversions
+	// (manager -> station) that previously led to deadlocks.
+	type syncTarget struct {
+		id      string
+		station *Station
+	}
+
 	m.mu.RLock()
-	defer m.mu.RUnlock()
+	targets := make([]syncTarget, 0, len(m.stations))
+	for stationID, station := range m.stations {
+		targets = append(targets, syncTarget{
+			id:      stationID,
+			station: station,
+		})
+	}
+	m.mu.RUnlock()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	count := 0
-	for stationID, station := range m.stations {
-		station.mu.Lock()
+	for _, target := range targets {
+		station := target.station
+		if station == nil {
+			continue
+		}
 
-		// Only sync if changed since last sync
-		if time.Since(station.lastSync) < m.syncInterval/2 {
-			station.mu.Unlock()
+		station.mu.RLock()
+		shouldSync := time.Since(station.lastSync) >= m.syncInterval/2
+		station.mu.RUnlock()
+		if !shouldSync {
 			continue
 		}
 
 		if err := m.saveStationToDB(ctx, station); err != nil {
 			m.logger.Error("Failed to sync station state",
-				"stationId", stationID,
+				"stationId", target.id,
 				"error", err,
 			)
 		} else {
+			station.mu.Lock()
 			station.lastSync = time.Now()
+			station.mu.Unlock()
 			count++
 		}
-
-		station.mu.Unlock()
 	}
 
 	if count > 0 {
