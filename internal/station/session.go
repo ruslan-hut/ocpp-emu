@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ruslanhut/ocpp-emu/internal/ocpp/v16"
+	"github.com/ruslanhut/ocpp-emu/internal/storage"
 )
 
 // SessionManager manages charging sessions for a station
@@ -18,6 +19,8 @@ type SessionManager struct {
 	nextTransactionID int
 	mu                sync.RWMutex
 	logger            *slog.Logger
+	transactionRepo   *storage.TransactionRepository
+	protocolVersion   string
 
 	// Callbacks for OCPP message sending
 	SendAuthorize          func(idTag string) (*v16.AuthorizeResponse, error)
@@ -89,6 +92,16 @@ func (sm *SessionManager) GetAllConnectors() []*Connector {
 	}
 
 	return connectors
+}
+
+// SetTransactionRepository sets the transaction repository for persistence
+func (sm *SessionManager) SetTransactionRepository(repo *storage.TransactionRepository) {
+	sm.transactionRepo = repo
+}
+
+// SetProtocolVersion sets the protocol version for transaction logging
+func (sm *SessionManager) SetProtocolVersion(version string) {
+	sm.protocolVersion = version
 }
 
 // Authorize authorizes an ID tag
@@ -192,6 +205,33 @@ func (sm *SessionManager) StartCharging(connectorID int, idTag string) (int, err
 		return 0, fmt.Errorf("failed to start transaction: %w", err)
 	}
 
+	// Persist transaction to database
+	if sm.transactionRepo != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		dbTransaction := storage.Transaction{
+			TransactionID:   transactionID,
+			StationID:       sm.stationID,
+			ConnectorID:     connectorID,
+			IDTag:           idTag,
+			StartTimestamp:  time.Now(),
+			MeterStart:      meterStart,
+			MeterStop:       0,
+			EnergyConsumed:  0,
+			Status:          "active",
+			ProtocolVersion: sm.protocolVersion,
+		}
+
+		if err := sm.transactionRepo.Create(ctx, dbTransaction); err != nil {
+			sm.logger.Error("Failed to persist transaction to database",
+				"transactionId", transactionID,
+				"error", err,
+			)
+			// Continue anyway - local transaction is started
+		}
+	}
+
 	// Transition to Charging
 	if err := connector.SetState(ConnectorStateCharging, v16.ChargePointErrorNoError, "Charging"); err != nil {
 		connector.StopTransaction(meterStart, v16.ReasonOther)
@@ -268,6 +308,20 @@ func (sm *SessionManager) StopCharging(connectorID int, reason v16.Reason) error
 		if err != nil {
 			sm.logger.Error("Failed to send StopTransaction", "error", err)
 			// Continue anyway - local state is already stopped
+		}
+	}
+
+	// Update transaction in database
+	if sm.transactionRepo != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := sm.transactionRepo.Complete(ctx, tx.ID, sm.stationID, meterStop, string(reason)); err != nil {
+			sm.logger.Error("Failed to update transaction in database",
+				"transactionId", tx.ID,
+				"error", err,
+			)
+			// Continue anyway - local state is updated
 		}
 	}
 

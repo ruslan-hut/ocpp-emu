@@ -340,6 +340,11 @@ func (m *Manager) LoadStations(ctx context.Context) error {
 		// Create session manager for the station
 		sessionManager := NewSessionManager(config.StationID, config.Connectors, m.logger)
 
+		// Set up transaction repository
+		transactionRepo := storage.NewTransactionRepository(m.db)
+		sessionManager.SetTransactionRepository(transactionRepo)
+		sessionManager.SetProtocolVersion(config.ProtocolVersion)
+
 		// Create station instance
 		station := &Station{
 			Config:         config,
@@ -942,7 +947,40 @@ func (m *Manager) storeMessage(stationID, direction string, message interface{})
 
 // saveStationToDB persists station to MongoDB
 func (m *Manager) saveStationToDB(ctx context.Context, station *Station) error {
+	station.mu.RLock()
 	dbStation := m.convertConfigToStorage(station.Config)
+
+	// Add runtime state fields
+	dbStation.ConnectionStatus = station.RuntimeState.ConnectionStatus
+	dbStation.LastHeartbeat = station.RuntimeState.LastHeartbeat
+	dbStation.LastError = station.RuntimeState.LastError
+	station.mu.RUnlock()
+
+	// Update connector states from SessionManager
+	if station.SessionManager != nil {
+		connectors := station.SessionManager.GetAllConnectors()
+		for i, connector := range connectors {
+			// Find matching connector in dbStation and update status
+			for j := range dbStation.Connectors {
+				if dbStation.Connectors[j].ID == connector.ID {
+					dbStation.Connectors[j].Status = string(connector.GetState())
+
+					// Update current transaction ID if active
+					if connector.HasActiveTransaction() {
+						tx := connector.GetTransaction()
+						if tx != nil {
+							txID := tx.ID
+							dbStation.Connectors[j].CurrentTransactionID = &txID
+						}
+					} else {
+						dbStation.Connectors[j].CurrentTransactionID = nil
+					}
+					break
+				}
+			}
+			_ = i // unused
+		}
+	}
 
 	// Don't include _id in the replacement document (it's immutable)
 	// MongoDB will preserve the existing _id
