@@ -3,12 +3,535 @@
     "station_id": "CP001",
     "name": "Station 1 - Main Entrance",
     "enabled": true,
+    "auto_start": true,
+    "protocol_version": "ocpp1.6",
+    "vendor": "ABB",
+    "model": "Terra AC",
+    "serial_number": "ABB-TAC-001",
+    "firmware_version": "2.1.5",
+    "iccid": "89310410106543789301",
+    "imsi": "310410123456789",
+    "connectors": [
+      {
+        "id": 1,
+        "type": "Type2",
+        "max_power": 22000,
+        "status": "Available",
+        "current_transaction_id": null
+      },
+      {
+        "id": 2,
+        "type": "Type2",
+        "max_power": 22000,
+        "status": "Available",
+        "current_transaction_id": null
+      }
+    ],
+    "supported_profiles": [
+      "Core",
+      "FirmwareManagement",
+      "RemoteControl",
+      "SmartCharging"
+    ],
+    "meter_values_config": {
+      "interval": 60,
+      "measurands": [
+        "Energy.Active.Import.Register",
+        "Power.Active.Import",
+        "Current.Import",
+        "Voltage",
+        "SoC"
+      ],
+      "aligned_data_interval": 900
+    },
+    "csms_url": "ws://localhost:9000/ocpp/CP001",
+    "csms_auth": {
+      "type": "basic",
+      "username": "cp001",
+      "password": "secret123"
+    },
+    "simulation": {
+      "boot_delay": 5,
+      "heartbeat_interval": 60,
+      "status_notification_on_change": true,
+      "default_id_tag": "TAG-A001",
+      "energy_delivery_rate": 7000,
+      "randomize_meter_values": true,
+      "meter_value_variance": 0.05
+    },
+    "connection_status": "disconnected",
+    "tags": [
+      "production",
+      "building-a",
+      "main-entrance"
+    ]
+  },
+  {
+    "station_id": "CP002",
+    "name": "Station 2 - Parking Lot B",
+    "enabled": true,
     "auto_start": false,
-    "protocol_version": "1.6",
-    "vendor": "VendorName",
-    "model": "ModelX",
-    "serial_number": "SN123456",
-    "firmware_version": "1.0.0",
+    "protocol_version": "ocpp1.6",
+    "vendor": "Schneider Electric",
+    "model": "EVlink Pro AC",
+    "serial_number": "SE-EVLP-002",
+    "firmware_version": "3.2.1",
+    "iccid": "89310410106543789302",
+    "imsi": "310410123456790",
+    "connectors": [
+      {
+        "id": 1,
+        "type": "Type2",
+        "max_power": 11000,
+        "status": "Available",
+        "current_transaction_id": null
+      }
+    ],
+    "supported_profiles": [
+      "Core",
+      "FirmwareManagement",
+      "RemoteControl"
+    ],
+    "meter_values_config": {
+      "interval": 30,
+      "measurands": [
+        "Energy.Active.Import.Register",
+        "Power.Active.Import",
+        "Voltage"
+      ],
+      "aligned_data_interval": 600
+    },
+    "csms_url": "ws://localhost:9000/ocpp/CP002",
+    "csms_auth": {
+      "type": "basic",
+      "username": "cp002",
+      "password": "secret456"
+    },
+    "simulation": {
+      "boot_delay": 3,
+      "heartbeat_interval": 120,
+      "status_notification_on_change": true,
+      "default_id_tag": "TAG-B001",
+      "energy_delivery_rate": 11000,
+      "randomize_meter_values": true,
+      "meter_value_variance": 0.03
+    },
+    "connection_status": "disconnected",
+    "tags": [
+      "production",
+      "building-b",
+      "parking-lot"
+    ]
+  },
+  {
+    "station_id": "CP003",
+    "name": "Station 3 - DC Fast Charger",
+    "enabled": true,
+    "auto_start": true,
+    "protocol_version": "ocpp1.6",
+    "vendor": "ChargePoint",
+    "model": "Express 250",
+    "serial_number": "CP-EXP250-003",
+    "firmware_version": "4.5.2",
+    "iccid": "89310410106543789303",
+    "imsi": "310410123456791",
+    "connectors": [
+      {
+        "id": 1,
+        "type": "CCS",
+        "max_power": 50000,
+        "status": "Available",
+        "current_transaction_id": null
+      },
+      {
+        "id": 2,
+        "type": "CHAdeMO",
+        "max_power": 50000,
+        "status": "Available",
+        "current_transaction_id": null
+      }
+    ],
+    "supported_profiles": [
+      "Core",
+      "FirmwareManagement",
+      "RemoteControl",
+      "SmartCharging",
+      "Reservation"
+    ],
+    "meter_values_config": {
+      "interval": 15,
+      "measurands": [
+        "Energy.Active.Import.Register",
+        "Power.Active.Import",
+        "Current.Import",
+        "Voltage",
+        "SoC",
+        "Temperature"
+      ],
+      "aligned_data_interval": 300
+    },
+    "csms_url": "ws://localhost:9000/ocpp/CP003",
+    "csms_auth": {
+      "type": "basic",
+      "username": "cp003",
+      "password": "secret789"
+    },
+    "simulation": {
+      "boot_delay": 10,
+      "heartbeat_interval": 30,
+      "status_notification_on_change": true,
+      "default_id_tag": "TAG-C001",
+      "energy_delivery_rate": 50000,
+      "randomize_meter_values": true,
+      "meter_value_variance": 0.08
+    },
+    "connection_status": "disconnected",
+    "tags": [
+      "production",
+      "dc-fast",
+      "highway"
+    ]
+  },
+  {
+    "station_id": "CP004",
+    "name": "Station 4 - Tesla Compatible",
+    "enabled": false,
+    "auto_start": false,
+    "protocol_version": "ocpp1.6",
+    "vendor": "Tesla",
+    "model": "Wall Connector",
+    "serial_number": "TSLA-WC-004",
+    "firmware_version": "21.12.2",
+    "connectors": [
+      {
+        "id": 1,
+        "type": "Type2",
+        "max_power": 22000,
+        "status": "Available",
+        "current_transaction_id": null
+      }
+    ],
+    "supported_profiles": [
+      "Core",
+      "FirmwareManagement"
+    ],
+    "meter_values_config": {
+      "interval": 60,
+      "measurands": [
+        "Energy.Active.Import.Register",
+        "Power.Active.Import"
+      ],
+      "aligned_data_interval": 900
+    },
+    "csms_url": "ws://localhost:9000/ocpp/CP004",
+    "simulation": {
+      "boot_delay": 2,
+      "heartbeat_interval": 60,
+      "status_notification_on_change": false,
+      "default_id_tag": "TAG-D001",
+      "energy_delivery_rate": 11000,
+      "randomize_meter_values": false,
+      "meter_value_variance": 0.02
+    },
+    "connection_status": "disconnected",
+    "tags": [
+      "disabled",
+      "tesla",
+      "test"
+    ]
+  },
+  {
+    "station_id": "CP005",
+    "name": "Station 5 - OCPP 2.0.1 Test",
+    "enabled": true,
+    "auto_start": false,
+    "protocol_version": "ocpp2.0.1",
+    "vendor": "Siemens",
+    "model": "VersiCharge Pro",
+    "serial_number": "SIE-VCP-005",
+    "firmware_version": "5.1.0",
+    "iccid": "89310410106543789305",
+    "imsi": "310410123456793",
+    "connectors": [
+      {
+        "id": 1,
+        "type": "Type2",
+        "max_power": 22000,
+        "status": "Available",
+        "current_transaction_id": null
+      },
+      {
+        "id": 2,
+        "type": "Type2",
+        "max_power": 22000,
+        "status": "Available",
+        "current_transaction_id": null
+      },
+      {
+        "id": 3,
+        "type": "Type2",
+        "max_power": 11000,
+        "status": "Available",
+        "current_transaction_id": null
+      }
+    ],
+    "supported_profiles": [
+      "Core",
+      "FirmwareManagement",
+      "RemoteControl",
+      "SmartCharging",
+      "Reservation",
+      "LocalAuthList"
+    ],
+    "meter_values_config": {
+      "interval": 45,
+      "measurands": [
+        "Energy.Active.Import.Register",
+        "Power.Active.Import",
+        "Current.Import",
+        "Voltage",
+        "Frequency"
+      ],
+      "aligned_data_interval": 600
+    },
+    "csms_url": "ws://localhost:9000/ocpp/CP005",
+    "csms_auth": {
+      "type": "basic",
+      "username": "cp005",
+      "password": "secret202"
+    },
+    "simulation": {
+      "boot_delay": 8,
+      "heartbeat_interval": 90,
+      "status_notification_on_change": true,
+      "default_id_tag": "TAG-E001",
+      "energy_delivery_rate": 22000,
+      "randomize_meter_values": true,
+      "meter_value_variance": 0.06
+    },
+    "connection_status": "disconnected",
+    "tags": [
+      "test",
+      "ocpp2.0.1",
+      "development"
+    ]
+  },
+  {
+    "station_id": "CP006",
+    "name": "Station 6 - Multi-Standard",
+    "enabled": true,
+    "auto_start": true,
+    "protocol_version": "ocpp1.6",
+    "vendor": "EVBox",
+    "model": "Troniq 100",
+    "serial_number": "EVB-TRQ100-006",
+    "firmware_version": "6.3.1",
+    "iccid": "89310410106543789306",
+    "imsi": "310410123456794",
+    "connectors": [
+      {
+        "id": 1,
+        "type": "CCS",
+        "max_power": 100000,
+        "status": "Available",
+        "current_transaction_id": null
+      },
+      {
+        "id": 2,
+        "type": "CHAdeMO",
+        "max_power": 50000,
+        "status": "Available",
+        "current_transaction_id": null
+      },
+      {
+        "id": 3,
+        "type": "Type2",
+        "max_power": 43000,
+        "status": "Available",
+        "current_transaction_id": null
+      }
+    ],
+    "supported_profiles": [
+      "Core",
+      "FirmwareManagement",
+      "RemoteControl",
+      "SmartCharging",
+      "Reservation"
+    ],
+    "meter_values_config": {
+      "interval": 10,
+      "measurands": [
+        "Energy.Active.Import.Register",
+        "Power.Active.Import",
+        "Power.Reactive.Import",
+        "Current.Import",
+        "Current.Offered",
+        "Voltage",
+        "SoC",
+        "Temperature"
+      ],
+      "aligned_data_interval": 300
+    },
+    "csms_url": "ws://localhost:9000/ocpp/CP006",
+    "csms_auth": {
+      "type": "basic",
+      "username": "cp006",
+      "password": "secret999"
+    },
+    "simulation": {
+      "boot_delay": 15,
+      "heartbeat_interval": 45,
+      "status_notification_on_change": true,
+      "default_id_tag": "TAG-F001",
+      "energy_delivery_rate": 100000,
+      "randomize_meter_values": true,
+      "meter_value_variance": 0.1
+    },
+    "connection_status": "disconnected",
+    "tags": [
+      "production",
+      "high-power",
+      "multi-standard",
+      "highway"
+    ]
+  },
+  {
+    "station_id": "CP007",
+    "name": "Station 7 - Basic Home Charger",
+    "enabled": true,
+    "auto_start": false,
+    "protocol_version": "ocpp1.6",
+    "vendor": "Wallbox",
+    "model": "Pulsar Plus",
+    "serial_number": "WB-PP-007",
+    "firmware_version": "1.8.3",
+    "connectors": [
+      {
+        "id": 1,
+        "type": "Type2",
+        "max_power": 7400,
+        "status": "Available",
+        "current_transaction_id": null
+      }
+    ],
+    "supported_profiles": [
+      "Core",
+      "RemoteControl"
+    ],
+    "meter_values_config": {
+      "interval": 120,
+      "measurands": [
+        "Energy.Active.Import.Register",
+        "Power.Active.Import"
+      ],
+      "aligned_data_interval": 1800
+    },
+    "csms_url": "ws://localhost:9000/ocpp/CP007",
+    "csms_auth": {
+      "type": "basic",
+      "username": "cp007",
+      "password": "home123"
+    },
+    "simulation": {
+      "boot_delay": 2,
+      "heartbeat_interval": 300,
+      "status_notification_on_change": false,
+      "default_id_tag": "TAG-HOME001",
+      "energy_delivery_rate": 7400,
+      "randomize_meter_values": false,
+      "meter_value_variance": 0.01
+    },
+    "connection_status": "disconnected",
+    "tags": [
+      "home",
+      "residential",
+      "test"
+    ]
+  },
+  {
+    "station_id": "CP008",
+    "name": "Station 8 - Fleet Management",
+    "enabled": true,
+    "auto_start": true,
+    "protocol_version": "ocpp1.6",
+    "vendor": "ABB",
+    "model": "Terra DC",
+    "serial_number": "ABB-TDC-008",
+    "firmware_version": "3.4.7",
+    "iccid": "89310410106543789308",
+    "imsi": "310410123456796",
+    "connectors": [
+      {
+        "id": 1,
+        "type": "CCS",
+        "max_power": 175000,
+        "status": "Available",
+        "current_transaction_id": null
+      },
+      {
+        "id": 2,
+        "type": "CCS",
+        "max_power": 175000,
+        "status": "Available",
+        "current_transaction_id": null
+      }
+    ],
+    "supported_profiles": [
+      "Core",
+      "FirmwareManagement",
+      "RemoteControl",
+      "SmartCharging",
+      "Reservation",
+      "LocalAuthList"
+    ],
+    "meter_values_config": {
+      "interval": 5,
+      "measurands": [
+        "Energy.Active.Import.Register",
+        "Power.Active.Import",
+        "Current.Import",
+        "Voltage",
+        "SoC",
+        "Temperature",
+        "Power.Factor"
+      ],
+      "aligned_data_interval": 180
+    },
+    "csms_url": "ws://localhost:9000/ocpp/CP008",
+    "csms_auth": {
+      "type": "basic",
+      "username": "fleet008",
+      "password": "fleet@2025"
+    },
+    "simulation": {
+      "boot_delay": 12,
+      "heartbeat_interval": 20,
+      "status_notification_on_change": true,
+      "default_id_tag": "TAG-FLEET001",
+      "energy_delivery_rate": 175000,
+      "randomize_meter_values": true,
+      "meter_value_variance": 0.12
+    },
+    "connection_status": "disconnected",
+    "tags": [
+      "production",
+      "fleet",
+      "ultra-fast",
+      "depot"
+    ]
+  },
+  {
+    "station_id": "CP009",
+    "name": "Station 9 - Smart Charging Test",
+    "enabled": true,
+    "auto_start": false,
+    "protocol_version": "ocpp1.6",
+    "vendor": "Enel X",
+    "model": "JuicePump 40",
+    "serial_number": "ENX-JP40-009",
+    "firmware_version": "2.9.5",
+    "iccid": "89310410106543789309",
+    "imsi": "310410123456797",
     "connectors": [
       {
         "id": 1,
@@ -21,55 +544,7 @@
     "supported_profiles": [
       "Core",
       "FirmwareManagement",
-      "RemoteControl"
-    ],
-    "meter_values_config": {
-      "interval": 60,
-      "measurands": [
-        "Energy.Active.Import.Register",
-        "Power.Active.Import"
-      ],
-      "aligned_data_interval": 900
-    },
-    "csms_url": "ws://localhost:9000/ocpp/CP001",
-    "csms_auth": {
-      "type": "basic",
-      "username": "cp001",
-      "password": "password"
-    },
-    "simulation": {
-      "boot_delay": 5,
-      "heartbeat_interval": 60,
-      "status_notification_on_change": true,
-      "default_id_tag": "TAG123456",
-      "energy_delivery_rate": 7000,
-      "randomize_meter_values": true,
-      "meter_value_variance": 0.05
-    },
-    "connection_status": "disconnected",
-    "tags": ["development", "test"]
-  },
-  {
-    "station_id": "CP002",
-    "name": "Station 2 - Parking Lot A",
-    "enabled": true,
-    "auto_start": false,
-    "protocol_version": "2.0.1",
-    "vendor": "VendorName",
-    "model": "ModelY",
-    "serial_number": "SN789012",
-    "firmware_version": "2.0.0",
-    "connectors": [
-      {
-        "id": 1,
-        "type": "CCS",
-        "max_power": 50000,
-        "status": "Available",
-        "current_transaction_id": null
-      }
-    ],
-    "supported_profiles": [
-      "Core",
+      "RemoteControl",
       "SmartCharging"
     ],
     "meter_values_config": {
@@ -77,27 +552,94 @@
       "measurands": [
         "Energy.Active.Import.Register",
         "Power.Active.Import",
+        "Power.Reactive.Import",
+        "Current.Import",
         "Voltage",
-        "Current.Import"
+        "Frequency",
+        "Power.Factor"
       ],
       "aligned_data_interval": 900
     },
-    "csms_url": "ws://localhost:9000/ocpp/CP002",
+    "csms_url": "ws://localhost:9000/ocpp/CP009",
     "csms_auth": {
       "type": "basic",
-      "username": "cp002",
-      "password": "password"
+      "username": "cp009",
+      "password": "smart123"
     },
     "simulation": {
-      "boot_delay": 3,
+      "boot_delay": 6,
       "heartbeat_interval": 60,
       "status_notification_on_change": true,
-      "default_id_tag": "TAG789012",
-      "energy_delivery_rate": 45000,
+      "default_id_tag": "TAG-SMART001",
+      "energy_delivery_rate": 22000,
       "randomize_meter_values": true,
-      "meter_value_variance": 0.03
+      "meter_value_variance": 0.04
     },
     "connection_status": "disconnected",
-    "tags": ["development", "dc-fast"]
+    "tags": [
+      "test",
+      "smart-charging",
+      "v2g-ready"
+    ]
+  },
+  {
+    "station_id": "CP010",
+    "name": "Station 10 - Diagnostic Station",
+    "enabled": false,
+    "auto_start": false,
+    "protocol_version": "ocpp1.6",
+    "vendor": "Generic",
+    "model": "Test Station Pro",
+    "serial_number": "GEN-TSP-010",
+    "firmware_version": "0.9.0-beta",
+    "connectors": [
+      {
+        "id": 1,
+        "type": "Type2",
+        "max_power": 3700,
+        "status": "Available",
+        "current_transaction_id": null
+      }
+    ],
+    "supported_profiles": [
+      "Core",
+      "FirmwareManagement",
+      "RemoteControl",
+      "SmartCharging",
+      "Reservation",
+      "LocalAuthList"
+    ],
+    "meter_values_config": {
+      "interval": 10,
+      "measurands": [
+        "Energy.Active.Import.Register",
+        "Power.Active.Import",
+        "Current.Import",
+        "Voltage"
+      ],
+      "aligned_data_interval": 300
+    },
+    "csms_url": "ws://localhost:9000/ocpp/CP010",
+    "csms_auth": {
+      "type": "basic",
+      "username": "diagnostic",
+      "password": "diag@test"
+    },
+    "simulation": {
+      "boot_delay": 1,
+      "heartbeat_interval": 15,
+      "status_notification_on_change": true,
+      "default_id_tag": "TAG-DIAG001",
+      "energy_delivery_rate": 3700,
+      "randomize_meter_values": false,
+      "meter_value_variance": 0.0
+    },
+    "connection_status": "disconnected",
+    "tags": [
+      "disabled",
+      "diagnostic",
+      "test",
+      "development"
+    ]
   }
 ]
