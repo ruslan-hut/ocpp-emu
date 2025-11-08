@@ -8,9 +8,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/ruslanhut/ocpp-emu/internal/api"
 	"github.com/ruslanhut/ocpp-emu/internal/config"
 	"github.com/ruslanhut/ocpp-emu/internal/connection"
 	"github.com/ruslanhut/ocpp-emu/internal/logging"
@@ -305,6 +307,47 @@ func main() {
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 			return
+		}
+	})
+
+	// Initialize Station API Handler
+	stationHandler := api.NewStationHandler(stationManager, logger)
+	logger.Info("Station API handler initialized")
+
+	// Station CRUD endpoints
+	mux.HandleFunc("/api/stations", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			stationHandler.ListStations(w, r)
+		case http.MethodPost:
+			stationHandler.CreateStation(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Station detail endpoints (with path-based routing)
+	mux.HandleFunc("/api/stations/", func(w http.ResponseWriter, r *http.Request) {
+		// Check if path ends with /start or /stop
+		if strings.HasSuffix(r.URL.Path, "/start") {
+			stationHandler.StartStation(w, r)
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/stop") {
+			stationHandler.StopStation(w, r)
+			return
+		}
+
+		// Otherwise, handle CRUD operations on individual stations
+		switch r.Method {
+		case http.MethodGet:
+			stationHandler.GetStation(w, r)
+		case http.MethodPut:
+			stationHandler.UpdateStation(w, r)
+		case http.MethodDelete:
+			stationHandler.DeleteStation(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
 

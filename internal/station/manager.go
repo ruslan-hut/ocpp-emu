@@ -39,6 +39,13 @@ type Station struct {
 	lastSync     time.Time
 }
 
+// GetData returns a thread-safe copy of the station's config and runtime state
+func (s *Station) GetData() (Config, RuntimeState) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.Config, s.RuntimeState
+}
+
 // ManagerConfig represents the manager configuration
 type ManagerConfig struct {
 	SyncInterval time.Duration // How often to sync state to MongoDB
