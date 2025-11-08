@@ -1,22 +1,155 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { messagesAPI } from '../services/api'
 import './Messages.css'
+
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8080'
 
 function Messages() {
   const [messages, setMessages] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [liveUpdates, setLiveUpdates] = useState(true)
+  const [wsConnected, setWsConnected] = useState(false)
   const [filters, setFilters] = useState({
     direction: 'all',
     stationId: '',
     limit: 50,
   })
 
+  const wsRef = useRef(null)
+  const messagesEndRef = useRef(null)
+
   useEffect(() => {
     fetchMessages()
     fetchStats()
   }, [filters])
+
+  // WebSocket connection for real-time updates
+  useEffect(() => {
+    if (!liveUpdates) {
+      if (wsRef.current) {
+        wsRef.current.close()
+        wsRef.current = null
+      }
+      setWsConnected(false)
+      return
+    }
+
+    connectWebSocket()
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close()
+        wsRef.current = null
+      }
+    }
+  }, [liveUpdates, filters.stationId])
+
+  const connectWebSocket = () => {
+    try {
+      // Build WebSocket URL with filters
+      let wsUrl = `${WS_URL}/api/ws/messages`
+      const params = new URLSearchParams()
+      if (filters.stationId) {
+        params.append('stationId', filters.stationId)
+      }
+      if (params.toString()) {
+        wsUrl += `?${params.toString()}`
+      }
+
+      const ws = new WebSocket(wsUrl)
+      wsRef.current = ws
+
+      ws.onopen = () => {
+        console.log('WebSocket connected')
+        setWsConnected(true)
+      }
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+
+          if (data.type === 'welcome') {
+            console.log('Received welcome message:', data.message)
+          } else if (data.type === 'ocpp_message') {
+            handleNewMessage(data.message)
+          }
+        } catch (err) {
+          console.error('Failed to parse WebSocket message:', err)
+        }
+      }
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error)
+        setWsConnected(false)
+      }
+
+      ws.onclose = () => {
+        console.log('WebSocket closed')
+        setWsConnected(false)
+
+        // Attempt to reconnect after 5 seconds if live updates are still enabled
+        if (liveUpdates) {
+          setTimeout(() => {
+            if (liveUpdates) {
+              connectWebSocket()
+            }
+          }, 5000)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to create WebSocket:', err)
+    }
+  }
+
+  const handleNewMessage = (message) => {
+    // Convert message entry format to storage format
+    const formattedMessage = {
+      stationId: message.StationID,
+      direction: message.Direction,
+      messageType: message.MessageType,
+      action: message.Action,
+      messageId: message.MessageID,
+      protocolVersion: message.ProtocolVersion,
+      payload: message.Payload,
+      timestamp: message.Timestamp,
+      correlationId: message.CorrelationID,
+      errorCode: message.ErrorCode,
+      errorDescription: message.ErrorDesc,
+    }
+
+    // Apply direction filter
+    if (filters.direction !== 'all' && formattedMessage.direction !== filters.direction) {
+      return
+    }
+
+    setMessages((prev) => {
+      // Add new message at the beginning
+      const newMessages = [formattedMessage, ...prev]
+
+      // Limit the number of messages in memory
+      if (newMessages.length > filters.limit) {
+        return newMessages.slice(0, filters.limit)
+      }
+
+      return newMessages
+    })
+
+    // Update stats
+    setStats((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        total: (prev.total || 0) + 1,
+        sent: formattedMessage.direction === 'sent' ? (prev.sent || 0) + 1 : prev.sent,
+        received: formattedMessage.direction === 'received' ? (prev.received || 0) + 1 : prev.received,
+      }
+    })
+
+    // Auto-scroll to top where new messages appear
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const fetchMessages = async () => {
     try {
@@ -88,9 +221,23 @@ function Messages() {
     <div className="messages">
       <div className="page-header">
         <h2>OCPP Messages</h2>
-        <button className="btn-danger" onClick={handleClearMessages}>
-          Clear All Messages
-        </button>
+        <div className="header-actions">
+          <div className="live-updates-toggle">
+            <label>
+              <input
+                type="checkbox"
+                checked={liveUpdates}
+                onChange={(e) => setLiveUpdates(e.target.checked)}
+              />
+              <span>Live Updates</span>
+              {wsConnected && <span className="ws-indicator connected">●</span>}
+              {!wsConnected && liveUpdates && <span className="ws-indicator disconnected">●</span>}
+            </label>
+          </div>
+          <button className="btn-danger" onClick={handleClearMessages}>
+            Clear All Messages
+          </button>
+        </div>
       </div>
 
       {stats && (

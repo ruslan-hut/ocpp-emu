@@ -6,12 +6,14 @@ A web-based EV charging station emulator supporting OCPP 1.6, 2.0.1, and 2.1 pro
 
 - 🔌 **Multi-Protocol Support**: OCPP 1.6, 2.0.1, and 2.1
 - 🌐 **Web-Based Management**: Create and manage stations through Web UI
-- 📊 **Message Inspector**: Real-time OCPP message logging and debugging
+- 📊 **Real-Time Message Streaming**: WebSocket-based live message inspector with filtering
 - ✏️ **Custom Message Crafter**: Send arbitrary messages for edge case testing
 - 🗄️ **MongoDB Backend**: Persistent storage for stations, messages, and transactions
 - 🔄 **Hot-Reload**: Add/modify stations without restart
 - 📈 **Time-Series Data**: Optimized meter value storage
 - 🎯 **Zero Downtime**: Configuration changes without restart
+- 🐳 **Docker Ready**: Complete containerization with docker-compose
+- 📝 **Structured Logging**: JSON logging with slog for production-ready observability
 
 ## Quick Start
 
@@ -46,17 +48,45 @@ go run cmd/server/main.go
 
 The server will start on `http://localhost:8080`
 
-### Using Docker Compose
+### Using Docker Compose (Recommended)
 
-Start all services:
+**Quick Start - Run everything in containers:**
+
 ```bash
-docker-compose up
+# Build and start all services
+docker-compose up --build
+
+# Or run in background
+docker-compose up -d
 ```
 
 This will start:
-- MongoDB on port 27017
-- Backend server on port 8080
-- Frontend (when implemented) on port 3000
+- **MongoDB** on port 27017 (with auto-initialization)
+- **Backend** on port 8080 (OCPP emulator API)
+- **Frontend** on port 3000 (Web UI with Nginx)
+
+**Access the application:**
+- 🌐 Frontend: http://localhost:3000
+- 🔌 Backend API: http://localhost:8080/api/health
+- 📊 WebSocket Messages: ws://localhost:3000/api/ws/messages
+
+**Useful Docker commands:**
+```bash
+# View logs
+docker-compose logs -f
+
+# Stop all services
+docker-compose down
+
+# Rebuild after code changes
+docker-compose build backend
+docker-compose up backend
+
+# Access MongoDB shell
+docker-compose exec mongodb mongosh ocpp_emu
+```
+
+📖 See [DOCKER.md](DOCKER.md) for detailed Docker setup guide and troubleshooting.
 
 ## Configuration
 
@@ -103,7 +133,7 @@ ocpp-emu/
 
 ### Health Check
 ```
-GET /health
+GET /api/health
 ```
 
 ### Station Management
@@ -118,6 +148,25 @@ PATCH  /api/stations/:id/stop     - Stop station
 POST   /api/stations/:id/clone    - Clone station
 GET    /api/stations/export       - Export stations
 POST   /api/stations/import       - Import stations
+```
+
+### Message Streaming (WebSocket)
+```
+WS     /api/ws/messages           - Real-time message stream
+GET    /api/ws/stats              - Broadcaster statistics
+```
+
+Query parameters for WebSocket:
+- `stationId` - Filter by station ID
+- `direction` - Filter by direction (sent/received)
+- `messageType` - Filter by type (Call/CallResult/CallError)
+
+### Message History
+```
+GET    /api/messages              - Get message history (with filters)
+GET    /api/messages/search       - Search messages
+GET    /api/messages/stats        - Message statistics
+DELETE /api/messages              - Clear all messages
 ```
 
 ## Development

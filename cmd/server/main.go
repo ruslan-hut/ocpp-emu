@@ -67,6 +67,11 @@ func main() {
 	connManager := connection.NewManager(&cfg.CSMS, logger)
 	logger.Info("WebSocket connection manager initialized")
 
+	// Initialize Message Broadcaster for real-time WebSocket streaming
+	messageBroadcaster := api.NewMessageBroadcaster(logger)
+	messageBroadcaster.Start()
+	logger.Info("Message broadcaster initialized and started")
+
 	// Initialize Message Logger
 	messageLogger := logging.NewMessageLogger(
 		mongoClient,
@@ -78,6 +83,7 @@ func main() {
 			LogLevel:      "info",
 		},
 	)
+	messageLogger.SetBroadcaster(messageBroadcaster)
 	messageLogger.Start()
 	logger.Info("Message logger initialized and started")
 
@@ -333,6 +339,10 @@ func main() {
 	stationHandler := api.NewStationHandler(stationManager, logger)
 	logger.Info("Station API handler initialized")
 
+	// Initialize WebSocket Handler for real-time message streaming
+	wsHandler := api.NewWebSocketHandler(messageBroadcaster, logger)
+	logger.Info("WebSocket handler initialized")
+
 	// Station CRUD endpoints
 	mux.HandleFunc("/api/stations", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -370,7 +380,10 @@ func main() {
 		}
 	})
 
-	// TODO: Set up WebSocket handlers
+	// WebSocket endpoints
+	mux.HandleFunc("/api/ws/messages", wsHandler.HandleMessages)
+	mux.HandleFunc("/api/ws/stats", wsHandler.HandleBroadcasterStats)
+	logger.Info("WebSocket endpoints registered")
 
 	serverAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	server := &http.Server{
@@ -417,6 +430,16 @@ func main() {
 	// Shutdown connection manager
 	if err := connManager.Shutdown(); err != nil {
 		logger.Error("Failed to shutdown connection manager", slog.String("error", err.Error()))
+	}
+
+	// Shutdown message logger
+	if err := messageLogger.Shutdown(); err != nil {
+		logger.Error("Failed to shutdown message logger", slog.String("error", err.Error()))
+	}
+
+	// Shutdown message broadcaster
+	if err := messageBroadcaster.Shutdown(); err != nil {
+		logger.Error("Failed to shutdown message broadcaster", slog.String("error", err.Error()))
 	}
 
 	// Close MongoDB connection

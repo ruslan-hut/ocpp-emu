@@ -13,11 +13,17 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// MessageBroadcaster is an interface for broadcasting messages to WebSocket clients
+type MessageBroadcaster interface {
+	BroadcastMessageEntry(entry MessageEntry)
+}
+
 // MessageLogger handles OCPP message logging with buffering and real-time streaming
 type MessageLogger struct {
 	db            *storage.MongoDBClient
 	logger        *slog.Logger
 	messageBuffer chan MessageEntry
+	broadcaster   MessageBroadcaster
 	ctx           context.Context
 	cancel        context.CancelFunc
 	wg            sync.WaitGroup
@@ -97,6 +103,12 @@ func NewMessageLogger(
 	}
 
 	return ml
+}
+
+// SetBroadcaster sets the message broadcaster for real-time streaming
+func (ml *MessageLogger) SetBroadcaster(broadcaster MessageBroadcaster) {
+	ml.broadcaster = broadcaster
+	ml.logger.Info("Message broadcaster set for real-time streaming")
 }
 
 // Start begins the message logging process
@@ -220,6 +232,11 @@ func (ml *MessageLogger) LogMessage(
 	protocolVersion string,
 ) error {
 	entry := ml.createMessageEntry(stationID, direction, message, protocolVersion)
+
+	// Broadcast to WebSocket clients in real-time (if broadcaster is set)
+	if ml.broadcaster != nil {
+		ml.broadcaster.BroadcastMessageEntry(entry)
+	}
 
 	select {
 	case ml.messageBuffer <- entry:

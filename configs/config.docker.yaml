@@ -1,0 +1,63 @@
+server:
+  port: 8080
+  host: "0.0.0.0"
+  tls:
+    enabled: false
+    cert_file: ""
+    key_file: ""
+
+logging:
+  level: "info"          # debug, info, warn, error
+  format: "json"         # json or text
+  output: "stdout"       # stdout, stderr, or file path
+
+mongodb:
+  uri: "mongodb://mongodb:27017"  # Docker service name
+  database: "ocpp_emu"
+  connection_timeout: 10s
+  max_pool_size: 100
+
+  # Collection names (can be customized)
+  collections:
+    messages: "messages"
+    transactions: "transactions"
+    stations: "stations"
+    sessions: "sessions"
+    meter_values: "meter_values"
+
+  # Time-series collection for meter values
+  timeseries:
+    enabled: true
+    granularity: "seconds"  # seconds, minutes, hours
+
+csms:
+  # Default CSMS connection settings (can be overridden per station)
+  default_url: "ws://host.docker.internal:9000"
+  connection_timeout: 30s
+  heartbeat_interval: 60s
+  max_reconnect_attempts: 5
+  reconnect_backoff: 10s
+
+  # TLS/Certificate settings for secure connections
+  tls:
+    enabled: false
+    ca_cert: ""
+    client_cert: ""
+    client_key: ""
+    insecure_skip_verify: false
+
+application:
+  # Maximum number of concurrent stations
+  max_stations: 10
+
+  # Cache TTL for in-memory session data
+  cache_ttl: 3600s
+
+  # Enable debug features (custom messages, protocol violations)
+  debug_mode: true
+
+  # Maximum messages to keep in memory before flushing to DB
+  message_buffer_size: 1000
+
+  # Batch insert interval for performance
+  batch_insert_interval: 5s
