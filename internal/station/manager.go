@@ -425,48 +425,64 @@ func (m *Manager) startStation(ctx context.Context, stationID string) error {
 	}
 
 	station.mu.Lock()
-	defer station.mu.Unlock()
 
 	// Check if already started
 	if station.StateMachine.IsConnected() {
+		station.mu.Unlock()
 		return fmt.Errorf("station already connected: %s", stationID)
 	}
 
 	if !station.Config.Enabled {
+		station.mu.Unlock()
 		return fmt.Errorf("station is disabled: %s", stationID)
 	}
 
 	m.logger.Info("Starting station", "stationId", stationID)
 
-	// Update state
+	// Update state while holding lock
 	station.StateMachine.SetState(StateConnecting, "manual start")
 	station.RuntimeState.State = StateConnecting
 	station.RuntimeState.ConnectionStatus = "connecting"
+	station.RuntimeState.LastError = ""
 
-	// Create TLS and Auth configs
-	var tlsConfig *connection.TLSConfig
+	// Capture configuration needed for connection
+	url := station.Config.CSMSURL
+	protocol := station.Config.ProtocolVersion
 	var authConfig *connection.AuthConfig
-
-	if station.Config.CSMSAuth != nil && station.Config.CSMSAuth.Type == "basic" {
-		authConfig = &connection.AuthConfig{
-			Type:     "basic",
-			Username: station.Config.CSMSAuth.Username,
-			Password: station.Config.CSMSAuth.Password,
+	if station.Config.CSMSAuth != nil {
+		auth := *station.Config.CSMSAuth
+		switch auth.Type {
+		case "basic":
+			authConfig = &connection.AuthConfig{
+				Type:     "basic",
+				Username: auth.Username,
+				Password: auth.Password,
+			}
+		case "bearer":
+			authConfig = &connection.AuthConfig{
+				Type:  "bearer",
+				Token: auth.Token,
+			}
 		}
 	}
+
+	station.mu.Unlock()
 
 	// Initiate WebSocket connection
 	err := m.connManager.ConnectStation(
 		stationID,
-		station.Config.CSMSURL,
-		station.Config.ProtocolVersion,
-		tlsConfig,
+		url,
+		protocol,
+		nil,
 		authConfig,
 	)
 	if err != nil {
+		station.mu.Lock()
 		station.StateMachine.SetState(StateFaulted, "connection failed")
 		station.RuntimeState.State = StateFaulted
 		station.RuntimeState.LastError = err.Error()
+		station.RuntimeState.ConnectionStatus = "error"
+		station.mu.Unlock()
 		return fmt.Errorf("failed to connect: %w", err)
 	}
 
