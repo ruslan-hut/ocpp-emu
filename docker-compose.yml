@@ -38,19 +38,22 @@ services:
       - ocpp-network
     restart: unless-stopped
 
-  # Frontend service (placeholder for future implementation)
-  # frontend:
-  #   build:
-  #     context: ./web
-  #     dockerfile: Dockerfile
-  #   container_name: ocpp-emu-frontend
-  #   ports:
-  #     - "3000:3000"
-  #   depends_on:
-  #     - backend
-  #   networks:
-  #     - ocpp-network
-  #   restart: unless-stopped
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://backend:8080
+        VITE_WS_URL: ws://backend:8080/ws
+    container_name: ocpp-emu-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - ocpp-network
+    restart: unless-stopped
 
 volumes:
   mongodb_data:
