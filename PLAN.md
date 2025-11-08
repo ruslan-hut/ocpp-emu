@@ -398,7 +398,7 @@ ocpp-emu/
   - [ ] 2.2g: MeterValues
   - [ ] 2.2h: DataTransfer
 - [ ] **2.3** Implement custom message encoding/decoding (JSON marshaling/unmarshaling)
-- [ ] **2.4** Add SOAP/XML support for OCPP 1.6 (custom XML parsing)
+- [ ] **2.4** (SKIP XML SUPPORT) Add SOAP/XML support for OCPP 1.6 (custom XML parsing)
 - [ ] **2.5** Create station state machine for charging sessions
 
 **Backend Storage:**

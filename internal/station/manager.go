@@ -33,11 +33,12 @@ type Manager struct {
 
 // Station represents a managed charging station instance
 type Station struct {
-	Config       Config
-	StateMachine *StateMachine
-	RuntimeState RuntimeState
-	mu           sync.RWMutex
-	lastSync     time.Time
+	Config         Config
+	StateMachine   *StateMachine
+	RuntimeState   RuntimeState
+	SessionManager *SessionManager // Enhanced session manager for charging
+	mu             sync.RWMutex
+	lastSync       time.Time
 }
 
 // GetData returns a thread-safe copy of the station's config and runtime state
@@ -91,8 +92,28 @@ func (m *Manager) setupV16HandlerCallbacks() {
 	m.v16Handler.OnRemoteStartTransaction = func(stationID string, req *v16.RemoteStartTransactionRequest) (*v16.RemoteStartTransactionResponse, error) {
 		m.logger.Info("Handling RemoteStartTransaction", "stationId", stationID, "idTag", req.IdTag)
 
-		// TODO: Implement actual transaction start logic
-		// For now, accept the request
+		// Get station
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists {
+			return &v16.RemoteStartTransactionResponse{Status: "Rejected"}, nil
+		}
+
+		// Determine connector ID
+		connectorID := 1
+		if req.ConnectorId != nil {
+			connectorID = *req.ConnectorId
+		}
+
+		// Start charging session
+		_, err := station.SessionManager.StartCharging(connectorID, req.IdTag)
+		if err != nil {
+			m.logger.Error("Failed to start charging", "error", err)
+			return &v16.RemoteStartTransactionResponse{Status: "Rejected"}, nil
+		}
+
 		return &v16.RemoteStartTransactionResponse{
 			Status: "Accepted",
 		}, nil
@@ -102,8 +123,41 @@ func (m *Manager) setupV16HandlerCallbacks() {
 	m.v16Handler.OnRemoteStopTransaction = func(stationID string, req *v16.RemoteStopTransactionRequest) (*v16.RemoteStopTransactionResponse, error) {
 		m.logger.Info("Handling RemoteStopTransaction", "stationId", stationID, "transactionId", req.TransactionId)
 
-		// TODO: Implement actual transaction stop logic
-		// For now, accept the request
+		// Get station
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists {
+			return &v16.RemoteStopTransactionResponse{Status: "Rejected"}, nil
+		}
+
+		// Find connector with this transaction
+		connectors := station.SessionManager.GetAllConnectors()
+		var targetConnectorID int
+		found := false
+
+		for _, connector := range connectors {
+			tx := connector.GetTransaction()
+			if tx != nil && tx.ID == req.TransactionId {
+				targetConnectorID = connector.ID
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			m.logger.Warn("Transaction not found", "transactionId", req.TransactionId)
+			return &v16.RemoteStopTransactionResponse{Status: "Rejected"}, nil
+		}
+
+		// Stop charging session
+		err := station.SessionManager.StopCharging(targetConnectorID, v16.ReasonRemote)
+		if err != nil {
+			m.logger.Error("Failed to stop charging", "error", err)
+			return &v16.RemoteStopTransactionResponse{Status: "Rejected"}, nil
+		}
+
 		return &v16.RemoteStopTransactionResponse{
 			Status: "Accepted",
 		}, nil
@@ -135,8 +189,23 @@ func (m *Manager) setupV16HandlerCallbacks() {
 	m.v16Handler.OnChangeAvailability = func(stationID string, req *v16.ChangeAvailabilityRequest) (*v16.ChangeAvailabilityResponse, error) {
 		m.logger.Info("Handling ChangeAvailability", "stationId", stationID, "connectorId", req.ConnectorId, "type", req.Type)
 
-		// TODO: Implement actual availability change logic
-		// For now, accept the request
+		// Get station
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists {
+			return &v16.ChangeAvailabilityResponse{Status: "Rejected"}, nil
+		}
+
+		// Change availability
+		err := station.SessionManager.ChangeAvailability(req.ConnectorId, req.Type)
+		if err != nil {
+			// If changing while charging, schedule for later
+			m.logger.Warn("Cannot change availability immediately", "error", err)
+			return &v16.ChangeAvailabilityResponse{Status: "Scheduled"}, nil
+		}
+
 		return &v16.ChangeAvailabilityResponse{
 			Status: "Accepted",
 		}, nil
@@ -188,6 +257,64 @@ func (m *Manager) setupV16HandlerCallbacks() {
 	}
 }
 
+// setupSessionManagerCallbacks wires up SessionManager callbacks to OCPP message handlers
+func (m *Manager) setupSessionManagerCallbacks(station *Station) {
+	stationID := station.Config.StationID
+
+	// SendStatusNotification - sends status notification to CSMS
+	station.SessionManager.SendStatusNotification = func(connectorID int, status v16.ChargePointStatus, errorCode v16.ChargePointErrorCode, info string) error {
+		req := &v16.StatusNotificationRequest{
+			ConnectorId:     connectorID,
+			Status:          status,
+			ErrorCode:       errorCode,
+			Info:            info,
+			VendorId:        station.Config.Vendor,
+			VendorErrorCode: "",
+		}
+
+		_, err := m.v16Handler.SendStatusNotification(stationID, req)
+		if err != nil {
+			m.logger.Error("Failed to send StatusNotification",
+				"stationId", stationID,
+				"connectorId", connectorID,
+				"error", err,
+			)
+			return err
+		}
+
+		return nil
+	}
+
+	// SendMeterValues - sends meter values to CSMS
+	station.SessionManager.SendMeterValues = func(connectorID int, transactionID *int, meterValues []v16.MeterValue) error {
+		req := &v16.MeterValuesRequest{
+			ConnectorId:   connectorID,
+			TransactionId: transactionID,
+			MeterValue:    meterValues,
+		}
+
+		_, err := m.v16Handler.SendMeterValues(stationID, req)
+		if err != nil {
+			m.logger.Error("Failed to send MeterValues",
+				"stationId", stationID,
+				"connectorId", connectorID,
+				"error", err,
+			)
+			return err
+		}
+
+		return nil
+	}
+
+	// Note: SendAuthorize, SendStartTransaction, and SendStopTransaction are left as nil
+	// This allows SessionManager to operate in offline mode for now.
+	// These require async request/response tracking which will be implemented later.
+	// In offline mode:
+	// - Authorize always accepts
+	// - StartTransaction uses local transaction IDs
+	// - StopTransaction just updates local state
+}
+
 // LoadStations loads all stations from MongoDB
 func (m *Manager) LoadStations(ctx context.Context) error {
 	m.logger.Info("Loading stations from MongoDB")
@@ -210,15 +337,22 @@ func (m *Manager) LoadStations(ctx context.Context) error {
 		// Convert storage.Station to station.Config
 		config := m.convertStorageToConfig(dbStation)
 
+		// Create session manager for the station
+		sessionManager := NewSessionManager(config.StationID, config.Connectors, m.logger)
+
 		// Create station instance
 		station := &Station{
-			Config:       config,
-			StateMachine: NewStateMachine(),
+			Config:         config,
+			StateMachine:   NewStateMachine(),
+			SessionManager: sessionManager,
 			RuntimeState: RuntimeState{
 				State:            StateDisconnected,
 				ConnectionStatus: "not_connected",
 			},
 		}
+
+		// Set up session manager callbacks
+		m.setupSessionManagerCallbacks(station)
 
 		m.mu.Lock()
 		m.stations[config.StationID] = station
