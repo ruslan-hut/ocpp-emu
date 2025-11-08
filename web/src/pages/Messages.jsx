@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { messagesAPI } from '../services/api'
 import './Messages.css'
 
@@ -21,6 +21,57 @@ function Messages() {
 
   const wsRef = useRef(null)
   const messagesEndRef = useRef(null)
+
+  const messageCounts = useMemo(() => {
+    return messages.reduce(
+      (acc, message) => {
+        acc.total += 1
+        if (message.direction === 'sent') {
+          acc.sent += 1
+        } else if (message.direction === 'received') {
+          acc.received += 1
+        }
+        return acc
+      },
+      { total: 0, sent: 0, received: 0 }
+    )
+  }, [messages])
+
+  const displayStats = useMemo(() => {
+    const chooseValue = (statValue, fallback) => {
+      if (statValue === undefined || statValue === null) {
+        return fallback
+      }
+      return Math.max(statValue, fallback)
+    }
+
+    return {
+      total: chooseValue(stats?.total, messageCounts.total),
+      sent: chooseValue(stats?.sent, messageCounts.sent),
+      received: chooseValue(stats?.received, messageCounts.received),
+      buffered: stats?.buffered ?? 0,
+      dropped: stats?.dropped ?? 0,
+    }
+  }, [stats, messageCounts])
+
+  const normalizeMessage = (message) => ({
+    stationId: message.stationId ?? message.StationID ?? '',
+    direction: message.direction ?? message.Direction ?? '',
+    messageType: message.messageType ?? message.MessageType ?? '',
+    action: message.action ?? message.Action ?? '',
+    messageId: message.messageId ?? message.MessageID ?? '',
+    protocolVersion: message.protocolVersion ?? message.ProtocolVersion ?? '',
+    payload: message.payload ?? message.Payload ?? null,
+    timestamp: message.timestamp ?? message.Timestamp ?? null,
+    correlationId: message.correlationId ?? message.CorrelationID ?? '',
+    errorCode: message.errorCode ?? message.ErrorCode ?? '',
+    errorDescription:
+      message.errorDescription ??
+      message.ErrorDescription ??
+      message.ErrorDesc ??
+      message.errorDesc ??
+      '',
+  })
 
   useEffect(() => {
     fetchMessages()
@@ -107,22 +158,14 @@ function Messages() {
 
   const handleNewMessage = (message) => {
     // Convert message entry format to storage format
-    const formattedMessage = {
-      stationId: message.StationID,
-      direction: message.Direction,
-      messageType: message.MessageType,
-      action: message.Action,
-      messageId: message.MessageID,
-      protocolVersion: message.ProtocolVersion,
-      payload: message.Payload,
-      timestamp: message.Timestamp,
-      correlationId: message.CorrelationID,
-      errorCode: message.ErrorCode,
-      errorDescription: message.ErrorDesc,
-    }
+    const formattedMessage = normalizeMessage(message)
 
     // Apply direction filter
     if (filters.direction !== 'all' && formattedMessage.direction !== filters.direction) {
+      return
+    }
+    // Apply station filter
+    if (filters.stationId && formattedMessage.stationId !== filters.stationId) {
       return
     }
 
@@ -156,12 +199,13 @@ function Messages() {
   const fetchMessages = async () => {
     try {
       const params = {}
-      if (filters.stationId) params.station_id = filters.stationId
+      if (filters.stationId) params.stationId = filters.stationId
       if (filters.direction !== 'all') params.direction = filters.direction
       params.limit = filters.limit
 
       const response = await messagesAPI.getAll(params)
-      setMessages(response.data.messages || [])
+      const normalized = (response.data.messages || []).map((message) => normalizeMessage(message))
+      setMessages(normalized)
       setError(null)
     } catch (err) {
       setError(err.message)
@@ -242,27 +286,27 @@ function Messages() {
         </div>
       </div>
 
-      {stats && (
+      {(stats || messageCounts.total > 0) && (
         <div className="message-stats">
           <div className="stat-item">
             <span className="stat-label">Total:</span>
-            <span className="stat-value">{stats.total || 0}</span>
+            <span className="stat-value">{displayStats.total}</span>
           </div>
           <div className="stat-item">
             <span className="stat-label">Sent:</span>
-            <span className="stat-value">{stats.sent || 0}</span>
+            <span className="stat-value">{displayStats.sent}</span>
           </div>
           <div className="stat-item">
             <span className="stat-label">Received:</span>
-            <span className="stat-value">{stats.received || 0}</span>
+            <span className="stat-value">{displayStats.received}</span>
           </div>
           <div className="stat-item">
             <span className="stat-label">Buffered:</span>
-            <span className="stat-value">{stats.buffered || 0}</span>
+            <span className="stat-value">{displayStats.buffered}</span>
           </div>
           <div className="stat-item">
             <span className="stat-label">Dropped:</span>
-            <span className="stat-value">{stats.dropped || 0}</span>
+            <span className="stat-value">{displayStats.dropped}</span>
           </div>
         </div>
       )}
