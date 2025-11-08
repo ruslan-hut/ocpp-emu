@@ -43,8 +43,8 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://backend:8080
-        VITE_WS_URL: ws://backend:8080/ws
+        VITE_API_URL: ""
+        VITE_WS_URL: /ws
     container_name: ocpp-emu-frontend
     ports:
       - "3000:80"
