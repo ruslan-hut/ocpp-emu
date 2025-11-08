@@ -67,25 +67,29 @@ func main() {
 	connManager := connection.NewManager(&cfg.CSMS, logger)
 	logger.Info("WebSocket connection manager initialized")
 
-	// Initialize Message Broadcaster for real-time WebSocket streaming
-	messageBroadcaster := api.NewMessageBroadcaster(logger)
-	messageBroadcaster.Start()
-	logger.Info("Message broadcaster initialized and started")
+	// TEMPORARILY DISABLED: Message Broadcaster for real-time WebSocket streaming
+	// Testing if this is causing the backend to become unresponsive
+	// messageBroadcaster := api.NewMessageBroadcaster(logger)
+	// messageBroadcaster.Start()
+	// logger.Info("Message broadcaster initialized and started")
 
-	// Initialize Message Logger
-	messageLogger := logging.NewMessageLogger(
-		mongoClient,
-		logger,
-		logging.LoggerConfig{
-			BufferSize:    1000,
-			BatchSize:     100,
-			FlushInterval: 5 * time.Second,
-			LogLevel:      "info",
-		},
-	)
-	messageLogger.SetBroadcaster(messageBroadcaster)
-	messageLogger.Start()
-	logger.Info("Message logger initialized and started")
+	// TEMPORARILY DISABLED: Message Logger
+	// Testing if this is causing the backend to become unresponsive
+	// messageLogger := logging.NewMessageLogger(
+	// 	mongoClient,
+	// 	logger,
+	// 	logging.LoggerConfig{
+	// 		BufferSize:    1000,
+	// 		BatchSize:     100,
+	// 		FlushInterval: 5 * time.Second,
+	// 		LogLevel:      "info",
+	// 	},
+	// )
+	// messageLogger.SetBroadcaster(messageBroadcaster)  // TEMPORARILY DISABLED
+	// messageLogger.Start()
+	// logger.Info("Message logger initialized and started")
+	var messageLogger *logging.MessageLogger = nil
+	logger.Info("Message logger DISABLED for testing")
 
 	// Initialize Station Manager
 	stationManager := station.NewManager(
@@ -126,9 +130,11 @@ func main() {
 		)
 	}
 
-	// Start background state synchronization
-	stationManager.StartSync()
-	logger.Info("Station state synchronization started")
+	// TEMPORARILY DISABLED: Background state synchronization
+	// Testing if this is causing the deadlock after 60-70 seconds
+	// stationManager.StartSync()
+	// logger.Info("Station state synchronization started")
+	logger.Info("Station state synchronization DISABLED for testing")
 
 	// Auto-start enabled stations
 	if err := stationManager.AutoStart(ctx); err != nil {
@@ -207,6 +213,19 @@ func main() {
 	mux.HandleFunc("/api/messages", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
+		if messageLogger == nil {
+			response := map[string]interface{}{
+				"messages": []interface{}{},
+				"total":    0,
+				"count":    0,
+				"limit":    100,
+				"skip":     0,
+				"disabled": true,
+			}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
 		// Parse query parameters
 		query := r.URL.Query()
 		filter := logging.MessageFilter{
@@ -270,6 +289,17 @@ func main() {
 	mux.HandleFunc("/api/messages/search", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
+		if messageLogger == nil {
+			response := map[string]interface{}{
+				"messages":   []interface{}{},
+				"count":      0,
+				"searchTerm": r.URL.Query().Get("q"),
+				"disabled":   true,
+			}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
 		query := r.URL.Query()
 		searchTerm := query.Get("q")
 		if searchTerm == "" {
@@ -314,6 +344,22 @@ func main() {
 	mux.HandleFunc("/api/messages/stats", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
+		if messageLogger == nil {
+			response := map[string]interface{}{
+				"total":              0,
+				"sent":               0,
+				"received":           0,
+				"buffered":           0,
+				"dropped":            0,
+				"callMessages":       0,
+				"callResultMessages": 0,
+				"callErrorMessages":  0,
+				"disabled":           true,
+			}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
 		stats := messageLogger.GetStats()
 
 		response := map[string]interface{}{
@@ -339,9 +385,9 @@ func main() {
 	stationHandler := api.NewStationHandler(stationManager, logger)
 	logger.Info("Station API handler initialized")
 
-	// Initialize WebSocket Handler for real-time message streaming
-	wsHandler := api.NewWebSocketHandler(messageBroadcaster, logger)
-	logger.Info("WebSocket handler initialized")
+	// TEMPORARILY DISABLED: WebSocket Handler for real-time message streaming
+	// wsHandler := api.NewWebSocketHandler(messageBroadcaster, logger)
+	// logger.Info("WebSocket handler initialized")
 
 	// Station CRUD endpoints
 	mux.HandleFunc("/api/stations", func(w http.ResponseWriter, r *http.Request) {
@@ -380,10 +426,10 @@ func main() {
 		}
 	})
 
-	// WebSocket endpoints
-	mux.HandleFunc("/api/ws/messages", wsHandler.HandleMessages)
-	mux.HandleFunc("/api/ws/stats", wsHandler.HandleBroadcasterStats)
-	logger.Info("WebSocket endpoints registered")
+	// TEMPORARILY DISABLED: WebSocket endpoints
+	// mux.HandleFunc("/api/ws/messages", wsHandler.HandleMessages)
+	// mux.HandleFunc("/api/ws/stats", wsHandler.HandleBroadcasterStats)
+	// logger.Info("WebSocket endpoints registered")
 
 	serverAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	server := &http.Server{
@@ -432,15 +478,15 @@ func main() {
 		logger.Error("Failed to shutdown connection manager", slog.String("error", err.Error()))
 	}
 
-	// Shutdown message logger
-	if err := messageLogger.Shutdown(); err != nil {
-		logger.Error("Failed to shutdown message logger", slog.String("error", err.Error()))
-	}
+	// TEMPORARILY DISABLED: Shutdown message logger
+	// if err := messageLogger.Shutdown(); err != nil {
+	// 	logger.Error("Failed to shutdown message logger", slog.String("error", err.Error()))
+	// }
 
-	// Shutdown message broadcaster
-	if err := messageBroadcaster.Shutdown(); err != nil {
-		logger.Error("Failed to shutdown message broadcaster", slog.String("error", err.Error()))
-	}
+	// TEMPORARILY DISABLED: Shutdown message broadcaster
+	// if err := messageBroadcaster.Shutdown(); err != nil {
+	// 	logger.Error("Failed to shutdown message broadcaster", slog.String("error", err.Error()))
+	// }
 
 	// Close MongoDB connection
 	if err := mongoClient.Close(shutdownCtx); err != nil {

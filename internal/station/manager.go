@@ -952,12 +952,14 @@ func (m *Manager) storeMessage(stationID, direction string, message interface{})
 	}
 
 	// Log message using message logger
-	if err := m.messageLogger.LogMessage(stationID, direction, message, protocolVersion); err != nil {
-		m.logger.Error("Failed to log message",
-			"stationId", stationID,
-			"direction", direction,
-			"error", err,
-		)
+	if m.messageLogger != nil {
+		if err := m.messageLogger.LogMessage(stationID, direction, message, protocolVersion); err != nil {
+			m.logger.Error("Failed to log message",
+				"stationId", stationID,
+				"direction", direction,
+				"error", err,
+			)
+		}
 	}
 }
 

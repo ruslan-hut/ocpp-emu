@@ -1,13 +1,15 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+// Use relative URL in production/Docker (goes through nginx proxy)
+// Use full URL in development (direct to backend)
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 8000,
+  timeout: 30000, // Increased timeout to 30 seconds
 })
 
 // Request interceptor

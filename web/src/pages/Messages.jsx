@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { messagesAPI } from '../services/api'
 import './Messages.css'
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8080'
+// Use relative WebSocket URL for Docker/production, full URL for development
+const WS_URL = import.meta.env.VITE_WS_URL ||
+  (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host
 
 function Messages() {
   const [messages, setMessages] = useState([])
