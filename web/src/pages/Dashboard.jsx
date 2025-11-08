@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { healthAPI, stationsAPI, messagesAPI } from '../services/api'
 import './Dashboard.css'
 
@@ -7,6 +7,7 @@ function Dashboard() {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const isInitialLoad = useRef(true)
 
   useEffect(() => {
     fetchData()
@@ -15,25 +16,52 @@ function Dashboard() {
   }, [])
 
   const fetchData = async () => {
-    try {
-      const [healthRes, stationsRes, messagesRes] = await Promise.all([
-        healthAPI.getHealth(),
-        stationsAPI.getAll(),
-        messagesAPI.getStats(),
-      ])
-
-      setHealth(healthRes.data)
-      setStats({
-        stations: stationsRes.data,
-        messages: messagesRes.data,
-      })
-      setError(null)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
+    if (isInitialLoad.current) {
+      setLoading(true)
     }
+
+    const [healthRes, stationsRes, messagesRes] = await Promise.allSettled([
+      healthAPI.getHealth(),
+      stationsAPI.getAll(),
+      messagesAPI.getStats(),
+    ])
+
+    const errors = []
+
+    if (healthRes.status === 'fulfilled') {
+      setHealth(healthRes.value.data)
+    } else {
+      console.warn('Failed to load health', healthRes.reason)
+      errors.push(healthRes.reason?.message || 'Failed to load health')
+    }
+
+    if (stationsRes.status === 'fulfilled') {
+      setStats((prev) => ({
+        ...(prev || {}),
+        stations: stationsRes.value.data,
+      }))
+    } else {
+      console.warn('Failed to load stations', stationsRes.reason)
+      errors.push(stationsRes.reason?.message || 'Failed to load stations')
+    }
+
+    if (messagesRes.status === 'fulfilled') {
+      setStats((prev) => ({
+        ...(prev || {}),
+        messages: messagesRes.value.data,
+      }))
+    } else {
+      console.warn('Failed to load message stats', messagesRes.reason)
+      errors.push(messagesRes.reason?.message || 'Failed to load message stats')
+    }
+
+    setError(errors.length ? errors.join('; ') : null)
+    setLoading(false)
+    isInitialLoad.current = false
   }
+
+  const stationStats = stats?.stations ?? {}
+  const messageStats = stats?.messages ?? {}
 
   if (loading) {
     return <div className="loading">Loading dashboard...</div>
@@ -57,7 +85,7 @@ function Dashboard() {
 
         <div className="stat-card">
           <h3>Stations</h3>
-          <div className="stat-value">{stats?.stations.count || 0}</div>
+          <div className="stat-value">{stationStats.count ?? 0}</div>
           <div className="stat-label">Total Stations</div>
           <div className="stat-detail">
             Connected: {health?.stations?.connected || 0}
@@ -66,19 +94,19 @@ function Dashboard() {
 
         <div className="stat-card">
           <h3>Messages</h3>
-          <div className="stat-value">{stats?.messages.total || 0}</div>
+          <div className="stat-value">{messageStats.total ?? 0}</div>
           <div className="stat-label">Total Messages</div>
           <div className="stat-detail">
-            Sent: {stats?.messages.sent || 0} | Received: {stats?.messages.received || 0}
+            Sent: {messageStats.sent ?? 0} | Received: {messageStats.received ?? 0}
           </div>
         </div>
 
         <div className="stat-card">
           <h3>Message Buffer</h3>
-          <div className="stat-value">{stats?.messages.buffered || 0}</div>
+          <div className="stat-value">{messageStats.buffered ?? 0}</div>
           <div className="stat-label">Buffered Messages</div>
           <div className="stat-detail">
-            Dropped: {stats?.messages.dropped || 0}
+            Dropped: {messageStats.dropped ?? 0}
           </div>
         </div>
       </div>
