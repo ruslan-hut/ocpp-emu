@@ -347,21 +347,22 @@ ocpp-emu/
 ### Phase 1: Foundation (Weeks 1-2)
 **Goal**: Basic project setup and core infrastructure
 
-- [ ] Initialize Go module and project structure
-- [ ] Set up MongoDB connection and client (go.mongodb.org/mongo-driver)
-- [ ] Design MongoDB schema and collections (messages, transactions, stations, sessions)
-- [ ] Create MongoDB indexes and setup scripts
-- [ ] Implement configuration loader for config.yaml (using viper or standard library)
-- [ ] Set up basic HTTP/WebSocket server using standard `net/http`
-- [ ] Implement WebSocket connection manager with gorilla/websocket
-- [ ] Design OCPP message structure (Call, CallResult, CallError) for custom implementation
-- [ ] Create station manager with:
+**Backend:**
+- [x] **1.1** Initialize Go module and project structure
+- [x] **1.2** Set up MongoDB connection and client (go.mongodb.org/mongo-driver)
+- [x] **1.3** Design MongoDB schema and collections (messages, transactions, stations, sessions)
+- [x] **1.4** Create MongoDB indexes and setup scripts
+- [x] **1.5** Implement configuration loader for config.yaml (using viper or standard library)
+- [x] **1.6** Set up basic HTTP/WebSocket server using standard `net/http`
+- [x] **1.7** Implement WebSocket connection manager with gorilla/websocket
+- [x] **1.8** Design OCPP message structure (Call, CallResult, CallError) for custom implementation
+- [x] **1.9** Create station manager with:
   - Load stations from MongoDB on startup
   - Initialize station state machines
   - Auto-start logic for enabled stations
-- [ ] Design and implement message logging infrastructure using `log/slog`
-- [ ] Implement hybrid storage layer (memory + MongoDB)
-- [ ] Build Station CRUD API endpoints:
+- [x] **1.10** Design and implement message logging infrastructure using `log/slog`
+- [x] **1.11** Implement hybrid storage layer (memory + MongoDB)
+- [x] **1.12** Build Station CRUD API endpoints:
   - GET /api/stations (list all)
   - GET /api/stations/:id (get one)
   - POST /api/stations (create)
@@ -369,127 +370,155 @@ ocpp-emu/
   - DELETE /api/stations/:id (delete)
   - PATCH /api/stations/:id/start (start station)
   - PATCH /api/stations/:id/stop (stop station)
-- [ ] Set up basic React frontend with routing
-- [ ] Implement WebSocket communication between frontend and backend
-- [ ] Create simple dashboard view
-- [ ] Build Station Manager UI (list view with basic CRUD)
-- [ ] Set up Docker Compose with MongoDB
-- [ ] Create seed data for sample stations (testdata/seed/stations.json)
+
+**Frontend:**
+- [x] **1.13** Set up basic React frontend with routing
+- [x] **1.14** Implement WebSocket communication between frontend and backend
+- [x] **1.15** Create simple dashboard view
+- [x] **1.16** Build Station Manager UI (list view with basic CRUD)
+
+**DevOps:**
+- [x] **1.17** Set up Docker Compose with MongoDB
+- [x] **1.18** Create seed data for sample stations (testdata/seed/stations.json)
 
 **Deliverable**: Application starts with MongoDB connection, loads stations from DB, frontend can create/edit/delete stations
 
 ### Phase 2: OCPP 1.6 Support (Weeks 3-4)
 **Goal**: Full OCPP 1.6 implementation with custom protocol handlers
 
-- [ ] Define custom OCPP 1.6 message types (structs) based on specification
-- [ ] Implement OCPP 1.6 Core Profile message handlers:
-  - [ ] BootNotification
-  - [ ] Heartbeat
-  - [ ] StatusNotification
-  - [ ] Authorize
-  - [ ] StartTransaction
-  - [ ] StopTransaction
-  - [ ] MeterValues
-  - [ ] DataTransfer
-- [ ] Implement custom message encoding/decoding (JSON marshaling/unmarshaling)
-- [ ] Add SOAP/XML support for OCPP 1.6 (custom XML parsing)
-- [ ] Create station state machine for charging sessions
-- [ ] Persist messages to MongoDB (messages collection)
-- [ ] Persist transactions to MongoDB (transactions collection)
-- [ ] Enhance Station Manager UI:
-  - [ ] Full create/edit form with all station properties
-  - [ ] Station templates feature
-  - [ ] Import/Export functionality
-- [ ] Build Message Inspector UI component
-- [ ] Add real-time message streaming to frontend with slog integration
-- [ ] Implement station runtime state sync to MongoDB
-- [ ] Test complete charging session with station loaded from DB
+**OCPP 1.6 Protocol:**
+- [ ] **2.1** Define custom OCPP 1.6 message types (structs) based on specification
+- [ ] **2.2** Implement OCPP 1.6 Core Profile message handlers:
+  - [ ] 2.2a: BootNotification
+  - [ ] 2.2b: Heartbeat
+  - [ ] 2.2c: StatusNotification
+  - [ ] 2.2d: Authorize
+  - [ ] 2.2e: StartTransaction
+  - [ ] 2.2f: StopTransaction
+  - [ ] 2.2g: MeterValues
+  - [ ] 2.2h: DataTransfer
+- [ ] **2.3** Implement custom message encoding/decoding (JSON marshaling/unmarshaling)
+- [ ] **2.4** Add SOAP/XML support for OCPP 1.6 (custom XML parsing)
+- [ ] **2.5** Create station state machine for charging sessions
+
+**Backend Storage:**
+- [x] **2.6** Persist messages to MongoDB (messages collection) - *(Completed in Phase 1)*
+- [ ] **2.7** Persist transactions to MongoDB (transactions collection)
+- [x] **2.8** Implement station runtime state sync to MongoDB - *(Completed in Phase 1)*
+
+**Frontend Enhancements:**
+- [ ] **2.9** Enhance Station Manager UI:
+  - [ ] 2.9a: Full create/edit form with all station properties
+  - [ ] 2.9b: Station templates feature
+  - [ ] 2.9c: Import/Export functionality
+- [x] **2.10** Build Message Inspector UI component - *(Basic version completed in Phase 1)*
+- [ ] **2.11** Add real-time message streaming to frontend with slog integration
+
+**Testing:**
+- [ ] **2.12** Test complete charging session with station loaded from DB
 
 **Deliverable**: Emulator can simulate complete OCPP 1.6 charging session with stations managed via Web UI
 
 ### Phase 3: Enhanced Features (Weeks 5-6)
 **Goal**: Message crafting and advanced debugging
 
-- [ ] Implement Custom Message Crafter UI
-- [ ] Add JSON editor with syntax highlighting
-- [ ] Create message templates library
-- [ ] Build message validation (optional validation mode)
-- [ ] Add message filtering and search in inspector (MongoDB queries)
-- [ ] Implement MongoDB aggregation pipelines for analytics
-- [ ] Implement log export functionality (JSON, CSV)
-- [ ] Add configuration management UI
-- [ ] Support multiple simultaneous station connections
-- [ ] Implement connection retry logic with backoff
-- [ ] Set up MongoDB Change Streams for real-time UI updates
+**Frontend Features:**
+- [ ] **3.1** Implement Custom Message Crafter UI
+- [ ] **3.2** Add JSON editor with syntax highlighting
+- [ ] **3.3** Create message templates library
+- [ ] **3.4** Build message validation (optional validation mode)
+- [ ] **3.5** Add message filtering and search in inspector (MongoDB queries)
+- [ ] **3.6** Implement log export functionality (JSON, CSV)
+- [ ] **3.7** Add configuration management UI
+
+**Backend Features:**
+- [ ] **3.8** Implement MongoDB aggregation pipelines for analytics
+- [x] **3.9** Support multiple simultaneous station connections - *(Basic support in Phase 1)*
+- [x] **3.10** Implement connection retry logic with backoff - *(Basic support in Phase 1)*
+- [ ] **3.11** Set up MongoDB Change Streams for real-time UI updates
 
 **Deliverable**: Users can craft and send custom messages, inspect all traffic with advanced filtering
 
 ### Phase 4: OCPP 2.0.1 Support (Weeks 7-9)
 **Goal**: OCPP 2.0.1 protocol implementation
 
-- [ ] Implement OCPP 2.0.1 core functionality:
-  - [ ] Enhanced BootNotification with StatusInfo
-  - [ ] TransactionEvent (replaces Start/StopTransaction)
-  - [ ] Get/Set Variables (device model)
-  - [ ] Enhanced authorization
-  - [ ] Certificate management messages
-  - [ ] Security event notifications
-- [ ] Implement device model system
-- [ ] Add ISO 15118 certificate handling
-- [ ] Update UI to support OCPP 2.0.1 specific features
-- [ ] Add protocol version selector per station
+**OCPP 2.0.1 Protocol:**
+- [ ] **4.1** Implement OCPP 2.0.1 core functionality:
+  - [ ] 4.1a: Enhanced BootNotification with StatusInfo
+  - [ ] 4.1b: TransactionEvent (replaces Start/StopTransaction)
+  - [ ] 4.1c: Get/Set Variables (device model)
+  - [ ] 4.1d: Enhanced authorization
+  - [ ] 4.1e: Certificate management messages
+  - [ ] 4.1f: Security event notifications
+- [ ] **4.2** Implement device model system
+- [ ] **4.3** Add ISO 15118 certificate handling
+
+**Frontend Updates:**
+- [ ] **4.4** Update UI to support OCPP 2.0.1 specific features
+- [ ] **4.5** Add protocol version selector per station
 
 **Deliverable**: Full OCPP 2.0.1 support with device model
 
 ### Phase 5: OCPP 2.1 & Advanced Features (Weeks 10-11)
 **Goal**: OCPP 2.1 support and scenario automation
 
-- [ ] Implement OCPP 2.1 enhancements:
-  - [ ] Cost and tariff messages
-  - [ ] Display messages
-  - [ ] Additional security features
-  - [ ] Enhanced reservation system
-- [ ] Create Scenario Runner framework
-- [ ] Implement pre-defined test scenarios:
-  - [ ] Happy path charging session
-  - [ ] Authorization failures
-  - [ ] Network disconnection/reconnection
-  - [ ] Concurrent transactions
-  - [ ] Error handling scenarios
-- [ ] Add scenario editor UI
-- [ ] Implement scenario playback controls
+**OCPP 2.1 Protocol:**
+- [ ] **5.1** Implement OCPP 2.1 enhancements:
+  - [ ] 5.1a: Cost and tariff messages
+  - [ ] 5.1b: Display messages
+  - [ ] 5.1c: Additional security features
+  - [ ] 5.1d: Enhanced reservation system
+
+**Scenario Testing:**
+- [ ] **5.2** Create Scenario Runner framework
+- [ ] **5.3** Implement pre-defined test scenarios:
+  - [ ] 5.3a: Happy path charging session
+  - [ ] 5.3b: Authorization failures
+  - [ ] 5.3c: Network disconnection/reconnection
+  - [ ] 5.3d: Concurrent transactions
+  - [ ] 5.3e: Error handling scenarios
+- [ ] **5.4** Add scenario editor UI
+- [ ] **5.5** Implement scenario playback controls
 
 **Deliverable**: OCPP 2.1 support, automated scenario testing
 
 ### Phase 6: Testing & Documentation (Week 12)
 **Goal**: Quality assurance and documentation
 
-- [ ] Write comprehensive unit tests (target: 70%+ coverage)
-- [ ] Integration testing with real CSMS (if available)
-- [ ] Performance testing (10 simultaneous stations)
-- [ ] Create user documentation
-- [ ] Document API endpoints
-- [ ] Create video tutorials/screenshots
-- [ ] Docker containerization
-- [ ] Deployment documentation
+**Testing:**
+- [ ] **6.1** Write comprehensive unit tests (target: 70%+ coverage)
+- [ ] **6.2** Integration testing with real CSMS (if available)
+- [ ] **6.3** Performance testing (10 simultaneous stations)
+
+**Documentation:**
+- [ ] **6.4** Create user documentation
+- [ ] **6.5** Document API endpoints
+- [ ] **6.6** Create video tutorials/screenshots
+
+**DevOps:**
+- [x] **6.7** Docker containerization - *(Completed in Phase 1)*
+- [ ] **6.8** Deployment documentation
 
 **Deliverable**: Production-ready application with documentation
 
 ### Phase 7: Polish & Deployment (Week 13)
 **Goal**: Final touches and release
 
-- [ ] UI/UX improvements based on testing
-- [ ] Enhance station templates library with common configurations
-- [ ] Add bulk operations UI (bulk start/stop, bulk edit)
-- [ ] Add station cloning feature
-- [ ] Add configuration backup/restore functionality
-- [ ] Add TLS/SSL certificate management UI
-- [ ] Implement configuration history/audit log (track changes to stations)
-- [ ] Performance optimizations
-- [ ] Security audit
-- [ ] Create release builds
-- [ ] Set up CI/CD pipeline
-- [ ] Document API endpoints for station management
+**UI Enhancements:**
+- [ ] **7.1** UI/UX improvements based on testing
+- [ ] **7.2** Enhance station templates library with common configurations
+- [ ] **7.3** Add bulk operations UI (bulk start/stop, bulk edit)
+- [ ] **7.4** Add station cloning feature
+- [ ] **7.5** Add configuration backup/restore functionality
+- [ ] **7.6** Add TLS/SSL certificate management UI
+- [ ] **7.7** Implement configuration history/audit log (track changes to stations)
+
+**Quality & Release:**
+- [ ] **7.8** Performance optimizations
+- [ ] **7.9** Security audit
+- [ ] **7.10** Create release builds
+- [ ] **7.11** Set up CI/CD pipeline
+- [ ] **7.12** Document API endpoints for station management
 
 **Deliverable**: v1.0 release
 

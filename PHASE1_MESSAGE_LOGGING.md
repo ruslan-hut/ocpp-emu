@@ -2,7 +2,8 @@
 
 **Status:** ✅ **COMPLETED**
 **Date:** November 7, 2025
-**Task:** Design and implement message logging infrastructure
+**PLAN Tasks:** **1.10**, **1.11**, **2.6** (Message persistence)
+**Task:** Design and implement message logging infrastructure using `log/slog`
 
 ## What Was Implemented
 

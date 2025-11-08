@@ -2,6 +2,7 @@
 
 **Status:** ✅ **COMPLETED**
 **Date:** November 8, 2025
+**PLAN Tasks:** **1.18** (Create seed data for sample stations)
 **Task:** Create sample stations in `testdata/seed/stations.json`
 
 ## What Was Implemented
