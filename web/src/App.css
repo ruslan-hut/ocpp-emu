@@ -1,0 +1,38 @@
+#root {
+  width: 100%;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  font-size: 1.2em;
+  color: #888;
+}
+
+.error {
+  color: #ff4444;
+  padding: 1rem;
+  margin: 1rem 0;
+  border: 1px solid #ff4444;
+  border-radius: 4px;
+  background-color: rgba(255, 68, 68, 0.1);
+}
+
+.success {
+  color: #44ff44;
+  padding: 1rem;
+  margin: 1rem 0;
+  border: 1px solid #44ff44;
+  border-radius: 4px;
+  background-color: rgba(68, 255, 68, 0.1);
+}

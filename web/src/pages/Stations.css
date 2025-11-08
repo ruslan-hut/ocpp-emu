@@ -1,0 +1,212 @@
+.stations {
+  text-align: left;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.page-header h2 {
+  margin: 0;
+  color: #667eea;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.btn-danger:hover {
+  background: #c82333;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  background: #f5f5f5;
+  border-radius: 8px;
+  margin-top: 2rem;
+}
+
+.empty-state p {
+  font-size: 1.25rem;
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+.stations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.station-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: box-shadow 0.2s;
+}
+
+.station-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.station-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.station-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #333;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.connected {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-badge.disconnected,
+.status-badge.not_connected {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.status-badge.connecting {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.station-info {
+  margin-bottom: 1rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-row .label {
+  font-weight: 500;
+  color: #666;
+}
+
+.info-row .value {
+  color: #333;
+}
+
+.station-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f0;
+}
+
+.station-actions button {
+  flex: 1;
+}
+
+@media (prefers-color-scheme: dark) {
+  .empty-state {
+    background: #2a2a2a;
+  }
+
+  .empty-state p {
+    color: #ccc;
+  }
+
+  .station-card {
+    background: #2a2a2a;
+    border-color: #444;
+  }
+
+  .station-header h3 {
+    color: #fff;
+  }
+
+  .info-row .label {
+    color: #999;
+  }
+
+  .info-row .value {
+    color: #e0e0e0;
+  }
+
+  .info-row {
+    border-bottom-color: #444;
+  }
+
+  .station-header {
+    border-bottom-color: #444;
+  }
+
+  .station-actions {
+    border-top-color: #444;
+  }
+}
