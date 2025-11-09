@@ -329,6 +329,123 @@ form {
   border-color: #9ca3af;
 }
 
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .station-form-container {
+    background: #1f2937;
+    color: #f3f4f6;
+  }
+
+  .form-header {
+    border-bottom-color: #374151;
+  }
+
+  .form-header h2 {
+    color: #f3f4f6;
+  }
+
+  .close-btn {
+    color: #9ca3af;
+  }
+
+  .close-btn:hover {
+    background-color: #374151;
+  }
+
+  .templates-section {
+    background-color: #111827;
+    border-bottom-color: #374151;
+  }
+
+  .templates-section label {
+    color: #d1d5db;
+  }
+
+  .templates-section select {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+
+  .form-section h3 {
+    color: #f3f4f6;
+    border-bottom-color: #3b82f6;
+  }
+
+  .form-field label {
+    color: #d1d5db;
+  }
+
+  .form-field input,
+  .form-field select {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+
+  .form-field input:focus,
+  .form-field select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  }
+
+  .form-field input:disabled {
+    background-color: #1f2937;
+    color: #6b7280;
+  }
+
+  .checkbox-label {
+    color: #f3f4f6;
+  }
+
+  .checkbox-label:hover {
+    background-color: #374151;
+  }
+
+  .connector-item {
+    background-color: #111827;
+    border-color: #374151;
+  }
+
+  .connector-header {
+    color: #f3f4f6;
+  }
+
+  .tags-input input {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+
+  .tag {
+    background-color: #1e3a8a;
+    color: #bfdbfe;
+  }
+
+  .tag button {
+    color: #bfdbfe;
+  }
+
+  .tag button:hover {
+    background-color: rgba(191, 219, 254, 0.1);
+  }
+
+  .form-actions {
+    border-top-color: #374151;
+  }
+
+  .btn-secondary {
+    background-color: #374151;
+    color: #f3f4f6;
+    border-color: #4b5563;
+  }
+
+  .btn-secondary:hover {
+    background-color: #4b5563;
+    border-color: #6b7280;
+  }
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .station-form-container {
