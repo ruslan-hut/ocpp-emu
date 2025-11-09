@@ -152,3 +152,60 @@ func TestBasicAuth(t *testing.T) {
 		t.Errorf("Expected 'Basic ' prefix, got %s", result[:6])
 	}
 }
+
+// TestExplicitDisconnectNoReconnect tests that explicit disconnect doesn't trigger reconnection
+func TestExplicitDisconnectNoReconnect(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	config := ConnectionConfig{
+		URL:                  "ws://localhost:9999/ocpp",
+		StationID:            "TEST001",
+		ProtocolVersion:      "1.6",
+		ConnectionTimeout:    5 * time.Second,
+		MaxReconnectAttempts: 3,
+		ReconnectBackoff:     1 * time.Second,
+	}
+
+	client := NewWebSocketClient(config, logger)
+
+	// Verify initial state
+	if client.GetState() != StateDisconnected {
+		t.Errorf("Expected initial state to be disconnected, got %s", client.GetState())
+	}
+
+	// Call Disconnect() explicitly (simulating user stopping station)
+	err := client.Disconnect()
+	if err != nil {
+		t.Errorf("Expected no error on disconnect, got %v", err)
+	}
+
+	// Verify that context was cancelled
+	select {
+	case <-client.ctx.Done():
+		// Context should be cancelled
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Expected context to be cancelled after Disconnect()")
+	}
+
+	// Verify final state is closed
+	if client.GetState() != StateClosed {
+		t.Errorf("Expected state to be closed after disconnect, got %s", client.GetState())
+	}
+
+	// Simulate handleDisconnect being called (as would happen when readPump exits)
+	client.handleDisconnect(nil)
+
+	// Give a bit of time for any potential reconnection goroutine
+	time.Sleep(200 * time.Millisecond)
+
+	// Verify state is still closed (not reconnecting)
+	if client.GetState() != StateClosed {
+		t.Errorf("Expected state to remain closed, got %s", client.GetState())
+	}
+
+	// Verify reconnect count hasn't increased
+	stats := client.GetStats()
+	if stats.ReconnectAttempts != 0 {
+		t.Errorf("Expected 0 reconnect attempts after explicit disconnect, got %d", stats.ReconnectAttempts)
+	}
+}

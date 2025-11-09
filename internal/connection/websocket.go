@@ -366,6 +366,17 @@ func (c *WebSocketClient) handleDisconnect(err error) {
 		c.config.OnDisconnected(err)
 	}
 
+	// Check if disconnection was intentional (context cancelled means explicit Disconnect() call)
+	select {
+	case <-c.ctx.Done():
+		// Context cancelled - this was an intentional disconnect, don't reconnect
+		c.logger.Info("Connection closed intentionally, not attempting reconnect", "station_id", c.config.StationID)
+		c.setState(StateClosed)
+		return
+	default:
+		// Context still active - this was an unexpected disconnect, attempt reconnection
+	}
+
 	// Attempt reconnection
 	if c.reconnectCount < c.config.MaxReconnectAttempts {
 		go c.reconnect()
