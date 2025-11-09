@@ -21,6 +21,7 @@
   margin: auto;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   color: #1f2937 !important;
+  color-scheme: light;
 }
 
 .form-header {
@@ -182,6 +183,16 @@ form {
   transition: background-color 0.2s;
   color: #374151 !important;
   font-size: 0.875rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .station-form-container {
+    background: #ffffff;
+  }
+
+  .station-form-container .checkbox-group .checkbox-label {
+    color: #1f2937 !important;
+  }
 }
 
 .checkbox-label:hover {
