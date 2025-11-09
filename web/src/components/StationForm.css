@@ -20,7 +20,7 @@
   max-width: 900px;
   margin: auto;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  color: #1f2937;
+  color: #1f2937 !important;
 }
 
 .form-header {
@@ -125,7 +125,7 @@ form {
 .form-field label {
   margin-bottom: 5px;
   font-weight: 500;
-  color: #374151;
+  color: #374151 !important;
   font-size: 0.875rem;
 }
 
@@ -180,7 +180,7 @@ form {
   padding: 6px;
   border-radius: 4px;
   transition: background-color 0.2s;
-  color: #374151;
+  color: #374151 !important;
   font-size: 0.875rem;
 }
 
