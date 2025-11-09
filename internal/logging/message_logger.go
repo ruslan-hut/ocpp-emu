@@ -2,6 +2,7 @@ package logging
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -202,6 +203,13 @@ func (ml *MessageLogger) convertToStorageMessage(entry MessageEntry) storage.Mes
 	if entry.Payload != nil {
 		if m, ok := entry.Payload.(map[string]interface{}); ok {
 			payloadMap = m
+		} else if rawMsg, ok := entry.Payload.(json.RawMessage); ok {
+			// Unmarshal json.RawMessage to avoid BSON binary encoding
+			if err := json.Unmarshal(rawMsg, &payloadMap); err != nil {
+				// If unmarshal fails, store as string
+				payloadMap = make(map[string]interface{})
+				payloadMap["raw"] = string(rawMsg)
+			}
 		} else {
 			payloadMap = make(map[string]interface{})
 			payloadMap["data"] = entry.Payload
