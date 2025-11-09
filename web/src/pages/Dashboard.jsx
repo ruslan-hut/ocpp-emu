@@ -114,9 +114,9 @@ function Dashboard() {
       <div className="info-section">
         <h3>Quick Info</h3>
         <div className="info-grid">
-          <div className="info-item">
+          {/* <div className="info-item">
             <strong>Version:</strong> {health?.version || 'Unknown'}
-          </div>
+          </div> */}
           <div className="info-item">
             <strong>Charging Stations:</strong> {health?.stations?.charging || 0}
           </div>
@@ -125,6 +125,9 @@ function Dashboard() {
           </div>
           <div className="info-item">
             <strong>Faulted Stations:</strong> {health?.stations?.faulted || 0}
+          </div>
+          <div className="info-item">
+            <strong>Unavailable Stations:</strong> {health?.stations?.unavailable || 0}
           </div>
         </div>
       </div>
