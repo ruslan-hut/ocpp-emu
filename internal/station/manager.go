@@ -356,6 +356,22 @@ func (m *Manager) LoadStations(ctx context.Context) error {
 			},
 		}
 
+		sessionManager.SetStationStateCallback(func(newState State, reason string) {
+			station.mu.RLock()
+			isConnected := station.RuntimeState.ConnectionStatus == "connected"
+			station.mu.RUnlock()
+
+			if !isConnected {
+				return
+			}
+
+			station.StateMachine.SetState(newState, reason)
+
+			station.mu.Lock()
+			station.RuntimeState.State = newState
+			station.mu.Unlock()
+		})
+
 		// Set up session manager callbacks
 		m.setupSessionManagerCallbacks(station)
 
@@ -730,16 +746,19 @@ func (m *Manager) OnStationConnected(stationID string) {
 	}
 
 	station.mu.Lock()
-	defer station.mu.Unlock()
-
 	now := time.Now()
 	station.StateMachine.SetState(StateConnected, "websocket connected")
 	station.RuntimeState.State = StateConnected
 	station.RuntimeState.ConnectionStatus = "connected"
 	station.RuntimeState.ConnectedAt = &now
 	station.RuntimeState.LastError = ""
+	station.mu.Unlock()
 
 	m.logger.Info("Station connected", "stationId", stationID)
+
+	if station.SessionManager != nil {
+		station.SessionManager.NotifyStationState("initial connector snapshot")
+	}
 
 	// Send BootNotification
 	go m.sendBootNotification(stationID)
@@ -1201,24 +1220,28 @@ func (m *Manager) GetStats() map[string]interface{} {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var connected, disconnected, charging, available, faulted int
+	var connected, disconnected, charging, available, faulted, unavailable int
 
 	for _, station := range m.stations {
 		station.mu.RLock()
 		state := station.StateMachine.GetState()
 		station.mu.RUnlock()
 
-		switch state {
-		case StateConnected, StateRegistered:
+		if station.StateMachine.IsConnected() {
 			connected++
-		case StateDisconnected:
+		} else if state == StateDisconnected || state == StateUnknown {
 			disconnected++
+		}
+
+		switch state {
 		case StateCharging:
 			charging++
 		case StateAvailable:
 			available++
 		case StateFaulted:
 			faulted++
+		case StateUnavailable:
+			unavailable++
 		}
 	}
 
@@ -1229,6 +1252,7 @@ func (m *Manager) GetStats() map[string]interface{} {
 		"charging":     charging,
 		"available":    available,
 		"faulted":      faulted,
+		"unavailable":  unavailable,
 		"syncInterval": m.syncInterval.String(),
 	}
 

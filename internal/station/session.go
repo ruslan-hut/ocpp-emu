@@ -8,19 +8,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ruslanhut/ocpp-emu/internal/ocpp/v16"
+	v16 "github.com/ruslanhut/ocpp-emu/internal/ocpp/v16"
 	"github.com/ruslanhut/ocpp-emu/internal/storage"
 )
 
 // SessionManager manages charging sessions for a station
 type SessionManager struct {
-	stationID         string
-	connectors        map[int]*Connector
-	nextTransactionID int
-	mu                sync.RWMutex
-	logger            *slog.Logger
-	transactionRepo   *storage.TransactionRepository
-	protocolVersion   string
+	stationID            string
+	connectors           map[int]*Connector
+	nextTransactionID    int
+	mu                   sync.RWMutex
+	logger               *slog.Logger
+	transactionRepo      *storage.TransactionRepository
+	protocolVersion      string
+	stationStateCallback func(State, string)
 
 	// Callbacks for OCPP message sending
 	SendAuthorize          func(idTag string) (*v16.AuthorizeResponse, error)
@@ -102,6 +103,18 @@ func (sm *SessionManager) SetTransactionRepository(repo *storage.TransactionRepo
 // SetProtocolVersion sets the protocol version for transaction logging
 func (sm *SessionManager) SetProtocolVersion(version string) {
 	sm.protocolVersion = version
+}
+
+// SetStationStateCallback registers a callback for station-level state changes derived from connector states.
+func (sm *SessionManager) SetStationStateCallback(callback func(State, string)) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.stationStateCallback = callback
+}
+
+// NotifyStationState triggers evaluation of the current connector states and invokes the registered callback.
+func (sm *SessionManager) NotifyStationState(reason string) {
+	sm.evaluateStationState(reason)
 }
 
 // Authorize authorizes an ID tag
@@ -523,8 +536,7 @@ func (sm *SessionManager) onConnectorStateChange(connectorID int, oldState, newS
 		"newState", newState,
 	)
 
-	// Additional logic can be added here
-	// For example, trigger events, update UI, etc.
+	sm.evaluateStationState(fmt.Sprintf("connector %d transitioned from %s to %s", connectorID, oldState, newState))
 }
 
 // Shutdown stops all ongoing sessions and cleanup
@@ -547,4 +559,64 @@ func (sm *SessionManager) Shutdown(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (sm *SessionManager) evaluateStationState(reason string) {
+	sm.mu.RLock()
+	callback := sm.stationStateCallback
+	connectors := make([]*Connector, 0, len(sm.connectors))
+	for _, connector := range sm.connectors {
+		connectors = append(connectors, connector)
+	}
+	sm.mu.RUnlock()
+
+	if callback == nil {
+		return
+	}
+
+	newState := sm.aggregateConnectorState(connectors)
+	callback(newState, reason)
+}
+
+func (sm *SessionManager) aggregateConnectorState(connectors []*Connector) State {
+	if len(connectors) == 0 {
+		return StateUnknown
+	}
+
+	var (
+		hasFaulted     bool
+		hasCharging    bool
+		hasUnavailable bool
+		hasAvailable   bool
+	)
+
+	for _, connector := range connectors {
+		state := connector.GetState()
+
+		switch state {
+		case ConnectorStateFaulted:
+			hasFaulted = true
+		case ConnectorStateCharging, ConnectorStateSuspendedEV, ConnectorStateSuspendedEVSE, ConnectorStatePreparing, ConnectorStateFinishing:
+			hasCharging = true
+		case ConnectorStateUnavailable, ConnectorStateReserved:
+			hasUnavailable = true
+		case ConnectorStateAvailable:
+			hasAvailable = true
+		default:
+			hasAvailable = true
+		}
+	}
+
+	switch {
+	case hasFaulted:
+		return StateFaulted
+	case hasCharging:
+		return StateCharging
+	case hasUnavailable:
+		return StateUnavailable
+	case hasAvailable:
+		return StateAvailable
+	default:
+		return StateUnknown
+	}
 }

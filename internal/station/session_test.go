@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ruslanhut/ocpp-emu/internal/ocpp/v16"
+	v16 "github.com/ruslanhut/ocpp-emu/internal/ocpp/v16"
 )
 
 func TestNewSessionManager(t *testing.T) {
@@ -418,5 +418,47 @@ func TestSessionManager_TransactionIDIncrement(t *testing.T) {
 
 	if txID2 <= txID1 {
 		t.Errorf("Expected transaction ID to increment, got %d then %d", txID1, txID2)
+	}
+}
+
+func TestSessionManager_StationStateCallback(t *testing.T) {
+	connectorConfigs := []ConnectorConfig{
+		{ID: 1, Type: "Type2", MaxPower: 22000, Status: "Available"},
+	}
+
+	sm := NewSessionManager("CP001", connectorConfigs, slog.Default())
+
+	stateCh := make(chan State, 4)
+	sm.SetStationStateCallback(func(state State, reason string) {
+		stateCh <- state
+	})
+
+	_, err := sm.StartCharging(1, "TAG123")
+	if err != nil {
+		t.Fatalf("StartCharging failed: %v", err)
+	}
+
+	waitForStationState(t, stateCh, StateCharging)
+
+	if err := sm.StopCharging(1, v16.ReasonLocal); err != nil {
+		t.Fatalf("StopCharging failed: %v", err)
+	}
+
+	waitForStationState(t, stateCh, StateAvailable)
+}
+
+func waitForStationState(t *testing.T, ch <-chan State, expected State) {
+	t.Helper()
+
+	timeout := time.After(1 * time.Second)
+	for {
+		select {
+		case state := <-ch:
+			if state == expected {
+				return
+			}
+		case <-timeout:
+			t.Fatalf("Timed out waiting for state %s", expected)
+		}
 	}
 }

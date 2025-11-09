@@ -246,6 +246,7 @@ func TestGetStats(t *testing.T) {
 		StateCharging,
 		StateAvailable,
 		StateFaulted,
+		StateUnavailable,
 	}
 
 	for i, state := range states {
@@ -266,16 +267,16 @@ func TestGetStats(t *testing.T) {
 
 	stats := manager.GetStats()
 
-	if stats["total"].(int) != 5 {
-		t.Errorf("Expected total 5, got %v", stats["total"])
+	if stats["total"].(int) != len(states) {
+		t.Errorf("Expected total %d, got %v", len(states), stats["total"])
 	}
 
 	if stats["disconnected"].(int) != 1 {
 		t.Errorf("Expected 1 disconnected, got %v", stats["disconnected"])
 	}
 
-	if stats["connected"].(int) != 1 {
-		t.Errorf("Expected 1 connected, got %v", stats["connected"])
+	if stats["connected"].(int) != 3 {
+		t.Errorf("Expected 3 connected, got %v", stats["connected"])
 	}
 
 	if stats["charging"].(int) != 1 {
@@ -288,6 +289,10 @@ func TestGetStats(t *testing.T) {
 
 	if stats["faulted"].(int) != 1 {
 		t.Errorf("Expected 1 faulted, got %v", stats["faulted"])
+	}
+
+	if stats["unavailable"].(int) != 1 {
+		t.Errorf("Expected 1 unavailable, got %v", stats["unavailable"])
 	}
 }
 
