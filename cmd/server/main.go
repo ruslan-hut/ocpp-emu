@@ -210,6 +210,14 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 
 		if messageLogger == nil {
+			if r.Method == http.MethodDelete {
+				response := map[string]interface{}{
+					"success": false,
+					"message": "Message logger is disabled",
+				}
+				json.NewEncoder(w).Encode(response)
+				return
+			}
 			response := map[string]interface{}{
 				"messages": []interface{}{},
 				"total":    0,
@@ -222,6 +230,28 @@ func main() {
 			return
 		}
 
+		// Handle DELETE request to clear all messages
+		if r.Method == http.MethodDelete {
+			deletedCount, err := messageLogger.ClearAllMessages(r.Context())
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Failed to clear messages: %v", err), http.StatusInternalServerError)
+				return
+			}
+
+			response := map[string]interface{}{
+				"success":      true,
+				"message":      "All messages cleared successfully",
+				"deletedCount": deletedCount,
+			}
+
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+				return
+			}
+			return
+		}
+
+		// Handle GET request to retrieve messages
 		// Parse query parameters
 		query := r.URL.Query()
 		filter := logging.MessageFilter{

@@ -514,6 +514,29 @@ func (ml *MessageLogger) DeleteOldMessages(ctx context.Context, olderThan time.D
 	return result.DeletedCount, nil
 }
 
+// ClearAllMessages deletes all messages from the collection
+func (ml *MessageLogger) ClearAllMessages(ctx context.Context) (int64, error) {
+	collection := ml.db.MessagesCollection
+	result, err := collection.DeleteMany(ctx, bson.M{})
+	if err != nil {
+		return 0, fmt.Errorf("failed to clear all messages: %w", err)
+	}
+
+	ml.logger.Info("Cleared all messages", "count", result.DeletedCount)
+
+	// Reset in-memory stats
+	ml.statsMu.Lock()
+	ml.stats.TotalMessages = 0
+	ml.stats.SentMessages = 0
+	ml.stats.ReceivedMessages = 0
+	ml.stats.CallMessages = 0
+	ml.stats.CallResultMessages = 0
+	ml.stats.CallErrorMessages = 0
+	ml.statsMu.Unlock()
+
+	return result.DeletedCount, nil
+}
+
 // Shutdown gracefully shuts down the message logger
 func (ml *MessageLogger) Shutdown() error {
 	ml.logger.Info("Shutting down message logger")
