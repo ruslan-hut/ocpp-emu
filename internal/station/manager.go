@@ -2,6 +2,7 @@ package station
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -39,6 +40,14 @@ type Station struct {
 	SessionManager *SessionManager // Enhanced session manager for charging
 	mu             sync.RWMutex
 	lastSync       time.Time
+
+	// Heartbeat management
+	heartbeatCancel context.CancelFunc
+	heartbeatDone   chan struct{}
+
+	// Pending requests tracking (message ID -> action)
+	pendingRequests map[string]string
+	pendingMu       sync.RWMutex
 }
 
 // GetData returns a thread-safe copy of the station's config and runtime state
@@ -306,13 +315,105 @@ func (m *Manager) setupSessionManagerCallbacks(station *Station) {
 		return nil
 	}
 
-	// Note: SendAuthorize, SendStartTransaction, and SendStopTransaction are left as nil
-	// This allows SessionManager to operate in offline mode for now.
-	// These require async request/response tracking which will be implemented later.
-	// In offline mode:
-	// - Authorize always accepts
-	// - StartTransaction uses local transaction IDs
-	// - StopTransaction just updates local state
+	// SendAuthorize - sends authorization request to CSMS
+	station.SessionManager.SendAuthorize = func(idTag string) (*v16.AuthorizeResponse, error) {
+		req := &v16.AuthorizeRequest{
+			IdTag: idTag,
+		}
+
+		call, err := m.v16Handler.SendAuthorize(stationID, req)
+		if err != nil {
+			m.logger.Error("Failed to send Authorize",
+				"stationId", stationID,
+				"idTag", idTag,
+				"error", err,
+			)
+			return nil, err
+		}
+
+		// Track pending request
+		station.pendingMu.Lock()
+		station.pendingRequests[call.UniqueID] = string(v16.ActionAuthorize)
+		station.pendingMu.Unlock()
+
+		// For now, return accepted status (actual response will be async)
+		// TODO: Implement async request/response tracking
+		return &v16.AuthorizeResponse{
+			IdTagInfo: v16.IdTagInfo{
+				Status: "Accepted",
+			},
+		}, nil
+	}
+
+	// SendStartTransaction - sends start transaction request to CSMS
+	station.SessionManager.SendStartTransaction = func(connectorID int, idTag string, meterStart int, timestamp time.Time) (*v16.StartTransactionResponse, error) {
+		req := &v16.StartTransactionRequest{
+			ConnectorId: connectorID,
+			IdTag:       idTag,
+			MeterStart:  meterStart,
+			Timestamp:   v16.DateTime{Time: timestamp},
+		}
+
+		call, err := m.v16Handler.SendStartTransaction(stationID, req)
+		if err != nil {
+			m.logger.Error("Failed to send StartTransaction",
+				"stationId", stationID,
+				"connectorId", connectorID,
+				"idTag", idTag,
+				"error", err,
+			)
+			return nil, err
+		}
+
+		// Track pending request
+		station.pendingMu.Lock()
+		station.pendingRequests[call.UniqueID] = string(v16.ActionStartTransaction)
+		station.pendingMu.Unlock()
+
+		// For now, return a placeholder transaction ID
+		// TODO: Implement async request/response tracking
+		// The real transaction ID comes from CSMS response
+		return &v16.StartTransactionResponse{
+			TransactionId: 1,
+			IdTagInfo: v16.IdTagInfo{
+				Status: "Accepted",
+			},
+		}, nil
+	}
+
+	// SendStopTransaction - sends stop transaction request to CSMS
+	station.SessionManager.SendStopTransaction = func(transactionID int, idTag string, meterStop int, timestamp time.Time, reason v16.Reason) (*v16.StopTransactionResponse, error) {
+		req := &v16.StopTransactionRequest{
+			TransactionId: transactionID,
+			IdTag:         idTag,
+			MeterStop:     meterStop,
+			Timestamp:     v16.DateTime{Time: timestamp},
+			Reason:        reason,
+		}
+
+		call, err := m.v16Handler.SendStopTransaction(stationID, req)
+		if err != nil {
+			m.logger.Error("Failed to send StopTransaction",
+				"stationId", stationID,
+				"transactionId", transactionID,
+				"error", err,
+			)
+			return nil, err
+		}
+
+		// Track pending request
+		station.pendingMu.Lock()
+		station.pendingRequests[call.UniqueID] = string(v16.ActionStopTransaction)
+		station.pendingMu.Unlock()
+
+		// For now, return accepted status
+		// TODO: Implement async request/response tracking
+		return &v16.StopTransactionResponse{
+			IdTagInfo: &v16.IdTagInfo{
+				Status: "Accepted",
+			},
+		}, nil
+	}
 }
 
 // LoadStations loads all stations from MongoDB
@@ -347,9 +448,10 @@ func (m *Manager) LoadStations(ctx context.Context) error {
 
 		// Create station instance
 		station := &Station{
-			Config:         config,
-			StateMachine:   NewStateMachine(),
-			SessionManager: sessionManager,
+			Config:          config,
+			StateMachine:    NewStateMachine(),
+			SessionManager:  sessionManager,
+			pendingRequests: make(map[string]string),
 			RuntimeState: RuntimeState{
 				State:            StateDisconnected,
 				ConnectionStatus: "not_connected",
@@ -774,6 +876,9 @@ func (m *Manager) OnStationDisconnected(stationID string, err error) {
 		return
 	}
 
+	// Stop heartbeat
+	m.stopHeartbeat(station)
+
 	station.mu.Lock()
 	defer station.mu.Unlock()
 
@@ -869,7 +974,38 @@ func (m *Manager) handleCallResult(stationID string, result *ocpp.CallResult) {
 	// Store message in MongoDB
 	go m.storeMessage(stationID, "received", result)
 
-	// TODO: Match with pending requests and update state
+	// Get station
+	m.mu.RLock()
+	station, exists := m.stations[stationID]
+	m.mu.RUnlock()
+
+	if !exists {
+		m.logger.Warn("Station not found for CallResult", "stationId", stationID)
+		return
+	}
+
+	// Get and remove pending request
+	station.pendingMu.Lock()
+	action, hasPending := station.pendingRequests[result.UniqueID]
+	if hasPending {
+		delete(station.pendingRequests, result.UniqueID)
+	}
+	station.pendingMu.Unlock()
+
+	if !hasPending {
+		m.logger.Debug("No pending request for CallResult", "stationId", stationID, "uniqueId", result.UniqueID)
+		return
+	}
+
+	// Handle response based on action
+	switch v16.Action(action) {
+	case v16.ActionBootNotification:
+		m.handleBootNotificationResponse(stationID, station, result)
+	case v16.ActionHeartbeat:
+		m.handleHeartbeatResponse(stationID, station, result)
+	default:
+		m.logger.Debug("CallResult for action", "stationId", stationID, "action", action)
+	}
 }
 
 // handleCallError handles CallError responses
@@ -912,6 +1048,11 @@ func (m *Manager) sendBootNotification(stationID string) {
 		return
 	}
 
+	// Track pending request
+	station.pendingMu.Lock()
+	station.pendingRequests[call.UniqueID] = string(v16.ActionBootNotification)
+	station.pendingMu.Unlock()
+
 	data, err := call.ToBytes()
 	if err != nil {
 		m.logger.Error("Failed to marshal BootNotification", "stationId", stationID, "error", err)
@@ -923,7 +1064,7 @@ func (m *Manager) sendBootNotification(stationID string) {
 		return
 	}
 
-	m.logger.Info("Sent BootNotification", "stationId", stationID)
+	m.logger.Info("Sent BootNotification", "stationId", stationID, "uniqueId", call.UniqueID)
 
 	// Store sent message
 	go m.storeMessage(stationID, "sent", call)
@@ -1274,4 +1415,187 @@ func (m *Manager) GetStats() map[string]interface{} {
 	}
 
 	return stats
+}
+
+// handleBootNotificationResponse processes BootNotification responses and starts heartbeat
+func (m *Manager) handleBootNotificationResponse(stationID string, station *Station, result *ocpp.CallResult) {
+	var resp v16.BootNotificationResponse
+	if err := json.Unmarshal(result.Payload, &resp); err != nil {
+		m.logger.Error("Failed to unmarshal BootNotification response", "stationId", stationID, "error", err)
+		return
+	}
+
+	m.logger.Info("BootNotification accepted",
+		"stationId", stationID,
+		"status", resp.Status,
+		"interval", resp.Interval,
+		"currentTime", resp.CurrentTime,
+	)
+
+	if resp.Status == "Accepted" {
+		// Start heartbeat with interval from CSMS (or use configured default)
+		interval := resp.Interval
+		if interval <= 0 {
+			station.mu.RLock()
+			interval = station.Config.Simulation.HeartbeatInterval
+			station.mu.RUnlock()
+			if interval <= 0 {
+				interval = 60 // Default to 60 seconds
+			}
+		}
+
+		m.startHeartbeat(stationID, station, interval)
+
+		// Send initial StatusNotification for all connectors
+		go m.sendAllConnectorStatus(stationID, station)
+	}
+}
+
+// handleHeartbeatResponse processes Heartbeat responses
+func (m *Manager) handleHeartbeatResponse(stationID string, station *Station, result *ocpp.CallResult) {
+	var resp v16.HeartbeatResponse
+	if err := json.Unmarshal(result.Payload, &resp); err != nil {
+		m.logger.Error("Failed to unmarshal Heartbeat response", "stationId", stationID, "error", err)
+		return
+	}
+
+	now := time.Now()
+	station.mu.Lock()
+	station.RuntimeState.LastHeartbeat = &now
+	station.mu.Unlock()
+
+	m.logger.Debug("Heartbeat acknowledged", "stationId", stationID, "serverTime", resp.CurrentTime)
+}
+
+// startHeartbeat starts periodic heartbeat for a station
+func (m *Manager) startHeartbeat(stationID string, station *Station, intervalSeconds int) {
+	// Stop any existing heartbeat
+	m.stopHeartbeat(station)
+
+	interval := time.Duration(intervalSeconds) * time.Second
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+
+	station.mu.Lock()
+	station.heartbeatCancel = cancel
+	station.heartbeatDone = done
+	station.mu.Unlock()
+
+	m.logger.Info("Starting heartbeat", "stationId", stationID, "interval", interval)
+
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				m.logger.Debug("Heartbeat stopped", "stationId", stationID)
+				return
+			case <-ticker.C:
+				m.sendHeartbeat(stationID, station)
+			}
+		}
+	}()
+}
+
+// stopHeartbeat stops the heartbeat for a station
+func (m *Manager) stopHeartbeat(station *Station) {
+	station.mu.Lock()
+	if station.heartbeatCancel != nil {
+		station.heartbeatCancel()
+		station.heartbeatCancel = nil
+	}
+	done := station.heartbeatDone
+	station.mu.Unlock()
+
+	// Wait for heartbeat goroutine to finish
+	if done != nil {
+		<-done
+	}
+}
+
+// sendHeartbeat sends a heartbeat message
+func (m *Manager) sendHeartbeat(stationID string, station *Station) {
+	call, err := ocpp.NewCall(string(v16.ActionHeartbeat), v16.HeartbeatRequest{})
+	if err != nil {
+		m.logger.Error("Failed to create Heartbeat", "stationId", stationID, "error", err)
+		return
+	}
+
+	// Track pending request
+	station.pendingMu.Lock()
+	station.pendingRequests[call.UniqueID] = string(v16.ActionHeartbeat)
+	station.pendingMu.Unlock()
+
+	data, err := call.ToBytes()
+	if err != nil {
+		m.logger.Error("Failed to marshal Heartbeat", "stationId", stationID, "error", err)
+		return
+	}
+
+	if err := m.connManager.SendMessage(stationID, data); err != nil {
+		m.logger.Error("Failed to send Heartbeat", "stationID", stationID, "error", err)
+		return
+	}
+
+	m.logger.Debug("Sent Heartbeat", "stationId", stationID, "uniqueId", call.UniqueID)
+
+	// Store sent message
+	go m.storeMessage(stationID, "sent", call)
+}
+
+// sendAllConnectorStatus sends StatusNotification for all connectors
+func (m *Manager) sendAllConnectorStatus(stationID string, station *Station) {
+	if station.SessionManager == nil {
+		return
+	}
+
+	connectors := station.SessionManager.GetAllConnectors()
+	for _, connector := range connectors {
+		state := connector.GetState()
+		errorCode := connector.GetErrorCode()
+		m.sendStatusNotification(stationID, connector.ID, v16.ChargePointStatus(state), errorCode, "")
+	}
+}
+
+// sendStatusNotification sends a StatusNotification message
+func (m *Manager) sendStatusNotification(stationID string, connectorID int, status v16.ChargePointStatus, errorCode v16.ChargePointErrorCode, info string) {
+	req := &v16.StatusNotificationRequest{
+		ConnectorId: connectorID,
+		ErrorCode:   errorCode,
+		Status:      status,
+		Info:        info,
+	}
+
+	now := v16.DateTime{Time: time.Now()}
+	req.Timestamp = &now
+
+	call, err := ocpp.NewCall(string(v16.ActionStatusNotification), req)
+	if err != nil {
+		m.logger.Error("Failed to create StatusNotification", "stationId", stationID, "error", err)
+		return
+	}
+
+	data, err := call.ToBytes()
+	if err != nil {
+		m.logger.Error("Failed to marshal StatusNotification", "stationId", stationID, "error", err)
+		return
+	}
+
+	if err := m.connManager.SendMessage(stationID, data); err != nil {
+		m.logger.Error("Failed to send StatusNotification", "stationId", stationID, "error", err)
+		return
+	}
+
+	m.logger.Info("Sent StatusNotification",
+		"stationId", stationID,
+		"connectorId", connectorID,
+		"status", status,
+		"uniqueId", call.UniqueID,
+	)
+
+	// Store sent message
+	go m.storeMessage(stationID, "sent", call)
 }

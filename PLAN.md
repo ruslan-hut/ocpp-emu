@@ -387,23 +387,23 @@ ocpp-emu/
 **Goal**: Full OCPP 1.6 implementation with custom protocol handlers
 
 **OCPP 1.6 Protocol:**
-- [ ] **2.1** Define custom OCPP 1.6 message types (structs) based on specification
-- [ ] **2.2** Implement OCPP 1.6 Core Profile message handlers:
-  - [ ] 2.2a: BootNotification
-  - [ ] 2.2b: Heartbeat
-  - [ ] 2.2c: StatusNotification
-  - [ ] 2.2d: Authorize
-  - [ ] 2.2e: StartTransaction
-  - [ ] 2.2f: StopTransaction
-  - [ ] 2.2g: MeterValues
-  - [ ] 2.2h: DataTransfer
-- [ ] **2.3** Implement custom message encoding/decoding (JSON marshaling/unmarshaling)
+- [x] **2.1** Define custom OCPP 1.6 message types (structs) based on specification
+- [x] **2.2** Implement OCPP 1.6 Core Profile message handlers:
+  - [x] 2.2a: BootNotification
+  - [x] 2.2b: Heartbeat
+  - [x] 2.2c: StatusNotification
+  - [x] 2.2d: Authorize
+  - [x] 2.2e: StartTransaction
+  - [x] 2.2f: StopTransaction
+  - [x] 2.2g: MeterValues
+  - [x] 2.2h: DataTransfer
+- [x] **2.3** Implement custom message encoding/decoding (JSON marshaling/unmarshaling)
 - [ ] **2.4** (SKIP XML SUPPORT) Add SOAP/XML support for OCPP 1.6 (custom XML parsing)
-- [ ] **2.5** Create station state machine for charging sessions
+- [x] **2.5** Create station state machine for charging sessions
 
 **Backend Storage:**
 - [x] **2.6** Persist messages to MongoDB (messages collection) - *(Completed in Phase 1)*
-- [ ] **2.7** Persist transactions to MongoDB (transactions collection)
+- [x] **2.7** Persist transactions to MongoDB (transactions collection)
 - [x] **2.8** Implement station runtime state sync to MongoDB - *(Completed in Phase 1)*
 
 **Frontend Enhancements:**
