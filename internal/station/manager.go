@@ -1599,3 +1599,162 @@ func (m *Manager) sendStatusNotification(stationID string, connectorID int, stat
 	// Store sent message
 	go m.storeMessage(stationID, "sent", call)
 }
+
+// GetConnectors returns the connectors for a station with their current state
+func (m *Manager) GetConnectors(ctx context.Context, stationID string) ([]map[string]interface{}, error) {
+	m.mu.RLock()
+	station, exists := m.stations[stationID]
+	m.mu.RUnlock()
+
+	if !exists {
+		return nil, fmt.Errorf("station not found: %s", stationID)
+	}
+
+	if station.SessionManager == nil {
+		return nil, fmt.Errorf("session manager not initialized for station: %s", stationID)
+	}
+
+	connectors := station.SessionManager.GetAllConnectors()
+	result := make([]map[string]interface{}, 0, len(connectors))
+
+	for _, connector := range connectors {
+		connectorData := map[string]interface{}{
+			"id":        connector.ID,
+			"type":      connector.Type,
+			"maxPower":  connector.MaxPower,
+			"state":     string(connector.GetState()),
+			"errorCode": string(connector.GetErrorCode()),
+		}
+
+		// Add transaction info if active
+		if connector.HasActiveTransaction() {
+			tx := connector.GetTransaction()
+			if tx != nil {
+				tx.mu.RLock()
+				connectorData["transaction"] = map[string]interface{}{
+					"id":              tx.ID,
+					"idTag":           tx.IDTag,
+					"startTime":       tx.StartTime,
+					"startMeterValue": tx.StartMeterValue,
+					"currentMeter":    tx.CurrentMeter,
+				}
+				tx.mu.RUnlock()
+			}
+		}
+
+		result = append(result, connectorData)
+	}
+
+	return result, nil
+}
+
+// StartCharging initiates a charging session on a connector
+func (m *Manager) StartCharging(ctx context.Context, stationID string, connectorID int, idTag string) error {
+	m.mu.RLock()
+	station, exists := m.stations[stationID]
+	m.mu.RUnlock()
+
+	if !exists {
+		return fmt.Errorf("station not found: %s", stationID)
+	}
+
+	if station.SessionManager == nil {
+		return fmt.Errorf("session manager not initialized for station: %s", stationID)
+	}
+
+	station.mu.RLock()
+	isConnected := station.RuntimeState.ConnectionStatus == "connected"
+	station.mu.RUnlock()
+
+	if !isConnected {
+		return fmt.Errorf("station is not connected to CSMS")
+	}
+
+	m.logger.Info("Starting charging session",
+		"stationId", stationID,
+		"connectorId", connectorID,
+		"idTag", idTag,
+	)
+
+	// Start charging via session manager
+	transactionID, err := station.SessionManager.StartCharging(connectorID, idTag)
+	if err != nil {
+		m.logger.Error("Failed to start charging",
+			"stationId", stationID,
+			"connectorId", connectorID,
+			"error", err,
+		)
+		return fmt.Errorf("failed to start charging: %w", err)
+	}
+
+	m.logger.Info("Charging session started successfully",
+		"stationId", stationID,
+		"connectorId", connectorID,
+		"idTag", idTag,
+		"transactionId", transactionID,
+	)
+
+	return nil
+}
+
+// StopCharging stops a charging session on a connector
+func (m *Manager) StopCharging(ctx context.Context, stationID string, connectorID int, reason string) error {
+	m.mu.RLock()
+	station, exists := m.stations[stationID]
+	m.mu.RUnlock()
+
+	if !exists {
+		return fmt.Errorf("station not found: %s", stationID)
+	}
+
+	if station.SessionManager == nil {
+		return fmt.Errorf("session manager not initialized for station: %s", stationID)
+	}
+
+	m.logger.Info("Stopping charging session",
+		"stationId", stationID,
+		"connectorId", connectorID,
+		"reason", reason,
+	)
+
+	// Convert reason string to v16.Reason type
+	var stopReason v16.Reason
+	switch reason {
+	case "Local":
+		stopReason = v16.ReasonLocal
+	case "Remote":
+		stopReason = v16.ReasonRemote
+	case "EVDisconnected":
+		stopReason = v16.ReasonEVDisconnected
+	case "HardReset":
+		stopReason = v16.ReasonHardReset
+	case "SoftReset":
+		stopReason = v16.ReasonSoftReset
+	case "PowerLoss":
+		stopReason = v16.ReasonPowerLoss
+	case "EmergencyStop":
+		stopReason = v16.ReasonEmergencyStop
+	case "DeAuthorized":
+		stopReason = v16.ReasonDeAuthorized
+	default:
+		stopReason = v16.ReasonLocal
+	}
+
+	// Stop charging via session manager
+	if err := station.SessionManager.StopCharging(connectorID, stopReason); err != nil {
+		m.logger.Error("Failed to stop charging",
+			"stationId", stationID,
+			"connectorId", connectorID,
+			"error", err,
+		)
+		return fmt.Errorf("failed to stop charging: %w", err)
+	}
+
+	m.logger.Info("Charging session stopped successfully",
+		"stationId", stationID,
+		"connectorId", connectorID,
+		"reason", reason,
+	)
+
+	return nil
+}

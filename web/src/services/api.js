@@ -47,6 +47,11 @@ export const stationsAPI = {
   delete: (id) => api.delete(`/api/stations/${id}`),
   start: (id) => api.patch(`/api/stations/${id}/start`),
   stop: (id) => api.patch(`/api/stations/${id}/stop`),
+  getConnectors: (id) => api.get(`/api/stations/${id}/connectors`),
+  startCharging: (id, connectorId, idTag) =>
+    api.post(`/api/stations/${id}/charge`, { connectorId, idTag }),
+  stopCharging: (id, connectorId, reason) =>
+    api.post(`/api/stations/${id}/stop-charge`, { connectorId, reason: reason || 'Local' }),
 }
 
 // Messages API

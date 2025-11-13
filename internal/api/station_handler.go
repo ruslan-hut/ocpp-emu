@@ -583,3 +583,136 @@ func (h *StationHandler) sendError(w http.ResponseWriter, status int, message st
 		"status": status,
 	})
 }
+
+// GetConnectors returns the connectors for a station
+func (h *StationHandler) GetConnectors(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		h.sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	// Extract station ID from URL
+	stationID := strings.TrimPrefix(r.URL.Path, "/api/stations/")
+	stationID = strings.TrimSuffix(stationID, "/connectors")
+
+	if stationID == "" {
+		h.sendError(w, http.StatusBadRequest, "Station ID is required")
+		return
+	}
+
+	// Get connectors from manager
+	connectors, err := h.manager.GetConnectors(r.Context(), stationID)
+	if err != nil {
+		h.sendError(w, http.StatusNotFound, fmt.Sprintf("Failed to get connectors: %v", err))
+		return
+	}
+
+	h.sendJSON(w, http.StatusOK, map[string]interface{}{
+		"stationId":  stationID,
+		"connectors": connectors,
+	})
+}
+
+// StartCharging starts a charging session on a connector
+func (h *StationHandler) StartCharging(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		h.sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	// Extract station ID from URL
+	stationID := strings.TrimPrefix(r.URL.Path, "/api/stations/")
+	stationID = strings.TrimSuffix(stationID, "/charge")
+
+	if stationID == "" {
+		h.sendError(w, http.StatusBadRequest, "Station ID is required")
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		ConnectorID int    `json:"connectorId"`
+		IDTag       string `json:"idTag"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		return
+	}
+
+	if req.ConnectorID <= 0 {
+		h.sendError(w, http.StatusBadRequest, "Connector ID must be positive")
+		return
+	}
+
+	if req.IDTag == "" {
+		h.sendError(w, http.StatusBadRequest, "ID tag is required")
+		return
+	}
+
+	// Start charging
+	if err := h.manager.StartCharging(r.Context(), stationID, req.ConnectorID, req.IDTag); err != nil {
+		h.sendError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to start charging: %v", err))
+		return
+	}
+
+	h.sendJSON(w, http.StatusOK, map[string]interface{}{
+		"success":     true,
+		"message":     "Charging started successfully",
+		"stationId":   stationID,
+		"connectorId": req.ConnectorID,
+		"idTag":       req.IDTag,
+	})
+}
+
+// StopCharging stops a charging session on a connector
+func (h *StationHandler) StopCharging(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		h.sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	// Extract station ID from URL
+	stationID := strings.TrimPrefix(r.URL.Path, "/api/stations/")
+	stationID = strings.TrimSuffix(stationID, "/stop-charge")
+
+	if stationID == "" {
+		h.sendError(w, http.StatusBadRequest, "Station ID is required")
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		ConnectorID int    `json:"connectorId"`
+		Reason      string `json:"reason,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		return
+	}
+
+	if req.ConnectorID <= 0 {
+		h.sendError(w, http.StatusBadRequest, "Connector ID must be positive")
+		return
+	}
+
+	// Default reason if not provided
+	if req.Reason == "" {
+		req.Reason = "Local"
+	}
+
+	// Stop charging
+	if err := h.manager.StopCharging(r.Context(), stationID, req.ConnectorID, req.Reason); err != nil {
+		h.sendError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to stop charging: %v", err))
+		return
+	}
+
+	h.sendJSON(w, http.StatusOK, map[string]interface{}{
+		"success":     true,
+		"message":     "Charging stopped successfully",
+		"stationId":   stationID,
+		"connectorId": req.ConnectorID,
+		"reason":      req.Reason,
+	})
+}

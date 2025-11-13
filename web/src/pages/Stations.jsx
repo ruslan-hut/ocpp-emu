@@ -3,6 +3,7 @@ import { stationsAPI } from '../services/api'
 import StationForm from '../components/StationForm'
 import TemplatesManager from '../components/TemplatesManager'
 import ImportExport from '../components/ImportExport'
+import ConnectorCard from '../components/ConnectorCard'
 import './Stations.css'
 
 function Stations() {
@@ -14,6 +15,10 @@ function Stations() {
   const [showTemplates, setShowTemplates] = useState(false)
   const [showImportExport, setShowImportExport] = useState(false)
   const [templates, setTemplates] = useState([])
+  const [showConnectors, setShowConnectors] = useState(false)
+  const [selectedStationId, setSelectedStationId] = useState(null)
+  const [connectors, setConnectors] = useState([])
+  const [connectorsLoading, setConnectorsLoading] = useState(false)
 
   useEffect(() => {
     fetchStations()
@@ -61,13 +66,16 @@ function Stations() {
     }
   }
 
-  const handleDelete = async (stationId) => {
+  const handleDelete = async (station) => {
+    const stationId = station.stationId || station
     if (!confirm(`Are you sure you want to delete station ${stationId}?`)) {
       return
     }
 
     try {
       await stationsAPI.delete(stationId)
+      setShowForm(false)
+      setEditingStation(null)
       fetchStations()
     } catch (err) {
       alert(`Failed to delete station: ${err.message}`)
@@ -142,6 +150,40 @@ function Stations() {
     setTemplates(newTemplates)
     localStorage.setItem('stationTemplates', JSON.stringify(newTemplates))
     alert('Template saved successfully!')
+  }
+
+  const handleViewConnectors = async (stationId) => {
+    setSelectedStationId(stationId)
+    setShowConnectors(true)
+    setConnectorsLoading(true)
+    try {
+      const response = await stationsAPI.getConnectors(stationId)
+      setConnectors(response.data.connectors || [])
+    } catch (err) {
+      alert(`Failed to load connectors: ${err.message}`)
+      setConnectors([])
+    } finally {
+      setConnectorsLoading(false)
+    }
+  }
+
+  const handleRefreshConnectors = async () => {
+    if (!selectedStationId) return
+    setConnectorsLoading(true)
+    try {
+      const response = await stationsAPI.getConnectors(selectedStationId)
+      setConnectors(response.data.connectors || [])
+    } catch (err) {
+      console.error('Failed to refresh connectors:', err)
+    } finally {
+      setConnectorsLoading(false)
+    }
+  }
+
+  const handleCloseConnectors = () => {
+    setShowConnectors(false)
+    setSelectedStationId(null)
+    setConnectors([])
   }
 
   if (loading) {
@@ -266,23 +308,17 @@ function Stations() {
                   </button>
                 )}
                 <button
+                  className="btn-action btn-connectors"
+                  onClick={() => handleViewConnectors(station.stationId)}
+                  title="Manage connectors"
+                >
+                  🔌 Connectors
+                </button>
+                <button
                   className="btn-action btn-edit"
                   onClick={() => handleEditStation(station)}
                 >
                   ✏️ Edit
-                </button>
-                <button
-                  className="btn-action btn-template"
-                  onClick={() => handleSaveAsTemplate(station)}
-                  title="Save as template"
-                >
-                  📋
-                </button>
-                <button
-                  className="btn-action btn-delete"
-                  onClick={() => handleDelete(station.stationId)}
-                >
-                  🗑️ Delete
                 </button>
               </div>
             </div>
@@ -295,6 +331,8 @@ function Stations() {
           station={editingStation}
           onSubmit={handleFormSubmit}
           onCancel={handleFormCancel}
+          onDelete={editingStation ? handleDelete : undefined}
+          onSaveAsTemplate={editingStation ? handleSaveAsTemplate : undefined}
           templates={templates}
         />
       )}
@@ -312,6 +350,48 @@ function Stations() {
           onClose={() => setShowImportExport(false)}
           onImportComplete={fetchStations}
         />
+      )}
+
+      {showConnectors && (
+        <div className="modal-overlay" onClick={handleCloseConnectors}>
+          <div className="modal-content connectors-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Connectors - {selectedStationId}</h2>
+              <div className="modal-header-actions">
+                <button
+                  className="btn-secondary"
+                  onClick={handleRefreshConnectors}
+                  disabled={connectorsLoading}
+                >
+                  🔄 Refresh
+                </button>
+                <button className="btn-close" onClick={handleCloseConnectors}>
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="modal-body">
+              {connectorsLoading ? (
+                <div className="loading">Loading connectors...</div>
+              ) : connectors.length === 0 ? (
+                <div className="empty-state">
+                  <p>No connectors configured for this station</p>
+                </div>
+              ) : (
+                <div className="connectors-grid">
+                  {connectors.map((connector) => (
+                    <ConnectorCard
+                      key={connector.id}
+                      stationId={selectedStationId}
+                      connector={connector}
+                      onUpdate={handleRefreshConnectors}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

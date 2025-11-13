@@ -21,7 +21,7 @@ const MEASURANDS = [
   'Temperature'
 ]
 
-function StationForm({ station, onSubmit, onCancel, templates = [] }) {
+function StationForm({ station, onSubmit, onCancel, onDelete, onSaveAsTemplate, templates = [] }) {
   const [formData, setFormData] = useState({
     stationId: '',
     name: '',
@@ -590,12 +590,34 @@ function StationForm({ station, onSubmit, onCancel, templates = [] }) {
 
           {/* Form Actions */}
           <div className="form-actions">
-            <button type="button" className="btn-secondary" onClick={onCancel}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-primary">
-              {station ? 'Update Station' : 'Create Station'}
-            </button>
+            <div className="form-actions-left">
+              {station && onDelete && (
+                <button
+                  type="button"
+                  className="btn-danger"
+                  onClick={() => onDelete(station)}
+                >
+                  🗑️ Delete Station
+                </button>
+              )}
+              {station && onSaveAsTemplate && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => onSaveAsTemplate(station)}
+                >
+                  📋 Save as Template
+                </button>
+              )}
+            </div>
+            <div className="form-actions-right">
+              <button type="button" className="btn-secondary" onClick={onCancel}>
+                Cancel
+              </button>
+              <button type="submit" className="btn-primary">
+                {station ? 'Update Station' : 'Create Station'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -607,6 +629,8 @@ StationForm.propTypes = {
   station: PropTypes.object,
   onSubmit: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
+  onDelete: PropTypes.func,
+  onSaveAsTemplate: PropTypes.func,
   templates: PropTypes.array
 }
 

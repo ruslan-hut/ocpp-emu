@@ -439,6 +439,24 @@ func main() {
 			return
 		}
 
+		// Check if path ends with /connectors
+		if strings.HasSuffix(r.URL.Path, "/connectors") {
+			stationHandler.GetConnectors(w, r)
+			return
+		}
+
+		// Check if path ends with /charge
+		if strings.HasSuffix(r.URL.Path, "/charge") {
+			stationHandler.StartCharging(w, r)
+			return
+		}
+
+		// Check if path ends with /stop-charge
+		if strings.HasSuffix(r.URL.Path, "/stop-charge") {
+			stationHandler.StopCharging(w, r)
+			return
+		}
+
 		// Otherwise, handle CRUD operations on individual stations
 		switch r.Method {
 		case http.MethodGet:
