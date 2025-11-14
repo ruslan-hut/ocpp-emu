@@ -13,6 +13,7 @@ function Messages() {
   const [error, setError] = useState(null)
   const [liveUpdates, setLiveUpdates] = useState(true)
   const [wsConnected, setWsConnected] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
   const [filters, setFilters] = useState({
     direction: 'all',
     stationId: '',
@@ -24,6 +25,7 @@ function Messages() {
 
   const wsRef = useRef(null)
   const messagesEndRef = useRef(null)
+  const exportMenuRef = useRef(null)
 
   // Helper function to format payload for search
   const getSearchablePayload = (payload) => {
@@ -125,6 +127,23 @@ function Messages() {
     fetchMessages()
     fetchStats()
   }, [filters])
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
+        setShowExportMenu(false)
+      }
+    }
+
+    if (showExportMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showExportMenu])
 
   // WebSocket connection for real-time updates
   useEffect(() => {
@@ -335,6 +354,90 @@ function Messages() {
     )
   }
 
+  // Export functionality
+  const exportToJSON = () => {
+    const dataStr = JSON.stringify(filteredMessages, null, 2)
+    const dataBlob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(dataBlob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `ocpp-messages-${new Date().toISOString()}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  const exportToCSV = () => {
+    // CSV headers
+    const headers = [
+      'Timestamp',
+      'Station ID',
+      'Direction',
+      'Message Type',
+      'Action',
+      'Message ID',
+      'Protocol Version',
+      'Error Code',
+      'Error Description',
+      'Payload'
+    ]
+
+    // Convert messages to CSV rows
+    const rows = filteredMessages.map((message) => [
+      message.timestamp || '',
+      message.stationId || '',
+      message.direction || '',
+      message.messageType || '',
+      message.action || '',
+      message.messageId || '',
+      message.protocolVersion || '',
+      message.errorCode || '',
+      message.errorDescription || '',
+      message.payload ? JSON.stringify(message.payload) : ''
+    ])
+
+    // Escape CSV fields (handle commas, quotes, newlines)
+    const escapeCSV = (field) => {
+      if (field === null || field === undefined) return ''
+      const str = String(field)
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`
+      }
+      return str
+    }
+
+    // Build CSV content
+    const csvContent = [
+      headers.map(escapeCSV).join(','),
+      ...rows.map((row) => row.map(escapeCSV).join(','))
+    ].join('\n')
+
+    // Download
+    const dataBlob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(dataBlob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `ocpp-messages-${new Date().toISOString()}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleExport = (format) => {
+    if (filteredMessages.length === 0) {
+      alert('No messages to export')
+      return
+    }
+
+    if (format === 'json') {
+      exportToJSON()
+    } else if (format === 'csv') {
+      exportToCSV()
+    }
+  }
+
   if (loading) {
     return <div className="loading">Loading messages...</div>
   }
@@ -360,6 +463,27 @@ function Messages() {
               {!wsConnected && liveUpdates && <span className="ws-indicator disconnected">●</span>}
             </label>
           </div>
+
+          <div className="export-dropdown" ref={exportMenuRef}>
+            <button
+              className="btn-export"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              disabled={filteredMessages.length === 0}
+            >
+              📥 Export ({filteredMessages.length})
+            </button>
+            {showExportMenu && (
+              <div className="export-menu">
+                <button onClick={() => { handleExport('json'); setShowExportMenu(false); }}>
+                  Export as JSON
+                </button>
+                <button onClick={() => { handleExport('csv'); setShowExportMenu(false); }}>
+                  Export as CSV
+                </button>
+              </div>
+            )}
+          </div>
+
           <button className="btn-danger" onClick={handleClearMessages}>
             Clear All Messages
           </button>

@@ -20,6 +20,69 @@
   align-items: center;
 }
 
+/* Export Dropdown */
+.export-dropdown {
+  position: relative;
+}
+
+.btn-export {
+  padding: 0.75rem 1.5rem;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-export:hover:not(:disabled) {
+  background: #218838;
+}
+
+.btn-export:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.export-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 180px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.export-menu button {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: none;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.export-menu button:hover {
+  background: #f5f5f5;
+}
+
+.export-menu button:not(:last-child) {
+  border-bottom: 1px solid #e0e0e0;
+}
+
 .live-updates-toggle {
   display: flex;
   align-items: center;
@@ -423,6 +486,32 @@
 }
 
 @media (prefers-color-scheme: dark) {
+  .btn-export:hover:not(:disabled) {
+    background: #1e7e34;
+  }
+
+  .btn-export:disabled {
+    background: #495057;
+  }
+
+  .export-menu {
+    background: #2a2a2a;
+    border-color: #444;
+  }
+
+  .export-menu button {
+    background: #2a2a2a;
+    color: #e0e0e0;
+  }
+
+  .export-menu button:hover {
+    background: #3a3a3a;
+  }
+
+  .export-menu button:not(:last-child) {
+    border-bottom-color: #444;
+  }
+
   .live-updates-toggle {
     background: #2a2a2a;
   }
