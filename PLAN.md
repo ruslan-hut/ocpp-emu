@@ -426,7 +426,7 @@ ocpp-emu/
 - [x] **3.1** Implement Custom Message Crafter UI
 - [x] **3.2** Add JSON editor with syntax highlighting
 - [x] **3.3** Create message templates library
-- [ ] **3.4** Build message validation (optional validation mode)
+- [x] **3.4** Build message validation (optional validation mode)
 - [ ] **3.5** Add message filtering and search in inspector (MongoDB queries)
 - [ ] **3.6** Implement log export functionality (JSON, CSV)
 - [ ] **3.7** Add configuration management UI

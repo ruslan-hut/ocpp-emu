@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import Editor from '@monaco-editor/react'
 import { stationsAPI } from '../services/api'
 import TemplateLibrary from '../components/TemplateLibrary'
+import { ocppValidator, ValidationMode } from '../services/ocppValidator'
 import './MessageCrafter.css'
 
 function MessageCrafter() {
@@ -15,6 +16,9 @@ function MessageCrafter() {
   const [result, setResult] = useState(null)
   const [jsonError, setJsonError] = useState(null)
   const [showTemplateLibrary, setShowTemplateLibrary] = useState(false)
+  const [validationEnabled, setValidationEnabled] = useState(true)
+  const [validationMode, setValidationMode] = useState(ValidationMode.STRICT)
+  const [validationResult, setValidationResult] = useState(null)
   const editorRef = useRef(null)
 
   // OCPP 1.6 message templates
@@ -118,6 +122,24 @@ function MessageCrafter() {
     }
   }
 
+  // Validate message whenever it changes
+  useEffect(() => {
+    if (!validationEnabled) {
+      setValidationResult(null)
+      return
+    }
+
+    try {
+      const message = buildMessage()
+      ocppValidator.setMode(validationMode)
+      const result = ocppValidator.validateMessage(message)
+      setValidationResult(result)
+    } catch (err) {
+      // If buildMessage fails, don't show validation errors
+      setValidationResult(null)
+    }
+  }, [payload, action, uniqueId, messageType, validationEnabled, validationMode])
+
   const formatJSON = () => {
     try {
       const parsed = JSON.parse(payload)
@@ -156,6 +178,25 @@ function MessageCrafter() {
     if (!selectedStation) {
       setResult({ success: false, error: 'Please select a station' })
       return
+    }
+
+    // Check validation if enabled
+    if (validationEnabled && validationResult) {
+      if (validationResult.errors.length > 0) {
+        setResult({
+          success: false,
+          error: `Cannot send message: ${validationResult.errors.length} validation error${validationResult.errors.length > 1 ? 's' : ''} found`
+        })
+        return
+      }
+
+      if (validationMode === ValidationMode.STRICT && validationResult.warnings.length > 0) {
+        setResult({
+          success: false,
+          error: `Cannot send message in strict mode: ${validationResult.warnings.length} warning${validationResult.warnings.length > 1 ? 's' : ''} found`
+        })
+        return
+      }
     }
 
     try {
@@ -463,6 +504,93 @@ function MessageCrafter() {
             </div>
           </div>
         )}
+
+        {/* Validation Settings */}
+        <div className="crafter-section">
+          <h3>4. Validation (Optional)</h3>
+          <div className="validation-controls">
+            <div className="validation-toggle">
+              <label className="toggle-label">
+                <input
+                  type="checkbox"
+                  checked={validationEnabled}
+                  onChange={(e) => setValidationEnabled(e.target.checked)}
+                />
+                <span>Enable OCPP Message Validation</span>
+              </label>
+            </div>
+
+            {validationEnabled && (
+              <div className="validation-mode">
+                <label>Validation Mode:</label>
+                <div className="mode-selector">
+                  <button
+                    className={`mode-btn ${validationMode === ValidationMode.STRICT ? 'active' : ''}`}
+                    onClick={() => setValidationMode(ValidationMode.STRICT)}
+                  >
+                    Strict
+                  </button>
+                  <button
+                    className={`mode-btn ${validationMode === ValidationMode.LENIENT ? 'active' : ''}`}
+                    onClick={() => setValidationMode(ValidationMode.LENIENT)}
+                  >
+                    Lenient
+                  </button>
+                </div>
+                <p className="mode-description">
+                  {validationMode === ValidationMode.STRICT
+                    ? 'Enforce full OCPP spec compliance - all errors and warnings must be resolved'
+                    : 'Allow testing of edge cases - warnings are allowed, only errors block sending'}
+                </p>
+              </div>
+            )}
+
+            {validationEnabled && validationResult && (
+              <div className={`validation-result ${
+                validationResult.valid ? 'valid' :
+                validationResult.errors.length > 0 ? 'error' : 'warning'
+              }`}>
+                <div className="validation-header">
+                  {validationResult.valid && validationResult.errors.length === 0 && validationResult.warnings.length === 0 && (
+                    <span>✅ Message is valid</span>
+                  )}
+                  {validationResult.errors.length > 0 && (
+                    <span>❌ {validationResult.errors.length} error{validationResult.errors.length > 1 ? 's' : ''} found</span>
+                  )}
+                  {validationResult.errors.length === 0 && validationResult.warnings.length > 0 && (
+                    <span>⚠️ {validationResult.warnings.length} warning{validationResult.warnings.length > 1 ? 's' : ''}</span>
+                  )}
+                </div>
+
+                {validationResult.errors.length > 0 && (
+                  <div className="validation-messages">
+                    <strong>Errors:</strong>
+                    <ul>
+                      {validationResult.errors.map((err, i) => (
+                        <li key={i}>
+                          <code>{err.field}</code>: {err.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {validationResult.warnings.length > 0 && (
+                  <div className="validation-messages">
+                    <strong>Warnings:</strong>
+                    <ul>
+                      {validationResult.warnings.map((warn, i) => (
+                        <li key={i}>
+                          <code>{warn.field}</code>: {warn.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Message Preview */}
         <div className="crafter-section">
