@@ -6,6 +6,10 @@
 
 .page-header {
   margin-bottom: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
 }
 
 .page-header h2 {
@@ -17,6 +21,25 @@
   margin: 0;
   color: #666;
   font-size: 14px;
+}
+
+.btn-templates {
+  padding: 10px 20px;
+  background: #6f42c1;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-templates:hover {
+  background: #5a32a3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .crafter-container {

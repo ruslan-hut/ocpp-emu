@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Editor from '@monaco-editor/react'
 import { stationsAPI } from '../services/api'
+import TemplateLibrary from '../components/TemplateLibrary'
 import './MessageCrafter.css'
 
 function MessageCrafter() {
@@ -13,6 +14,7 @@ function MessageCrafter() {
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState(null)
   const [jsonError, setJsonError] = useState(null)
+  const [showTemplateLibrary, setShowTemplateLibrary] = useState(false)
   const editorRef = useRef(null)
 
   // OCPP 1.6 message templates
@@ -127,6 +129,12 @@ function MessageCrafter() {
     }
   }
 
+  const handleTemplateSelect = (template) => {
+    setAction(template.action)
+    setPayload(template.payload)
+    setJsonError(null)
+  }
+
   const buildMessage = () => {
     try {
       const payloadObj = JSON.parse(payload)
@@ -206,8 +214,16 @@ function MessageCrafter() {
   return (
     <div className="message-crafter">
       <div className="page-header">
-        <h2>Message Crafter</h2>
-        <p>Craft and send custom OCPP messages for testing</p>
+        <div>
+          <h2>Message Crafter</h2>
+          <p>Craft and send custom OCPP messages for testing</p>
+        </div>
+        <button
+          className="btn-templates"
+          onClick={() => setShowTemplateLibrary(true)}
+        >
+          📚 Template Library
+        </button>
       </div>
 
       <div className="crafter-container">
@@ -484,6 +500,16 @@ function MessageCrafter() {
           </div>
         )}
       </div>
+
+      {/* Template Library Modal */}
+      {showTemplateLibrary && (
+        <TemplateLibrary
+          onSelectTemplate={handleTemplateSelect}
+          onClose={() => setShowTemplateLibrary(false)}
+          currentPayload={payload}
+          currentAction={action}
+        />
+      )}
     </div>
   )
 }
