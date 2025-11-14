@@ -652,7 +652,7 @@ func (h *StationHandler) StartCharging(w http.ResponseWriter, r *http.Request) {
 
 	// Start charging
 	if err := h.manager.StartCharging(r.Context(), stationID, req.ConnectorID, req.IDTag); err != nil {
-		h.sendError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to start charging: %v", err))
+		h.sendError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

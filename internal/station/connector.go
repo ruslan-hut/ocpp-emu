@@ -253,6 +253,22 @@ func (c *Connector) ClearTransaction() {
 	c.Transaction = nil
 }
 
+// UpdateTransactionID updates the transaction ID (when CSMS assigns a different ID)
+func (c *Connector) UpdateTransactionID(newID int) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.Transaction == nil {
+		return fmt.Errorf("connector %d has no active transaction", c.ID)
+	}
+
+	c.Transaction.mu.Lock()
+	c.Transaction.ID = newID
+	c.Transaction.mu.Unlock()
+
+	return nil
+}
+
 // AddMeterValue adds a meter value sample to the current transaction
 func (c *Connector) AddMeterValue(sample MeterValueSample) error {
 	c.mu.Lock()

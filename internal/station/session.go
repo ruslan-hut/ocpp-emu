@@ -160,7 +160,7 @@ func (sm *SessionManager) StartCharging(connectorID int, idTag string) (int, err
 		return 0, fmt.Errorf("connector %d is reserved for another ID tag", connectorID)
 	}
 
-	// Authorize (optional - can be done separately)
+	// Authorize - this now waits for real CSMS response
 	authInfo, err := sm.Authorize(idTag)
 	if err != nil {
 		return 0, fmt.Errorf("authorization failed: %w", err)
@@ -440,11 +440,12 @@ func (sm *SessionManager) startMeterValueSimulation(connector *Connector, transa
 	sm.stopChans[connectorID] = stopChan
 
 	// Start goroutine to send meter values
+	// Don't capture transactionID - check the current transaction each time
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
-				sm.sendMeterValue(connector, transactionID)
+				sm.sendMeterValue(connector)
 			case <-stopChan:
 				ticker.Stop()
 				return
@@ -469,16 +470,46 @@ func (sm *SessionManager) stopMeterValueSimulation(connectorID int) {
 	}
 }
 
+// ResumeMeterValues resumes meter value simulation for a connector with an active transaction
+// This is typically called during reconciliation after server restart
+func (sm *SessionManager) ResumeMeterValues(connectorID int) error {
+	connector, exists := sm.connectors[connectorID]
+	if !exists {
+		return fmt.Errorf("connector %d not found", connectorID)
+	}
+
+	if !connector.HasActiveTransaction() {
+		return fmt.Errorf("connector %d has no active transaction", connectorID)
+	}
+
+	tx := connector.GetTransaction()
+	if tx == nil {
+		return fmt.Errorf("connector %d transaction is nil", connectorID)
+	}
+
+	sm.logger.Info("Resuming meter value simulation",
+		"connectorId", connectorID,
+		"transactionId", tx.ID,
+	)
+
+	// Start meter value simulation
+	sm.startMeterValueSimulation(connector, tx.ID)
+
+	return nil
+}
+
 // sendMeterValue sends a meter value sample
-func (sm *SessionManager) sendMeterValue(connector *Connector, transactionID int) {
+func (sm *SessionManager) sendMeterValue(connector *Connector) {
 	if !connector.HasActiveTransaction() {
 		return
 	}
 
 	tx := connector.GetTransaction()
-	if tx == nil || tx.ID != transactionID {
+	if tx == nil {
 		return
 	}
+
+	transactionID := tx.ID
 
 	// Simulate power consumption (random between 5-7.5 kW)
 	powerWatts := 5000 + rand.Intn(2500)

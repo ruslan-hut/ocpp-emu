@@ -108,6 +108,12 @@ func main() {
 	}
 	logger.Info("Stations loaded from MongoDB")
 
+	// Reconcile station data with active transactions
+	if err := stationManager.ReconcileStationData(ctx); err != nil {
+		logger.Error("Failed to reconcile station data", slog.String("error", err.Error()))
+		// Don't exit - continue with potentially inconsistent state
+	}
+
 	// Set up connection callbacks to route through station manager
 	connManager.OnMessageReceived = func(stationID string, message []byte) {
 		stationManager.OnMessageReceived(stationID, message)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sort"
 	"sync"
 	"time"
 
@@ -48,6 +49,22 @@ type Station struct {
 	// Pending requests tracking (message ID -> action)
 	pendingRequests map[string]string
 	pendingMu       sync.RWMutex
+
+	// Pending StartTransaction tracking (message ID -> {connector ID, idTag})
+	// Used to update the correct connector when CSMS responds with transaction ID
+	pendingStartTx   map[string]int
+	pendingStartTags map[string]string
+	pendingStartMu   sync.RWMutex
+
+	// Pending Authorize tracking (message ID -> response channel)
+	// Used to wait for actual CSMS response
+	pendingAuthResp   map[string]chan *v16.AuthorizeResponse
+	pendingAuthRespMu sync.RWMutex
+
+	// Failed authorizations tracking (idTag -> timestamp)
+	// Used to reject transactions for recently rejected ID tags
+	failedAuths   map[string]time.Time
+	failedAuthsMu sync.RWMutex
 }
 
 // GetData returns a thread-safe copy of the station's config and runtime state
@@ -281,7 +298,7 @@ func (m *Manager) setupSessionManagerCallbacks(station *Station) {
 			VendorErrorCode: "",
 		}
 
-		_, err := m.v16Handler.SendStatusNotification(stationID, req)
+		call, err := m.v16Handler.SendStatusNotification(stationID, req)
 		if err != nil {
 			m.logger.Error("Failed to send StatusNotification",
 				"stationId", stationID,
@@ -290,6 +307,9 @@ func (m *Manager) setupSessionManagerCallbacks(station *Station) {
 			)
 			return err
 		}
+
+		// Store sent message
+		go m.storeMessage(stationID, "sent", call)
 
 		return nil
 	}
@@ -302,7 +322,7 @@ func (m *Manager) setupSessionManagerCallbacks(station *Station) {
 			MeterValue:    meterValues,
 		}
 
-		_, err := m.v16Handler.SendMeterValues(stationID, req)
+		call, err := m.v16Handler.SendMeterValues(stationID, req)
 		if err != nil {
 			m.logger.Error("Failed to send MeterValues",
 				"stationId", stationID,
@@ -312,10 +332,13 @@ func (m *Manager) setupSessionManagerCallbacks(station *Station) {
 			return err
 		}
 
+		// Store sent message
+		go m.storeMessage(stationID, "sent", call)
+
 		return nil
 	}
 
-	// SendAuthorize - sends authorization request to CSMS
+	// SendAuthorize - sends authorization request to CSMS and waits for response
 	station.SessionManager.SendAuthorize = func(idTag string) (*v16.AuthorizeResponse, error) {
 		req := &v16.AuthorizeRequest{
 			IdTag: idTag,
@@ -336,13 +359,42 @@ func (m *Manager) setupSessionManagerCallbacks(station *Station) {
 		station.pendingRequests[call.UniqueID] = string(v16.ActionAuthorize)
 		station.pendingMu.Unlock()
 
-		// For now, return accepted status (actual response will be async)
-		// TODO: Implement async request/response tracking
-		return &v16.AuthorizeResponse{
-			IdTagInfo: v16.IdTagInfo{
-				Status: "Accepted",
-			},
-		}, nil
+		// Create response channel and register it
+		respChan := make(chan *v16.AuthorizeResponse, 1)
+		station.pendingAuthRespMu.Lock()
+		station.pendingAuthResp[call.UniqueID] = respChan
+		station.pendingAuthRespMu.Unlock()
+
+		// Store sent message
+		go m.storeMessage(stationID, "sent", call)
+
+		m.logger.Debug("Waiting for Authorize response from CSMS",
+			"stationId", stationID,
+			"idTag", idTag,
+			"messageId", call.UniqueID,
+		)
+
+		// Wait for response with timeout
+		select {
+		case resp := <-respChan:
+			m.logger.Info("Received real Authorize response",
+				"stationId", stationID,
+				"idTag", idTag,
+				"status", resp.IdTagInfo.Status,
+			)
+			return resp, nil
+		case <-time.After(10 * time.Second):
+			// Cleanup on timeout
+			station.pendingAuthRespMu.Lock()
+			delete(station.pendingAuthResp, call.UniqueID)
+			station.pendingAuthRespMu.Unlock()
+
+			m.logger.Error("Timeout waiting for Authorize response",
+				"stationId", stationID,
+				"idTag", idTag,
+			)
+			return nil, fmt.Errorf("timeout waiting for authorization response")
+		}
 	}
 
 	// SendStartTransaction - sends start transaction request to CSMS
@@ -369,6 +421,22 @@ func (m *Manager) setupSessionManagerCallbacks(station *Station) {
 		station.pendingMu.Lock()
 		station.pendingRequests[call.UniqueID] = string(v16.ActionStartTransaction)
 		station.pendingMu.Unlock()
+
+		// Track which connector and idTag are starting this transaction
+		station.pendingStartMu.Lock()
+		station.pendingStartTx[call.UniqueID] = connectorID
+		station.pendingStartTags[call.UniqueID] = idTag
+		station.pendingStartMu.Unlock()
+
+		m.logger.Info("Tracking StartTransaction for response",
+			"stationId", stationID,
+			"messageId", call.UniqueID,
+			"connectorId", connectorID,
+			"idTag", idTag,
+		)
+
+		// Store sent message
+		go m.storeMessage(stationID, "sent", call)
 
 		// For now, return a placeholder transaction ID
 		// TODO: Implement async request/response tracking
@@ -405,6 +473,9 @@ func (m *Manager) setupSessionManagerCallbacks(station *Station) {
 		station.pendingMu.Lock()
 		station.pendingRequests[call.UniqueID] = string(v16.ActionStopTransaction)
 		station.pendingMu.Unlock()
+
+		// Store sent message
+		go m.storeMessage(stationID, "sent", call)
 
 		// For now, return accepted status
 		// TODO: Implement async request/response tracking
@@ -448,10 +519,14 @@ func (m *Manager) LoadStations(ctx context.Context) error {
 
 		// Create station instance
 		station := &Station{
-			Config:          config,
-			StateMachine:    NewStateMachine(),
-			SessionManager:  sessionManager,
-			pendingRequests: make(map[string]string),
+			Config:            config,
+			StateMachine:      NewStateMachine(),
+			SessionManager:    sessionManager,
+			pendingRequests:   make(map[string]string),
+			pendingStartTx:    make(map[string]int),
+			pendingStartTags:  make(map[string]string),
+			pendingAuthResp:   make(map[string]chan *v16.AuthorizeResponse),
+			failedAuths:       make(map[string]time.Time),
 			RuntimeState: RuntimeState{
 				State:            StateDisconnected,
 				ConnectionStatus: "not_connected",
@@ -495,6 +570,206 @@ func (m *Manager) LoadStations(ctx context.Context) error {
 	}
 
 	m.logger.Info("Successfully loaded stations", "count", count)
+	return nil
+}
+
+// ReconcileStationData reconciles connector states with active transactions from MongoDB
+// This ensures data consistency after restarts
+func (m *Manager) ReconcileStationData(ctx context.Context) error {
+	m.logger.Info("Reconciling station data with MongoDB")
+
+	m.mu.RLock()
+	stationIDs := make([]string, 0, len(m.stations))
+	for stationID := range m.stations {
+		stationIDs = append(stationIDs, stationID)
+	}
+	m.mu.RUnlock()
+
+	transactionRepo := storage.NewTransactionRepository(m.db)
+	reconciledCount := 0
+	resetCount := 0
+
+	for _, stationID := range stationIDs {
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists {
+			continue
+		}
+
+		// Get all active transactions for this station from MongoDB
+		activeTransactions, err := transactionRepo.GetActive(ctx, stationID)
+		if err != nil {
+			m.logger.Error("Failed to get active transactions for reconciliation",
+				"stationId", stationID,
+				"error", err,
+			)
+			continue
+		}
+
+		// Build a map of connector ID -> active transaction
+		txByConnector := make(map[int]*storage.Transaction)
+		for i := range activeTransactions {
+			tx := &activeTransactions[i]
+			txByConnector[tx.ConnectorID] = tx
+		}
+
+		// Check each connector
+		for _, connector := range station.SessionManager.connectors {
+			connectorID := connector.ID
+			currentState := connector.GetState()
+
+			// Check if connector is in a transaction-related state
+			isTransactionState := currentState == ConnectorStateCharging ||
+				currentState == ConnectorStatePreparing ||
+				currentState == ConnectorStateSuspendedEV ||
+				currentState == ConnectorStateSuspendedEVSE ||
+				currentState == ConnectorStateFinishing
+
+			dbTransaction, hasDBTransaction := txByConnector[connectorID]
+
+			if isTransactionState && !hasDBTransaction {
+				// Connector thinks it has a transaction but DB doesn't - reset it
+				m.logger.Warn("Connector in transaction state but no active transaction in DB - resetting",
+					"stationId", stationID,
+					"connectorId", connectorID,
+					"state", currentState,
+				)
+
+				err := connector.SetState(ConnectorStateAvailable, v16.ChargePointErrorNoError, "Reset after restart - no transaction found")
+				if err != nil {
+					m.logger.Error("Failed to reset connector state",
+						"stationId", stationID,
+						"connectorId", connectorID,
+						"error", err,
+					)
+				} else {
+					resetCount++
+				}
+			} else if !isTransactionState && hasDBTransaction {
+				// DB has transaction but connector doesn't think it's charging - restore it
+				m.logger.Warn("Active transaction in DB but connector not in transaction state - restoring",
+					"stationId", stationID,
+					"connectorId", connectorID,
+					"transactionId", dbTransaction.TransactionID,
+					"state", currentState,
+				)
+
+				// Restore transaction to connector
+				connector.mu.Lock()
+				connector.Transaction = &Transaction{
+					ID:              dbTransaction.TransactionID,
+					IDTag:           dbTransaction.IDTag,
+					ConnectorID:     connectorID,
+					StartTime:       dbTransaction.StartTimestamp,
+					StartMeterValue: dbTransaction.MeterStart,
+					CurrentMeter:    dbTransaction.MeterStart, // Will be updated by meter values
+					MeterValues:     make([]MeterValueSample, 0),
+				}
+				connector.mu.Unlock()
+
+				// Set connector state to Charging
+				err := connector.SetState(ConnectorStateCharging, v16.ChargePointErrorNoError, "Restored from database")
+				if err != nil {
+					m.logger.Error("Failed to restore connector state",
+						"stationId", stationID,
+						"connectorId", connectorID,
+						"error", err,
+					)
+				} else {
+					// Resume meter value simulation
+					if err := station.SessionManager.ResumeMeterValues(connectorID); err != nil {
+						m.logger.Error("Failed to resume meter values",
+							"stationId", stationID,
+							"connectorId", connectorID,
+							"error", err,
+						)
+					}
+					reconciledCount++
+				}
+			} else if isTransactionState && hasDBTransaction {
+				// Both agree there's a transaction - ensure transaction ID matches
+				currentTx := connector.GetTransaction()
+				if currentTx == nil {
+					// Connector state says transaction but no transaction object - restore it
+					connector.mu.Lock()
+					connector.Transaction = &Transaction{
+						ID:              dbTransaction.TransactionID,
+						IDTag:           dbTransaction.IDTag,
+						ConnectorID:     connectorID,
+						StartTime:       dbTransaction.StartTimestamp,
+						StartMeterValue: dbTransaction.MeterStart,
+						CurrentMeter:    dbTransaction.MeterStart,
+						MeterValues:     make([]MeterValueSample, 0),
+					}
+					connector.mu.Unlock()
+
+					m.logger.Info("Restored transaction object to connector",
+						"stationId", stationID,
+						"connectorId", connectorID,
+						"transactionId", dbTransaction.TransactionID,
+					)
+
+					// Resume meter value simulation
+					if err := station.SessionManager.ResumeMeterValues(connectorID); err != nil {
+						m.logger.Error("Failed to resume meter values",
+							"stationId", stationID,
+							"connectorId", connectorID,
+							"error", err,
+						)
+					}
+					reconciledCount++
+				} else if currentTx.ID != dbTransaction.TransactionID {
+					// Transaction IDs don't match - update to DB value
+					m.logger.Warn("Transaction ID mismatch - updating to DB value",
+						"stationId", stationID,
+						"connectorId", connectorID,
+						"currentId", currentTx.ID,
+						"dbId", dbTransaction.TransactionID,
+					)
+
+					err := connector.UpdateTransactionID(dbTransaction.TransactionID)
+					if err != nil {
+						m.logger.Error("Failed to update transaction ID",
+							"stationId", stationID,
+							"connectorId", connectorID,
+							"error", err,
+						)
+					} else {
+						reconciledCount++
+					}
+				} else {
+					// Transaction exists and IDs match - ensure meter values are running
+					// Check if meter value ticker exists
+					station.SessionManager.mu.RLock()
+					_, hasTicker := station.SessionManager.meterValueTickers[connectorID]
+					station.SessionManager.mu.RUnlock()
+
+					if !hasTicker {
+						m.logger.Info("Meter value simulation not running - resuming",
+							"stationId", stationID,
+							"connectorId", connectorID,
+							"transactionId", currentTx.ID,
+						)
+
+						if err := station.SessionManager.ResumeMeterValues(connectorID); err != nil {
+							m.logger.Error("Failed to resume meter values",
+								"stationId", stationID,
+								"connectorId", connectorID,
+								"error", err,
+							)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	m.logger.Info("Station data reconciliation completed",
+		"reconciled", reconciledCount,
+		"reset", resetCount,
+	)
 	return nil
 }
 
@@ -678,8 +953,13 @@ func (m *Manager) AddStation(ctx context.Context, config Config) error {
 
 	// Create station instance
 	station := &Station{
-		Config:       config,
-		StateMachine: NewStateMachine(),
+		Config:            config,
+		StateMachine:      NewStateMachine(),
+		pendingRequests:   make(map[string]string),
+		pendingStartTx:    make(map[string]int),
+		pendingStartTags:  make(map[string]string),
+		pendingAuthResp:   make(map[string]chan *v16.AuthorizeResponse),
+		failedAuths:       make(map[string]time.Time),
 		RuntimeState: RuntimeState{
 			State:            StateDisconnected,
 			ConnectionStatus: "not_connected",
@@ -760,7 +1040,7 @@ func (m *Manager) UpdateStation(ctx context.Context, stationID string, config Co
 func (m *Manager) StartSync() {
 	m.syncWg.Add(1)
 	go m.syncLoop()
-	m.logger.Info("Started state synchronization", "interval", m.syncInterval)
+	m.logger.Info("Started state synchronization", "interval", m.syncInterval.String())
 }
 
 // syncLoop periodically syncs runtime state to MongoDB
@@ -1003,6 +1283,10 @@ func (m *Manager) handleCallResult(stationID string, result *ocpp.CallResult) {
 		m.handleBootNotificationResponse(stationID, station, result)
 	case v16.ActionHeartbeat:
 		m.handleHeartbeatResponse(stationID, station, result)
+	case v16.ActionAuthorize:
+		m.handleAuthorizeResponse(stationID, station, result)
+	case v16.ActionStartTransaction:
+		m.handleStartTransactionResponse(stationID, station, result)
 	default:
 		m.logger.Debug("CallResult for action", "stationId", stationID, "action", action)
 	}
@@ -1467,6 +1751,203 @@ func (m *Manager) handleHeartbeatResponse(stationID string, station *Station, re
 	m.logger.Debug("Heartbeat acknowledged", "stationId", stationID, "serverTime", resp.CurrentTime)
 }
 
+// handleAuthorizeResponse processes Authorize responses
+func (m *Manager) handleAuthorizeResponse(stationID string, station *Station, result *ocpp.CallResult) {
+	var resp v16.AuthorizeResponse
+	if err := json.Unmarshal(result.Payload, &resp); err != nil {
+		m.logger.Error("Failed to unmarshal Authorize response", "stationId", stationID, "error", err)
+		return
+	}
+
+	m.logger.Debug("Processing Authorize response",
+		"stationId", stationID,
+		"messageId", result.UniqueID,
+		"status", resp.IdTagInfo.Status,
+	)
+
+	// Find the response channel and send the response
+	station.pendingAuthRespMu.Lock()
+	respChan, found := station.pendingAuthResp[result.UniqueID]
+	delete(station.pendingAuthResp, result.UniqueID)
+	station.pendingAuthRespMu.Unlock()
+
+	if found {
+		// Send response to waiting goroutine (non-blocking)
+		select {
+		case respChan <- &resp:
+			m.logger.Debug("Sent Authorize response to waiting goroutine",
+				"stationId", stationID,
+				"messageId", result.UniqueID,
+			)
+		default:
+			m.logger.Warn("Failed to send Authorize response - channel full or closed",
+				"stationId", stationID,
+				"messageId", result.UniqueID,
+			)
+		}
+	} else {
+		m.logger.Warn("No waiting goroutine for Authorize response",
+			"stationId", stationID,
+			"messageId", result.UniqueID,
+		)
+	}
+}
+
+// handleStartTransactionResponse processes StartTransaction responses
+func (m *Manager) handleStartTransactionResponse(stationID string, station *Station, result *ocpp.CallResult) {
+	var resp v16.StartTransactionResponse
+	if err := json.Unmarshal(result.Payload, &resp); err != nil {
+		m.logger.Error("Failed to unmarshal StartTransaction response", "stationId", stationID, "error", err)
+		return
+	}
+
+	m.logger.Info("StartTransaction response received",
+		"stationId", stationID,
+		"messageId", result.UniqueID,
+		"transactionId", resp.TransactionId,
+		"idTagStatus", resp.IdTagInfo.Status,
+	)
+
+	// Check if transaction was accepted
+	if resp.IdTagInfo.Status != v16.AuthorizationStatusAccepted {
+		m.logger.Warn("Transaction rejected by CSMS",
+			"stationId", stationID,
+			"transactionId", resp.TransactionId,
+			"status", resp.IdTagInfo.Status,
+		)
+
+		// Find which connector this response is for and stop the transaction
+		station.pendingStartMu.Lock()
+		connectorID, found := station.pendingStartTx[result.UniqueID]
+		delete(station.pendingStartTx, result.UniqueID)
+		station.pendingStartMu.Unlock()
+
+		if found {
+			// Get the connector
+			connector, err := station.SessionManager.GetConnector(connectorID)
+			if err == nil && connector.HasActiveTransaction() {
+				m.logger.Info("Stopping transaction that was rejected by CSMS",
+					"stationId", stationID,
+					"connectorId", connectorID,
+					"transactionId", resp.TransactionId,
+				)
+
+				// Stop the transaction
+				if err := station.SessionManager.StopCharging(connectorID, v16.ReasonDeAuthorized); err != nil {
+					m.logger.Error("Failed to stop rejected transaction",
+						"stationId", stationID,
+						"connectorId", connectorID,
+						"error", err,
+					)
+				}
+			}
+		}
+
+		return
+	}
+
+	// Find which connector and idTag this response is for
+	station.pendingStartMu.Lock()
+	m.logger.Debug("Looking up pending StartTransaction",
+		"stationId", stationID,
+		"messageId", result.UniqueID,
+		"pendingCount", len(station.pendingStartTx),
+	)
+	connectorID, found := station.pendingStartTx[result.UniqueID]
+	idTag := station.pendingStartTags[result.UniqueID]
+	delete(station.pendingStartTx, result.UniqueID)
+	delete(station.pendingStartTags, result.UniqueID)
+	station.pendingStartMu.Unlock()
+
+	if !found {
+		m.logger.Warn("No pending StartTransaction found for message",
+			"stationId", stationID,
+			"messageId", result.UniqueID,
+		)
+		return
+	}
+
+	m.logger.Info("Found pending StartTransaction for connector",
+		"stationId", stationID,
+		"messageId", result.UniqueID,
+		"connectorId", connectorID,
+		"idTag", idTag,
+	)
+
+	// Get the specific connector
+	connector, err := station.SessionManager.GetConnector(connectorID)
+	if err != nil {
+		m.logger.Error("Failed to get connector for StartTransaction response",
+			"stationId", stationID,
+			"connectorId", connectorID,
+			"error", err,
+		)
+		return
+	}
+
+	// Wait for transaction to be created (handle race condition)
+	// The response might arrive before the local transaction is fully created
+	var oldID int
+	transactionFound := false
+
+	for i := 0; i < 10; i++ {
+		if connector.HasActiveTransaction() {
+			// Get old ID before updating (using a copy is OK here for reading)
+			tx := connector.GetTransaction()
+			if tx != nil {
+				oldID = tx.ID
+				transactionFound = true
+				break
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if !transactionFound {
+		m.logger.Warn("Transaction not found after waiting",
+			"stationId", stationID,
+			"connectorId", connectorID,
+			"transactionId", resp.TransactionId,
+		)
+		return
+	}
+
+	// Update transaction ID with the one from CSMS (using the connector method to update the original)
+	err = connector.UpdateTransactionID(resp.TransactionId)
+	if err != nil {
+		m.logger.Error("Failed to update transaction ID on connector",
+			"stationId", stationID,
+			"connectorId", connectorID,
+			"error", err,
+		)
+		return
+	}
+
+	m.logger.Info("Updated transaction ID from CSMS",
+		"stationId", stationID,
+		"connectorId", connectorID,
+		"oldTransactionId", oldID,
+		"newTransactionId", resp.TransactionId,
+	)
+
+	// Update transaction in database
+	if m.db != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		transactionRepo := storage.NewTransactionRepository(m.db)
+		err := transactionRepo.UpdateTransactionID(ctx, stationID, oldID, resp.TransactionId)
+		if err != nil {
+			m.logger.Error("Failed to update transaction ID in database",
+				"stationId", stationID,
+				"oldTransactionId", oldID,
+				"newTransactionId", resp.TransactionId,
+				"error", err,
+			)
+		}
+	}
+}
+
 // startHeartbeat starts periodic heartbeat for a station
 func (m *Manager) startHeartbeat(stationID string, station *Station, intervalSeconds int) {
 	// Stop any existing heartbeat
@@ -1481,7 +1962,11 @@ func (m *Manager) startHeartbeat(stationID string, station *Station, intervalSec
 	station.heartbeatDone = done
 	station.mu.Unlock()
 
-	m.logger.Info("Starting heartbeat", "stationId", stationID, "interval", interval)
+	m.logger.Info("Starting heartbeat",
+		"stationId", stationID,
+		"intervalSeconds", intervalSeconds,
+		"interval", interval.String(),
+	)
 
 	go func() {
 		defer close(done)
@@ -1645,6 +2130,16 @@ func (m *Manager) GetConnectors(ctx context.Context, stationID string) ([]map[st
 		result = append(result, connectorData)
 	}
 
+	// Sort connectors by ID for consistent ordering
+	sort.Slice(result, func(i, j int) bool {
+		idI, okI := result[i]["id"].(int)
+		idJ, okJ := result[j]["id"].(int)
+		if okI && okJ {
+			return idI < idJ
+		}
+		return false
+	})
+
 	return result, nil
 }
 
@@ -1684,7 +2179,7 @@ func (m *Manager) StartCharging(ctx context.Context, stationID string, connector
 			"connectorId", connectorID,
 			"error", err,
 		)
-		return fmt.Errorf("failed to start charging: %w", err)
+		return err
 	}
 
 	m.logger.Info("Charging session started successfully",

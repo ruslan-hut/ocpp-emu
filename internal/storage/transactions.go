@@ -56,6 +56,30 @@ func (r *TransactionRepository) Update(ctx context.Context, transactionID int, s
 	return nil
 }
 
+// UpdateTransactionID updates the transaction ID (when CSMS assigns a different ID)
+func (r *TransactionRepository) UpdateTransactionID(ctx context.Context, stationID string, oldTransactionID, newTransactionID int) error {
+	filter := bson.M{
+		"transaction_id": oldTransactionID,
+		"station_id":     stationID,
+	}
+
+	updates := bson.M{
+		"transaction_id": newTransactionID,
+		"updated_at":     time.Now(),
+	}
+
+	result, err := r.collection.UpdateOne(ctx, filter, bson.M{"$set": updates})
+	if err != nil {
+		return fmt.Errorf("failed to update transaction ID: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("transaction not found: %d", oldTransactionID)
+	}
+
+	return nil
+}
+
 // Complete marks a transaction as completed
 func (r *TransactionRepository) Complete(ctx context.Context, transactionID int, stationID string, meterStop int, reason string) error {
 	updates := bson.M{

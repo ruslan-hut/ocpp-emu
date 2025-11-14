@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { stationsAPI } from '../services/api'
 import './ConnectorCard.css'
 
-function ConnectorCard({ stationId, connector, onUpdate }) {
+function ConnectorCard({ stationId, connector, isStationConnected = true, onUpdate }) {
   const [loading, setLoading] = useState(false)
   const [showChargeForm, setShowChargeForm] = useState(false)
   const [idTag, setIdTag] = useState('USER001')
@@ -136,12 +136,19 @@ function ConnectorCard({ stationId, connector, onUpdate }) {
         </div>
       )}
 
+      {!isStationConnected && (
+        <div className="connection-warning">
+          ⚠️ Station not connected - actions disabled
+        </div>
+      )}
+
       <div className="connector-actions">
         {connector.state === 'Available' && !showChargeForm && (
           <button
             className="btn-action btn-start-charging"
             onClick={() => setShowChargeForm(true)}
-            disabled={loading}
+            disabled={loading || !isStationConnected}
+            title={!isStationConnected ? 'Station not connected' : ''}
           >
             ⚡ Start Charging
           </button>
@@ -151,7 +158,8 @@ function ConnectorCard({ stationId, connector, onUpdate }) {
           <button
             className="btn-action btn-stop-charging"
             onClick={handleStopCharging}
-            disabled={loading}
+            disabled={loading || !isStationConnected}
+            title={!isStationConnected ? 'Station not connected' : ''}
           >
             ⏹ Stop Charging
           </button>
@@ -164,13 +172,14 @@ function ConnectorCard({ stationId, connector, onUpdate }) {
               placeholder="ID Tag (e.g., USER001)"
               value={idTag}
               onChange={(e) => setIdTag(e.target.value)}
-              disabled={loading}
+              disabled={loading || !isStationConnected}
             />
             <div className="form-actions">
               <button
                 className="btn-action btn-start"
                 onClick={handleStartCharging}
-                disabled={loading}
+                disabled={loading || !isStationConnected}
+                title={!isStationConnected ? 'Station not connected' : ''}
               >
                 {loading ? 'Starting...' : 'Start'}
               </button>

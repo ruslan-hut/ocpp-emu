@@ -19,11 +19,26 @@ function Stations() {
   const [selectedStationId, setSelectedStationId] = useState(null)
   const [connectors, setConnectors] = useState([])
   const [connectorsLoading, setConnectorsLoading] = useState(false)
+  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [refreshInterval, setRefreshInterval] = useState(5)
 
   useEffect(() => {
     fetchStations()
     loadTemplates()
   }, [])
+
+  // Auto-refresh connectors
+  useEffect(() => {
+    if (!showConnectors || !autoRefresh || !selectedStationId) {
+      return
+    }
+
+    const intervalId = setInterval(() => {
+      handleRefreshConnectors(true) // silent refresh
+    }, refreshInterval * 1000)
+
+    return () => clearInterval(intervalId)
+  }, [showConnectors, autoRefresh, refreshInterval, selectedStationId])
 
   const fetchStations = async () => {
     try {
@@ -158,7 +173,8 @@ function Stations() {
     setConnectorsLoading(true)
     try {
       const response = await stationsAPI.getConnectors(stationId)
-      setConnectors(response.data.connectors || [])
+      const sortedConnectors = (response.data.connectors || []).sort((a, b) => a.id - b.id)
+      setConnectors(sortedConnectors)
     } catch (err) {
       alert(`Failed to load connectors: ${err.message}`)
       setConnectors([])
@@ -167,16 +183,21 @@ function Stations() {
     }
   }
 
-  const handleRefreshConnectors = async () => {
+  const handleRefreshConnectors = async (silent = false) => {
     if (!selectedStationId) return
-    setConnectorsLoading(true)
+    if (!silent) {
+      setConnectorsLoading(true)
+    }
     try {
       const response = await stationsAPI.getConnectors(selectedStationId)
-      setConnectors(response.data.connectors || [])
+      const sortedConnectors = (response.data.connectors || []).sort((a, b) => a.id - b.id)
+      setConnectors(sortedConnectors)
     } catch (err) {
       console.error('Failed to refresh connectors:', err)
     } finally {
-      setConnectorsLoading(false)
+      if (!silent) {
+        setConnectorsLoading(false)
+      }
     }
   }
 
@@ -358,9 +379,32 @@ function Stations() {
             <div className="modal-header">
               <h2>Connectors - {selectedStationId}</h2>
               <div className="modal-header-actions">
+                <div className="auto-refresh-controls">
+                  <label className="auto-refresh-toggle">
+                    <input
+                      type="checkbox"
+                      checked={autoRefresh}
+                      onChange={(e) => setAutoRefresh(e.target.checked)}
+                    />
+                    <span>Auto-refresh</span>
+                    {autoRefresh && <span className="refresh-indicator">●</span>}
+                  </label>
+                  {autoRefresh && (
+                    <select
+                      className="refresh-interval-select"
+                      value={refreshInterval}
+                      onChange={(e) => setRefreshInterval(Number(e.target.value))}
+                    >
+                      <option value="3">3s</option>
+                      <option value="5">5s</option>
+                      <option value="10">10s</option>
+                      <option value="30">30s</option>
+                    </select>
+                  )}
+                </div>
                 <button
                   className="btn-secondary"
-                  onClick={handleRefreshConnectors}
+                  onClick={() => handleRefreshConnectors(false)}
                   disabled={connectorsLoading}
                 >
                   🔄 Refresh
@@ -379,14 +423,19 @@ function Stations() {
                 </div>
               ) : (
                 <div className="connectors-grid">
-                  {connectors.map((connector) => (
-                    <ConnectorCard
-                      key={connector.id}
-                      stationId={selectedStationId}
-                      connector={connector}
-                      onUpdate={handleRefreshConnectors}
-                    />
-                  ))}
+                  {connectors.map((connector) => {
+                    const station = stations.find(s => s.stationId === selectedStationId)
+                    const isConnected = station?.runtimeState?.connectionStatus === 'connected'
+                    return (
+                      <ConnectorCard
+                        key={connector.id}
+                        stationId={selectedStationId}
+                        connector={connector}
+                        isStationConnected={isConnected}
+                        onUpdate={() => handleRefreshConnectors(true)}
+                      />
+                    )
+                  })}
                 </div>
               )}
             </div>

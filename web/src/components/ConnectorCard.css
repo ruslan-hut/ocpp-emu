@@ -272,4 +272,21 @@
   .transaction-info {
     background: #3a3a3a;
   }
+
+  .connection-warning {
+    background: #3a3a3a;
+    border-color: #856404;
+  }
+}
+
+.connection-warning {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #856404;
+  text-align: center;
 }
