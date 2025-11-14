@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { stationsAPI } from '../services/api'
 import StationForm from '../components/StationForm'
+import StationConfig from '../components/StationConfig'
 import TemplatesManager from '../components/TemplatesManager'
 import ImportExport from '../components/ImportExport'
 import ConnectorCard from '../components/ConnectorCard'
@@ -21,6 +22,8 @@ function Stations() {
   const [connectorsLoading, setConnectorsLoading] = useState(false)
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [refreshInterval, setRefreshInterval] = useState(5)
+  const [showConfig, setShowConfig] = useState(false)
+  const [configuringStation, setConfiguringStation] = useState(null)
 
   useEffect(() => {
     fetchStations()
@@ -207,6 +210,27 @@ function Stations() {
     setConnectors([])
   }
 
+  const handleConfigureStation = (station) => {
+    setConfiguringStation(station)
+    setShowConfig(true)
+  }
+
+  const handleSaveConfig = async (updatedConfig) => {
+    try {
+      await stationsAPI.update(updatedConfig.stationId, updatedConfig)
+      setShowConfig(false)
+      setConfiguringStation(null)
+      fetchStations()
+    } catch (err) {
+      throw new Error(err.response?.data?.error || err.message)
+    }
+  }
+
+  const handleCloseConfig = () => {
+    setShowConfig(false)
+    setConfiguringStation(null)
+  }
+
   if (loading) {
     return <div className="loading">Loading stations...</div>
   }
@@ -336,8 +360,16 @@ function Stations() {
                   🔌 Connectors
                 </button>
                 <button
+                  className="btn-action btn-config"
+                  onClick={() => handleConfigureStation(station)}
+                  title="Configure station settings"
+                >
+                  ⚙️ Configure
+                </button>
+                <button
                   className="btn-action btn-edit"
                   onClick={() => handleEditStation(station)}
+                  title="Full configuration editor"
                 >
                   ✏️ Edit
                 </button>
@@ -441,6 +473,14 @@ function Stations() {
             </div>
           </div>
         </div>
+      )}
+
+      {showConfig && configuringStation && (
+        <StationConfig
+          station={configuringStation}
+          onSave={handleSaveConfig}
+          onClose={handleCloseConfig}
+        />
       )}
     </div>
   )

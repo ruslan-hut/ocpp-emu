@@ -429,7 +429,7 @@ ocpp-emu/
 - [x] **3.4** Build message validation (optional validation mode)
 - [x] **3.5** Add message filtering and search in inspector (MongoDB queries)
 - [x] **3.6** Implement log export functionality (JSON, CSV)
-- [ ] **3.7** Add configuration management UI
+- [x] **3.7** Add configuration management UI
 
 **Backend Features:**
 - [ ] **3.8** Implement MongoDB aggregation pipelines for analytics

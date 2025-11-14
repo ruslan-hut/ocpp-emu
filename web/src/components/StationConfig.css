@@ -1,0 +1,364 @@
+/* Station Config Modal Overlay */
+.station-config-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.station-config-modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Header */
+.station-config-header {
+  position: relative;
+  padding: 24px 24px 16px 24px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.station-config-header h2 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  color: #333;
+}
+
+.config-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.station-config-header .btn-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 32px;
+  height: 32px;
+  background: #f8f9fa;
+  border: none;
+  border-radius: 6px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.station-config-header .btn-close:hover {
+  background: #e0e0e0;
+}
+
+/* Tabs */
+.station-config-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 24px;
+  border-bottom: 2px solid #e0e0e0;
+  background: #f8f9fa;
+}
+
+.tab-btn {
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  bottom: -2px;
+}
+
+.tab-btn:hover {
+  color: #007bff;
+  background: rgba(0, 123, 255, 0.05);
+}
+
+.tab-btn.active {
+  color: #007bff;
+  border-bottom-color: #007bff;
+  background: white;
+}
+
+/* Body */
+.station-config-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.config-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.config-section {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.config-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 8px;
+}
+
+.config-note {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* Form Fields */
+.config-field {
+  margin-bottom: 16px;
+}
+
+.config-field:last-child {
+  margin-bottom: 0;
+}
+
+.config-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.config-field input[type="text"],
+.config-field input[type="number"],
+.config-field input[type="password"],
+.config-field select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fff;
+  transition: border-color 0.2s ease;
+}
+
+.config-field input[type="text"]:focus,
+.config-field input[type="number"]:focus,
+.config-field input[type="password"]:focus,
+.config-field select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.config-field input.disabled-input {
+  background: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.config-field small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
+/* Checkbox Fields */
+.checkbox-field label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  margin-bottom: 0;
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.checkbox-field label span {
+  font-weight: 600;
+}
+
+/* Footer */
+.station-config-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 2px solid #e0e0e0;
+  background: #f8f9fa;
+}
+
+.btn-cancel {
+  padding: 10px 24px;
+  background: #6c757d;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+  background: #5a6268;
+}
+
+.btn-save {
+  padding: 10px 24px;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-save:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  .station-config-modal {
+    background: #2d2d2d;
+  }
+
+  .station-config-header {
+    border-bottom-color: #444;
+  }
+
+  .station-config-header h2 {
+    color: #e0e0e0;
+  }
+
+  .config-subtitle {
+    color: #aaa;
+  }
+
+  .station-config-header .btn-close {
+    background: #3a3a3a;
+    color: #e0e0e0;
+  }
+
+  .station-config-header .btn-close:hover {
+    background: #4a4a4a;
+  }
+
+  .station-config-tabs {
+    background: #2d2d2d;
+    border-bottom-color: #444;
+  }
+
+  .tab-btn {
+    color: #aaa;
+  }
+
+  .tab-btn:hover {
+    color: #a3b5ff;
+    background: rgba(102, 126, 234, 0.1);
+  }
+
+  .tab-btn.active {
+    color: #a3b5ff;
+    border-bottom-color: #667eea;
+    background: #2d2d2d;
+  }
+
+  .config-section {
+    background: #3a3a3a;
+    border-color: #444;
+  }
+
+  .config-section h3 {
+    color: #e0e0e0;
+    border-bottom-color: #444;
+  }
+
+  .config-note {
+    color: #aaa;
+  }
+
+  .config-field label {
+    color: #e0e0e0;
+  }
+
+  .config-field input[type="text"],
+  .config-field input[type="number"],
+  .config-field input[type="password"],
+  .config-field select {
+    background: #2d2d2d;
+    border-color: #444;
+    color: #e0e0e0;
+  }
+
+  .config-field input.disabled-input {
+    background: #1a1a1a;
+    color: #6c757d;
+  }
+
+  .config-field small {
+    color: #aaa;
+  }
+
+  .station-config-footer {
+    border-top-color: #444;
+    background: #2d2d2d;
+  }
+
+  .btn-cancel {
+    background: #495057;
+  }
+
+  .btn-cancel:hover {
+    background: #3a3f44;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .station-config-modal {
+    max-width: 100%;
+    margin: 10px;
+  }
+
+  .station-config-tabs {
+    overflow-x: auto;
+  }
+
+  .tab-btn {
+    white-space: nowrap;
+  }
+}

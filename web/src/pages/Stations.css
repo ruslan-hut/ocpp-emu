@@ -256,6 +256,24 @@
   background-color: #d97706;
 }
 
+.btn-connectors {
+  background-color: #8b5cf6;
+  color: white;
+}
+
+.btn-connectors:hover {
+  background-color: #7c3aed;
+}
+
+.btn-config {
+  background-color: #6366f1;
+  color: white;
+}
+
+.btn-config:hover {
+  background-color: #4f46e5;
+}
+
 .btn-edit {
   background-color: #3b82f6;
   color: white;
