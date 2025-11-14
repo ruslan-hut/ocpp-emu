@@ -163,22 +163,51 @@
   border-color: #007bff;
 }
 
-.payload-editor {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ced4da;
-  border-radius: 6px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  resize: vertical;
-  background: #f8f9fa;
+/* Editor Header */
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
 }
 
-.payload-editor:focus {
-  outline: none;
-  border-color: #007bff;
-  background: #fff;
+.editor-header label {
+  margin-bottom: 0;
+}
+
+.btn-format {
+  padding: 6px 12px;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-format:hover {
+  background: #0056b3;
+}
+
+/* Monaco Editor Container */
+.monaco-editor-container {
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* JSON Error Display */
+.json-error {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  color: #856404;
+  font-size: 12px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
 }
 
 /* Message Preview */
@@ -309,15 +338,14 @@
     color: #e0e0e0;
   }
 
-  .payload-editor {
-    background: #1e1e1e;
+  .monaco-editor-container {
     border-color: #444;
-    color: #f8f8f2;
   }
 
-  .payload-editor:focus {
-    background: #2d2d2d;
-    border-color: #007bff;
+  .json-error {
+    background: #3a3a3a;
+    border-color: #856404;
+    color: #ffc107;
   }
 
   .type-btn {

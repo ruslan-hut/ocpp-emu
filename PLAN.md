@@ -424,7 +424,7 @@ ocpp-emu/
 
 **Frontend Features:**
 - [x] **3.1** Implement Custom Message Crafter UI
-- [ ] **3.2** Add JSON editor with syntax highlighting
+- [x] **3.2** Add JSON editor with syntax highlighting
 - [ ] **3.3** Create message templates library
 - [ ] **3.4** Build message validation (optional validation mode)
 - [ ] **3.5** Add message filtering and search in inspector (MongoDB queries)

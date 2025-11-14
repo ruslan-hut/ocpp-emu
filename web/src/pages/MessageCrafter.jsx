@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import Editor from '@monaco-editor/react'
 import { stationsAPI } from '../services/api'
 import './MessageCrafter.css'
 
@@ -11,6 +12,8 @@ function MessageCrafter() {
   const [payload, setPayload] = useState('{}')
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState(null)
+  const [jsonError, setJsonError] = useState(null)
+  const editorRef = useRef(null)
 
   // OCPP 1.6 message templates
   const messageTemplates = {
@@ -96,6 +99,32 @@ function MessageCrafter() {
 
   const handleActionChange = (newAction) => {
     setAction(newAction)
+  }
+
+  const handleEditorMount = (editor) => {
+    editorRef.current = editor
+  }
+
+  const handleEditorChange = (value) => {
+    setPayload(value || '{}')
+    // Validate JSON
+    try {
+      JSON.parse(value || '{}')
+      setJsonError(null)
+    } catch (err) {
+      setJsonError(err.message)
+    }
+  }
+
+  const formatJSON = () => {
+    try {
+      const parsed = JSON.parse(payload)
+      const formatted = JSON.stringify(parsed, null, 2)
+      setPayload(formatted)
+      setJsonError(null)
+    } catch (err) {
+      setJsonError(err.message)
+    }
   }
 
   const buildMessage = () => {
@@ -271,14 +300,42 @@ function MessageCrafter() {
             </div>
 
             <div className="form-group">
-              <label>Payload (JSON)</label>
-              <textarea
-                value={payload}
-                onChange={(e) => setPayload(e.target.value)}
-                className="payload-editor"
-                rows={12}
-                spellCheck={false}
-              />
+              <div className="editor-header">
+                <label>Payload (JSON)</label>
+                <button
+                  type="button"
+                  className="btn-format"
+                  onClick={formatJSON}
+                  title="Format JSON"
+                >
+                  Format
+                </button>
+              </div>
+              <div className="monaco-editor-container">
+                <Editor
+                  height="300px"
+                  defaultLanguage="json"
+                  value={payload}
+                  onChange={handleEditorChange}
+                  onMount={handleEditorMount}
+                  theme="vs-dark"
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 13,
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    tabSize: 2,
+                    formatOnPaste: true,
+                    formatOnType: true
+                  }}
+                />
+              </div>
+              {jsonError && (
+                <div className="json-error">
+                  ⚠️ {jsonError}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -297,14 +354,42 @@ function MessageCrafter() {
             </div>
 
             <div className="form-group">
-              <label>Result Payload (JSON)</label>
-              <textarea
-                value={payload}
-                onChange={(e) => setPayload(e.target.value)}
-                className="payload-editor"
-                rows={12}
-                spellCheck={false}
-              />
+              <div className="editor-header">
+                <label>Result Payload (JSON)</label>
+                <button
+                  type="button"
+                  className="btn-format"
+                  onClick={formatJSON}
+                  title="Format JSON"
+                >
+                  Format
+                </button>
+              </div>
+              <div className="monaco-editor-container">
+                <Editor
+                  height="300px"
+                  defaultLanguage="json"
+                  value={payload}
+                  onChange={handleEditorChange}
+                  onMount={handleEditorMount}
+                  theme="vs-dark"
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 13,
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    tabSize: 2,
+                    formatOnPaste: true,
+                    formatOnType: true
+                  }}
+                />
+              </div>
+              {jsonError && (
+                <div className="json-error">
+                  ⚠️ {jsonError}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -323,14 +408,42 @@ function MessageCrafter() {
             </div>
 
             <div className="form-group">
-              <label>Error Details (JSON)</label>
-              <textarea
-                value={payload}
-                onChange={(e) => setPayload(e.target.value)}
-                className="payload-editor"
-                rows={12}
-                spellCheck={false}
-              />
+              <div className="editor-header">
+                <label>Error Details (JSON)</label>
+                <button
+                  type="button"
+                  className="btn-format"
+                  onClick={formatJSON}
+                  title="Format JSON"
+                >
+                  Format
+                </button>
+              </div>
+              <div className="monaco-editor-container">
+                <Editor
+                  height="300px"
+                  defaultLanguage="json"
+                  value={payload}
+                  onChange={handleEditorChange}
+                  onMount={handleEditorMount}
+                  theme="vs-dark"
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 13,
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    tabSize: 2,
+                    formatOnPaste: true,
+                    formatOnType: true
+                  }}
+                />
+              </div>
+              {jsonError && (
+                <div className="json-error">
+                  ⚠️ {jsonError}
+                </div>
+              )}
             </div>
           </div>
         )}
