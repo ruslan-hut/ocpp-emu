@@ -716,3 +716,44 @@ func (h *StationHandler) StopCharging(w http.ResponseWriter, r *http.Request) {
 		"reason":      req.Reason,
 	})
 }
+
+// SendCustomMessage handles custom OCPP message crafting
+func (h *StationHandler) SendCustomMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		h.sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	stationID := h.extractStationID(r.URL.Path)
+	if stationID == "" {
+		h.sendError(w, http.StatusBadRequest, "Station ID is required")
+		return
+	}
+
+	// Read raw JSON body
+	var req struct {
+		Message json.RawMessage `json:"message"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		return
+	}
+
+	if len(req.Message) == 0 {
+		h.sendError(w, http.StatusBadRequest, "Message is required")
+		return
+	}
+
+	// Send custom message
+	if err := h.manager.SendCustomMessage(r.Context(), stationID, req.Message); err != nil {
+		h.sendError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	h.sendJSON(w, http.StatusOK, map[string]interface{}{
+		"success":   true,
+		"message":   "Custom message sent successfully",
+		"stationId": stationID,
+	})
+}

@@ -26,6 +26,9 @@ function Layout({ children }) {
             <Link to="/messages" className={`nav-link ${isActive('/messages')}`}>
               Messages
             </Link>
+            <Link to="/message-crafter" className={`nav-link ${isActive('/message-crafter')}`}>
+              Message Crafter
+            </Link>
           </nav>
         </div>
       </header>

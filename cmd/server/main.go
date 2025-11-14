@@ -463,6 +463,12 @@ func main() {
 			return
 		}
 
+		// Check if path ends with /send-message
+		if strings.HasSuffix(r.URL.Path, "/send-message") {
+			stationHandler.SendCustomMessage(w, r)
+			return
+		}
+
 		// Otherwise, handle CRUD operations on individual stations
 		switch r.Method {
 		case http.MethodGet:

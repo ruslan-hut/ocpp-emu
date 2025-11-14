@@ -2253,3 +2253,74 @@ func (m *Manager) StopCharging(ctx context.Context, stationID string, connectorI
 
 	return nil
 }
+
+// SendCustomMessage sends a custom OCPP message to the CSMS
+// This allows testing with arbitrary messages crafted by the user
+func (m *Manager) SendCustomMessage(ctx context.Context, stationID string, messageJSON []byte) error {
+	m.mu.RLock()
+	station, exists := m.stations[stationID]
+	m.mu.RUnlock()
+
+	if !exists {
+		return fmt.Errorf("station not found: %s", stationID)
+	}
+
+	// Check if station is connected
+	if station.RuntimeState.ConnectionStatus != "connected" {
+		return fmt.Errorf("station is not connected")
+	}
+
+	// Validate that it's valid JSON
+	var msgArray []interface{}
+	if err := json.Unmarshal(messageJSON, &msgArray); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	// Basic OCPP message validation (should be array with 3 or 4 elements)
+	if len(msgArray) < 3 || len(msgArray) > 4 {
+		return fmt.Errorf("invalid OCPP message format: expected array with 3-4 elements")
+	}
+
+	// First element should be message type (2=Call, 3=CallResult, 4=CallError)
+	msgType, ok := msgArray[0].(float64)
+	if !ok {
+		return fmt.Errorf("invalid message type: must be a number")
+	}
+
+	if msgType != 2 && msgType != 3 && msgType != 4 {
+		return fmt.Errorf("invalid message type: must be 2 (Call), 3 (CallResult), or 4 (CallError)")
+	}
+
+	// Send the raw message
+	if err := m.connManager.SendMessage(stationID, messageJSON); err != nil {
+		m.logger.Error("Failed to send custom message",
+			"stationId", stationID,
+			"error", err,
+		)
+		return fmt.Errorf("failed to send custom message: %w", err)
+	}
+
+	m.logger.Info("Sent custom message",
+		"stationId", stationID,
+		"messageType", int(msgType),
+	)
+
+	// Store the message for logging
+	var call *ocpp.Call
+	if msgType == 2 && len(msgArray) >= 4 {
+		// It's a Call message
+		uniqueID, _ := msgArray[1].(string)
+		action, _ := msgArray[2].(string)
+		payload, _ := json.Marshal(msgArray[3])
+
+		call = &ocpp.Call{
+			MessageTypeID: ocpp.MessageTypeCall,
+			UniqueID:      uniqueID,
+			Action:        action,
+			Payload:       payload,
+		}
+		go m.storeMessage(stationID, "sent", call)
+	}
+
+	return nil
+}

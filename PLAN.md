@@ -423,7 +423,7 @@ ocpp-emu/
 **Goal**: Message crafting and advanced debugging
 
 **Frontend Features:**
-- [ ] **3.1** Implement Custom Message Crafter UI
+- [x] **3.1** Implement Custom Message Crafter UI
 - [ ] **3.2** Add JSON editor with syntax highlighting
 - [ ] **3.3** Create message templates library
 - [ ] **3.4** Build message validation (optional validation mode)
