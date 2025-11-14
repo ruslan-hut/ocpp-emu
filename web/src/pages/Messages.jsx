@@ -16,14 +16,62 @@ function Messages() {
   const [filters, setFilters] = useState({
     direction: 'all',
     stationId: '',
+    messageType: 'all',
+    action: '',
+    searchQuery: '',
     limit: 50,
   })
 
   const wsRef = useRef(null)
   const messagesEndRef = useRef(null)
 
+  // Helper function to format payload for search
+  const getSearchablePayload = (payload) => {
+    if (!payload) return ''
+    try {
+      return JSON.stringify(payload)
+    } catch {
+      return String(payload)
+    }
+  }
+
+  // Filter messages based on search and filters
+  const filteredMessages = useMemo(() => {
+    return messages.filter((message) => {
+      // Message type filter
+      if (filters.messageType !== 'all' && message.messageType !== filters.messageType) {
+        return false
+      }
+
+      // Action filter
+      if (filters.action && message.action && !message.action.toLowerCase().includes(filters.action.toLowerCase())) {
+        return false
+      }
+
+      // Search query - search in multiple fields
+      if (filters.searchQuery) {
+        const query = filters.searchQuery.toLowerCase()
+        const searchableText = [
+          message.stationId,
+          message.messageType,
+          message.action,
+          message.messageId,
+          message.errorCode,
+          message.errorDescription,
+          getSearchablePayload(message.payload)
+        ].join(' ').toLowerCase()
+
+        if (!searchableText.includes(query)) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }, [messages, filters.messageType, filters.action, filters.searchQuery])
+
   const messageCounts = useMemo(() => {
-    return messages.reduce(
+    return filteredMessages.reduce(
       (acc, message) => {
         acc.total += 1
         if (message.direction === 'sent') {
@@ -35,7 +83,7 @@ function Messages() {
       },
       { total: 0, sent: 0, received: 0 }
     )
-  }, [messages])
+  }, [filteredMessages])
 
   const displayStats = useMemo(() => {
     const chooseValue = (statValue, fallback) => {
@@ -255,6 +303,38 @@ function Messages() {
     }
   }
 
+  // Get unique actions from messages for autocomplete
+  const uniqueActions = useMemo(() => {
+    const actions = new Set()
+    messages.forEach((message) => {
+      if (message.action) {
+        actions.add(message.action)
+      }
+    })
+    return Array.from(actions).sort()
+  }, [messages])
+
+  const handleClearFilters = () => {
+    setFilters({
+      direction: 'all',
+      stationId: '',
+      messageType: 'all',
+      action: '',
+      searchQuery: '',
+      limit: 50,
+    })
+  }
+
+  const hasActiveFilters = () => {
+    return (
+      filters.direction !== 'all' ||
+      filters.stationId !== '' ||
+      filters.messageType !== 'all' ||
+      filters.action !== '' ||
+      filters.searchQuery !== ''
+    )
+  }
+
   if (loading) {
     return <div className="loading">Loading messages...</div>
   }
@@ -311,53 +391,150 @@ function Messages() {
         </div>
       )}
 
-      <div className="filters">
-        <div className="filter-group">
-          <label htmlFor="direction">Direction:</label>
-          <select
-            id="direction"
-            value={filters.direction}
-            onChange={(e) => handleFilterChange('direction', e.target.value)}
-          >
-            <option value="all">All</option>
-            <option value="sent">Sent</option>
-            <option value="received">Received</option>
-          </select>
-        </div>
-
-        <div className="filter-group">
-          <label htmlFor="stationId">Station ID:</label>
+      <div className="filters-container">
+        {/* Search Bar */}
+        <div className="search-bar">
           <input
-            id="stationId"
             type="text"
-            placeholder="Filter by station..."
-            value={filters.stationId}
-            onChange={(e) => handleFilterChange('stationId', e.target.value)}
+            className="search-input"
+            placeholder="🔍 Search messages (station, action, payload, error...)..."
+            value={filters.searchQuery}
+            onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
           />
+          {hasActiveFilters() && (
+            <button className="btn-clear-filters" onClick={handleClearFilters}>
+              Clear Filters
+            </button>
+          )}
         </div>
 
-        <div className="filter-group">
-          <label htmlFor="limit">Limit:</label>
-          <select
-            id="limit"
-            value={filters.limit}
-            onChange={(e) => handleFilterChange('limit', parseInt(e.target.value))}
-          >
-            <option value="25">25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-            <option value="200">200</option>
-          </select>
+        {/* Filters Row */}
+        <div className="filters">
+          <div className="filter-group">
+            <label htmlFor="direction">Direction:</label>
+            <select
+              id="direction"
+              value={filters.direction}
+              onChange={(e) => handleFilterChange('direction', e.target.value)}
+            >
+              <option value="all">All</option>
+              <option value="sent">Sent</option>
+              <option value="received">Received</option>
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label htmlFor="messageType">Message Type:</label>
+            <select
+              id="messageType"
+              value={filters.messageType}
+              onChange={(e) => handleFilterChange('messageType', e.target.value)}
+            >
+              <option value="all">All</option>
+              <option value="Call">Call (2)</option>
+              <option value="CallResult">CallResult (3)</option>
+              <option value="CallError">CallError (4)</option>
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label htmlFor="action">Action:</label>
+            <input
+              id="action"
+              type="text"
+              list="action-suggestions"
+              placeholder="Filter by action..."
+              value={filters.action}
+              onChange={(e) => handleFilterChange('action', e.target.value)}
+            />
+            <datalist id="action-suggestions">
+              {uniqueActions.map((action) => (
+                <option key={action} value={action} />
+              ))}
+            </datalist>
+          </div>
+
+          <div className="filter-group">
+            <label htmlFor="stationId">Station ID:</label>
+            <input
+              id="stationId"
+              type="text"
+              placeholder="Filter by station..."
+              value={filters.stationId}
+              onChange={(e) => handleFilterChange('stationId', e.target.value)}
+            />
+          </div>
+
+          <div className="filter-group">
+            <label htmlFor="limit">Limit:</label>
+            <select
+              id="limit"
+              value={filters.limit}
+              onChange={(e) => handleFilterChange('limit', parseInt(e.target.value))}
+            >
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Active Filter Tags */}
+        {hasActiveFilters() && (
+          <div className="active-filters">
+            <span className="active-filters-label">Active filters:</span>
+            {filters.direction !== 'all' && (
+              <span className="filter-tag">
+                Direction: {filters.direction}
+                <button onClick={() => handleFilterChange('direction', 'all')}>×</button>
+              </span>
+            )}
+            {filters.messageType !== 'all' && (
+              <span className="filter-tag">
+                Type: {filters.messageType}
+                <button onClick={() => handleFilterChange('messageType', 'all')}>×</button>
+              </span>
+            )}
+            {filters.action && (
+              <span className="filter-tag">
+                Action: {filters.action}
+                <button onClick={() => handleFilterChange('action', '')}>×</button>
+              </span>
+            )}
+            {filters.stationId && (
+              <span className="filter-tag">
+                Station: {filters.stationId}
+                <button onClick={() => handleFilterChange('stationId', '')}>×</button>
+              </span>
+            )}
+            {filters.searchQuery && (
+              <span className="filter-tag">
+                Search: "{filters.searchQuery}"
+                <button onClick={() => handleFilterChange('searchQuery', '')}>×</button>
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Results Count */}
+        <div className="results-info">
+          Showing {filteredMessages.length} of {messages.length} messages
         </div>
       </div>
 
-      {messages.length === 0 ? (
+      {filteredMessages.length === 0 ? (
         <div className="empty-state">
-          <p>No messages found</p>
+          <p>{messages.length === 0 ? 'No messages found' : 'No messages match your filters'}</p>
+          {messages.length > 0 && hasActiveFilters() && (
+            <button className="btn-secondary" onClick={handleClearFilters}>
+              Clear All Filters
+            </button>
+          )}
         </div>
       ) : (
         <div className="messages-list">
-          {messages.map((message, index) => (
+          {filteredMessages.map((message, index) => (
             <div key={index} className={`message-card ${message.direction}`}>
               <div className="message-header">
                 <div className="message-info">
