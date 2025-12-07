@@ -1,6 +1,17 @@
+<div align="center">
+
 # OCPP Charging Station Emulator
 
-A web-based EV charging station emulator supporting OCPP 1.6, 2.0.1, and 2.1 protocols. Designed to test and diagnose OCPP-compliant remote servers (CSMS - Charging Station Management Systems).
+![OCPP Emulator](docs/assets/images/ocpp-emulator-banner.png)
+
+*A web-based EV charging station emulator supporting OCPP 1.6, 2.0.1, and 2.1 protocols*
+
+[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://golang.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-7.0+-47A248?style=flat&logo=mongodb)](https://www.mongodb.com/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+</div>
 
 ## Features
 
