@@ -86,7 +86,7 @@ docker-compose up backend
 docker-compose exec mongodb mongosh ocpp_emu
 ```
 
-📖 See [DOCKER.md](DOCKER.md) for detailed Docker setup guide and troubleshooting.
+📖 See [docs/DOCKER.md](docs/DOCKER.md) for detailed Docker setup guide and troubleshooting.
 
 ## Configuration
 
@@ -109,7 +109,7 @@ Dynamic station configurations managed through Web UI:
 - OCPP features
 - Simulation behavior
 
-See [PLAN.md](PLAN.md) for detailed configuration options.
+See [docs/PLAN.md](docs/PLAN.md) for detailed configuration options.
 
 ## Project Structure
 
@@ -195,17 +195,17 @@ make fmt
 
 - **Backend**: Go with standard library HTTP, custom OCPP implementation
 - **Database**: MongoDB for persistence
-- **Frontend**: React/Vue (planned)
+- **Frontend**: React 18 with Vite
 - **Logging**: Standard library slog for structured logging
 - **WebSocket**: gorilla/websocket for protocol handling
 
 ## OCPP Protocol Support
 
-### OCPP 1.6 (In Progress)
-- Core Profile
-- Firmware Management
-- Remote Control
-- Smart Charging
+### OCPP 1.6 ✅ Implemented
+- ✅ Core Profile (BootNotification, Heartbeat, StatusNotification, Authorize, StartTransaction, StopTransaction, MeterValues, DataTransfer)
+- ⏳ Firmware Management (Planned)
+- ⏳ Remote Control (Planned)
+- ⏳ Smart Charging (Planned)
 
 ### OCPP 2.0.1 (Planned)
 - Core functionality
@@ -218,7 +218,7 @@ make fmt
 
 ## Contributing
 
-This project is in active development. See [PLAN.md](PLAN.md) for the development roadmap.
+This project is in active development. See [docs/PLAN.md](docs/PLAN.md) for the development roadmap.
 
 ## License
 
@@ -227,11 +227,14 @@ MIT License - see LICENSE file for details
 ## Resources
 
 - [OCPP Specifications](https://www.openchargealliance.org/)
-- [Project Plan](PLAN.md)
+- [Project Plan](docs/PLAN.md)
 - [MongoDB Documentation](https://www.mongodb.com/docs/)
 
 ## Status
 
-🚧 **In Development** - Phase 1: Foundation (Weeks 1-2)
+✅ **Phase 1 & 2 Complete** - OCPP 1.6 support implemented
+🚧 **Phase 3 In Progress** - Enhanced features and message crafting
 
 Current Version: 0.1.0
+
+For detailed status and roadmap, see [docs/PLAN.md](docs/PLAN.md).

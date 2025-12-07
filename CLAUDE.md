@@ -214,4 +214,4 @@ Project is in active development (v0.1.0). Recent work includes:
 - Docker multi-stage builds and production deployment
 - Frontend message inspector improvements
 
-See `PLAN.md` for detailed roadmap and `PHASE*.md` files for implementation documentation.
+See `docs/PLAN.md` for detailed roadmap. Completed phase implementation documentation is archived in `archive/`.

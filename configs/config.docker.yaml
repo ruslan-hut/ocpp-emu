@@ -8,7 +8,7 @@ server:
 
 logging:
   level: "info"          # debug, info, warn, error
-  format: "json"         # json or text
+  format: "text"         # json or text
   output: "stdout"       # stdout, stderr, or file path
 
 mongodb:

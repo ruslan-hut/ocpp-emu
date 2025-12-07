@@ -375,9 +375,9 @@ services:
 ## Support
 
 ### Documentation
-- [DOCKER.md](DOCKER.md) - Docker setup and troubleshooting
-- [PLAN.md](PLAN.md) - Full project plan and architecture
-- [README.md](README.md) - Quick start and API reference
+- [docs/DOCKER.md](DOCKER.md) - Docker setup and troubleshooting
+- [docs/PLAN.md](PLAN.md) - Full project plan and architecture
+- [README.md](../README.md) - Quick start and API reference
 
 ### Useful Commands
 ```bash
