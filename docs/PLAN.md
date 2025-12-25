@@ -601,10 +601,10 @@ See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
   - [x] 8.12a: Create unified StatusBadge component
   - [x] 8.12b: Consistent color scheme for connection states
   - [x] 8.12c: Consistent sizing across all badges
-- [ ] **8.13** Standardize form controls
-  - [ ] 8.13a: Consistent input heights and padding
-  - [ ] 8.13b: Unified select dropdown styling
-  - [ ] 8.13c: Consistent label and help text styling
+- [x] **8.13** Standardize form controls
+  - [x] 8.13a: Consistent input heights and padding
+  - [x] 8.13b: Unified select dropdown styling
+  - [x] 8.13c: Consistent label and help text styling
 - [ ] **8.14** Standardize modal dialogs
   - [ ] 8.14a: Consistent modal header/footer styling
   - [ ] 8.14b: Maximum width constraints for desktop
