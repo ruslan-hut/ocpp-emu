@@ -463,11 +463,15 @@ ocpp-emu/
 **Goal**: OCPP 2.1 support and scenario automation
 
 **OCPP 2.1 Protocol:**
-- [ ] **5.1** Implement OCPP 2.1 enhancements:
-  - [ ] 5.1a: Cost and tariff messages
-  - [ ] 5.1b: Display messages
-  - [ ] 5.1c: Additional security features
-  - [ ] 5.1d: Enhanced reservation system
+- [x] **5.1** Implement OCPP 2.1 enhancements:
+  - [x] 5.1a: Cost and tariff messages
+  - [x] 5.1b: Display messages
+  - [x] 5.1c: Additional security features
+  - [x] 5.1d: Enhanced reservation system
+  - [x] 5.1e: Charging profiles and composite schedules
+  - [x] 5.1f: Local authorization list
+  - [x] 5.1g: Firmware management (UpdateFirmware, GetLog, SetNetworkProfile)
+  - [x] 5.1h: Frontend templates and protocol badges
 
 **Scenario Testing:**
 - [ ] **5.2** Create Scenario Runner framework
@@ -521,6 +525,92 @@ ocpp-emu/
 - [ ] **7.12** Document API endpoints for station management
 
 **Deliverable**: v1.0 release
+
+### Phase 8: UI Redesign & Desktop Optimization (Weeks 14-16)
+**Goal**: Unified design system with desktop-first layout and dark theme support
+
+See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
+
+**Design System Foundation:**
+- [x] **8.1** Create CSS custom properties (design tokens)
+  - [x] 8.1a: Color system (primary, semantic, neutral colors)
+  - [x] 8.1b: Typography scale (font sizes, weights, line heights)
+  - [x] 8.1c: Spacing scale (4px base unit: 4, 8, 12, 16, 24, 32, 48)
+  - [x] 8.1d: Border radius and shadow tokens
+  - [x] 8.1e: Transition and animation tokens
+- [x] **8.2** Create utility CSS classes
+  - [x] 8.2a: Flexbox and grid layout utilities
+  - [x] 8.2b: Spacing utilities (margin, padding)
+  - [x] 8.2c: Text alignment and color utilities
+
+**Dark Theme Implementation:**
+- [ ] **8.3** Consolidate dark theme across all CSS files
+  - [x] 8.3a: Create unified dark theme color palette in CSS variables
+  - [ ] 8.3b: Refactor MessageInspector.css dark mode (already complete)
+  - [ ] 8.3c: Refactor StationForm.css dark mode (already complete)
+  - [ ] 8.3d: Refactor MessageCrafter.css dark mode (already complete)
+  - [ ] 8.3e: Add dark mode to Stations.css
+  - [ ] 8.3f: Add dark mode to StationConfig.css
+  - [ ] 8.3g: Add dark mode to ConnectorCard.css
+  - [ ] 8.3h: Add dark mode to Dashboard.css
+  - [ ] 8.3i: Add dark mode to TemplatesManager.css
+  - [ ] 8.3j: Add dark mode to ImportExport.css
+  - [ ] 8.3k: Add dark mode to remaining CSS files (App.css, index.css)
+- [ ] **8.4** Implement theme toggle component
+  - [ ] 8.4a: Create ThemeProvider context
+  - [ ] 8.4b: Add theme toggle button in header/navigation
+  - [ ] 8.4c: Persist theme preference in localStorage
+  - [ ] 8.4d: Respect system preference (prefers-color-scheme)
+
+**Desktop-First Layout System:**
+- [ ] **8.5** Update breakpoints to desktop-first approach
+  - [ ] 8.5a: Define desktop breakpoints (1280px base, 1536px large, 1920px ultra-wide)
+  - [ ] 8.5b: Add max-width media queries for tablet/mobile fallback
+- [ ] **8.6** Implement compact, information-dense layouts
+  - [ ] 8.6a: Reduce default padding/margins for desktop
+  - [x] 8.6b: Create compact button variants
+  - [x] 8.6c: Create dense data table styles
+  - [ ] 8.6d: Reduce card whitespace for desktop
+
+**Page-Specific Layout Updates:**
+- [ ] **8.7** Redesign Stations page for desktop
+  - [ ] 8.7a: Implement horizontal station cards (info left, actions right)
+  - [ ] 8.7b: Create table view option for station list
+  - [ ] 8.7c: Add inline action buttons (no dropdown menus)
+  - [ ] 8.7d: Optimize connectors modal for wide screens
+- [ ] **8.8** Redesign Message Inspector for desktop
+  - [ ] 8.8a: Implement two-column layout (list left, details right)
+  - [ ] 8.8b: Fixed filter bar at top
+  - [ ] 8.8c: Resizable split panels
+  - [ ] 8.8d: Compact message list rows
+- [ ] **8.9** Redesign Dashboard for desktop
+  - [ ] 8.9a: Multi-column grid layout for stats cards
+  - [ ] 8.9b: Side-by-side station overview and activity feed
+  - [ ] 8.9c: Compact statistics widgets
+- [ ] **8.10** Redesign Message Crafter for desktop
+  - [ ] 8.10a: Three-column layout (station/settings, editor, preview)
+  - [ ] 8.10b: Compact form controls
+  - [ ] 8.10c: Inline validation display
+
+**Component Standardization:**
+- [ ] **8.11** Standardize button styles
+  - [ ] 8.11a: Create consistent button component with size variants (sm, md, lg)
+  - [ ] 8.11b: Consolidate btn-primary, btn-secondary, btn-action styles
+  - [ ] 8.11c: Standardize icon button styling
+- [ ] **8.12** Standardize badge/status indicators
+  - [ ] 8.12a: Create unified StatusBadge component
+  - [ ] 8.12b: Consistent color scheme for connection states
+  - [ ] 8.12c: Consistent sizing across all badges
+- [ ] **8.13** Standardize form controls
+  - [ ] 8.13a: Consistent input heights and padding
+  - [ ] 8.13b: Unified select dropdown styling
+  - [ ] 8.13c: Consistent label and help text styling
+- [ ] **8.14** Standardize modal dialogs
+  - [ ] 8.14a: Consistent modal header/footer styling
+  - [ ] 8.14b: Maximum width constraints for desktop
+  - [ ] 8.14c: Backdrop and animation consistency
+
+**Deliverable**: Desktop-optimized, compact UI with unified dark theme and consistent design language
 
 ## Key Features Detail
 
@@ -1353,11 +1443,12 @@ db.messages.createIndex(
 - OCPP Message Validator: Online tools for message validation
 
 ## Timeline Summary
-- **Total Duration**: ~13 weeks
+- **Total Duration**: ~16 weeks
 - **Phase 1-2**: Foundation + OCPP 1.6 (4 weeks)
 - **Phase 3-4**: Enhanced features + OCPP 2.0.1 (5 weeks)
 - **Phase 5**: OCPP 2.1 + scenarios (2 weeks)
 - **Phase 6-7**: Testing + polish (2 weeks)
+- **Phase 8**: UI redesign + desktop optimization (3 weeks)
 
 ## Risks & Mitigations
 
@@ -1386,11 +1477,22 @@ db.messages.createIndex(
 
 ---
 
-**Document Version**: 1.7
+**Document Version**: 2.2
 **Last Updated**: 2025-12-25
-**Status**: Active - Phases 1-5 Complete
+**Status**: Active - Phases 1-5 Complete, Phase 8 (UI Redesign) Planned
 
 **Changelog**:
+- v2.2: Added Phase 8 - UI Redesign & Desktop Optimization
+  - Created comprehensive UI design plan in docs/UI_DESIGN_PLAN.md
+  - Added design system foundation tasks (CSS custom properties, utilities)
+  - Added dark theme implementation tasks (consolidation across 11 CSS files, theme toggle)
+  - Added desktop-first layout system tasks (breakpoints, compact layouts)
+  - Added page-specific redesign tasks (Stations, Message Inspector, Dashboard, Message Crafter)
+  - Added component standardization tasks (buttons, badges, forms, modals)
+  - Total: 14 main tasks with 40+ subtasks
+  - Timeline: Weeks 14-16 (3 weeks)
+- v2.1: Implemented OCPP 2.1 protocol support (Phase 5)
+  - See detailed notes below for full implementation
 - v1.7: Phase 4 OCPP 2.0.1 backend implementation
   - Task 4.1e: Certificate management messages implemented
     - Added certificate types: CertificateHashDataType, CertificateHashDataChainType

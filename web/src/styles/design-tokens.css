@@ -1,0 +1,436 @@
+/**
+ * Design Tokens - CSS Custom Properties
+ *
+ * This file contains all design tokens (CSS variables) for the OCPP Emulator.
+ * All colors, spacing, typography, and other design values should be defined here.
+ *
+ * Usage: var(--token-name)
+ */
+
+:root {
+  /* ===== COLOR PALETTE ===== */
+
+  /* Primary (Blue) */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+
+  /* Success (Green) */
+  --color-success-50: #ecfdf5;
+  --color-success-100: #d1fae5;
+  --color-success-200: #a7f3d0;
+  --color-success-300: #6ee7b7;
+  --color-success-400: #34d399;
+  --color-success-500: #10b981;
+  --color-success-600: #059669;
+  --color-success-700: #047857;
+  --color-success-800: #065f46;
+  --color-success-900: #064e3b;
+
+  /* Warning (Amber) */
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-300: #fcd34d;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+  --color-warning-900: #78350f;
+
+  /* Danger (Red) */
+  --color-danger-50: #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-200: #fecaca;
+  --color-danger-300: #fca5a5;
+  --color-danger-400: #f87171;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+  --color-danger-800: #991b1b;
+  --color-danger-900: #7f1d1d;
+
+  /* Info (Indigo) */
+  --color-info-50: #eef2ff;
+  --color-info-100: #e0e7ff;
+  --color-info-200: #c7d2fe;
+  --color-info-300: #a5b4fc;
+  --color-info-400: #818cf8;
+  --color-info-500: #6366f1;
+  --color-info-600: #4f46e5;
+  --color-info-700: #4338ca;
+  --color-info-800: #3730a3;
+  --color-info-900: #312e81;
+
+  /* Neutral (Gray) */
+  --color-neutral-50: #f9fafb;
+  --color-neutral-100: #f3f4f6;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-300: #d1d5db;
+  --color-neutral-400: #9ca3af;
+  --color-neutral-500: #6b7280;
+  --color-neutral-600: #4b5563;
+  --color-neutral-700: #374151;
+  --color-neutral-800: #1f2937;
+  --color-neutral-900: #111827;
+  --color-neutral-950: #030712;
+
+  /* Protocol Colors */
+  --color-ocpp16: #1565c0;
+  --color-ocpp16-bg: #e3f2fd;
+  --color-ocpp16-border: #90caf9;
+  --color-ocpp201: #2e7d32;
+  --color-ocpp201-bg: #e8f5e9;
+  --color-ocpp201-border: #a5d6a7;
+  --color-ocpp21: #e65100;
+  --color-ocpp21-bg: #fff3e0;
+  --color-ocpp21-border: #ffcc80;
+
+  /* Connector Status Colors */
+  --color-available: var(--color-success-500);
+  --color-available-bg: var(--color-success-100);
+  --color-occupied: var(--color-primary-500);
+  --color-occupied-bg: var(--color-primary-100);
+  --color-charging: var(--color-info-500);
+  --color-charging-bg: var(--color-info-100);
+  --color-faulted: var(--color-danger-500);
+  --color-faulted-bg: var(--color-danger-100);
+  --color-unavailable: var(--color-neutral-500);
+  --color-unavailable-bg: var(--color-neutral-200);
+
+  /* ===== SEMANTIC COLORS ===== */
+
+  /* Backgrounds */
+  --bg-base: #ffffff;
+  --bg-surface-1: var(--color-neutral-50);
+  --bg-surface-2: var(--color-neutral-100);
+  --bg-surface-3: var(--color-neutral-200);
+  --bg-elevated: #ffffff;
+  --bg-overlay: rgba(0, 0, 0, 0.5);
+
+  /* Text */
+  --text-primary: var(--color-neutral-900);
+  --text-secondary: var(--color-neutral-600);
+  --text-muted: var(--color-neutral-500);
+  --text-disabled: var(--color-neutral-400);
+  --text-inverse: #ffffff;
+  --text-link: var(--color-primary-600);
+  --text-link-hover: var(--color-primary-700);
+
+  /* Borders */
+  --border-default: var(--color-neutral-200);
+  --border-muted: var(--color-neutral-100);
+  --border-emphasis: var(--color-neutral-300);
+  --border-focus: var(--color-primary-500);
+
+  /* ===== SPACING SCALE ===== */
+  /* Based on 4px unit */
+  --space-0: 0;
+  --space-px: 1px;
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-2-5: 10px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 36px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-14: 56px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* ===== TYPOGRAPHY ===== */
+
+  /* Font Families */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+
+  /* Font Sizes */
+  --text-2xs: 0.625rem;   /* 10px */
+  --text-xs: 0.75rem;     /* 12px */
+  --text-sm: 0.8125rem;   /* 13px */
+  --text-base: 0.875rem;  /* 14px - desktop default */
+  --text-lg: 1rem;        /* 16px */
+  --text-xl: 1.125rem;    /* 18px */
+  --text-2xl: 1.25rem;    /* 20px */
+  --text-3xl: 1.5rem;     /* 24px */
+  --text-4xl: 1.875rem;   /* 30px */
+  --text-5xl: 2.25rem;    /* 36px */
+
+  /* Font Weights */
+  --font-thin: 100;
+  --font-light: 300;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+
+  /* Line Heights */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+
+  /* Letter Spacing */
+  --tracking-tighter: -0.05em;
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+
+  /* ===== BORDERS & RADIUS ===== */
+
+  --border-width: 1px;
+  --border-width-2: 2px;
+
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 12px;
+  --radius-3xl: 16px;
+  --radius-full: 9999px;
+
+  /* ===== SHADOWS ===== */
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+  --shadow-none: none;
+
+  /* Focus Ring */
+  --ring-width: 2px;
+  --ring-offset: 2px;
+  --ring-color: var(--color-primary-500);
+
+  /* ===== LAYOUT ===== */
+
+  --content-max-width: 1600px;
+  --content-max-width-sm: 640px;
+  --content-max-width-md: 768px;
+  --content-max-width-lg: 1024px;
+  --content-max-width-xl: 1280px;
+
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 64px;
+  --header-height: 48px;
+  --toolbar-height: 40px;
+  --footer-height: 32px;
+
+  /* ===== TRANSITIONS ===== */
+
+  --transition-none: none;
+  --transition-fast: 100ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+  --transition-slower: 500ms ease;
+
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ===== Z-INDEX SCALE ===== */
+
+  --z-deep: -999;
+  --z-base: 0;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 500;
+  --z-popover: 600;
+  --z-tooltip: 700;
+  --z-toast: 800;
+  --z-max: 999;
+
+  /* ===== COMPONENT SIZES ===== */
+
+  /* Button heights */
+  --btn-height-xs: 22px;
+  --btn-height-sm: 28px;
+  --btn-height-md: 34px;
+  --btn-height-lg: 40px;
+  --btn-height-xl: 48px;
+
+  /* Input heights */
+  --input-height-sm: 28px;
+  --input-height-md: 34px;
+  --input-height-lg: 40px;
+
+  /* Badge heights */
+  --badge-height-sm: 16px;
+  --badge-height-md: 20px;
+  --badge-height-lg: 24px;
+
+  /* Icon sizes */
+  --icon-xs: 12px;
+  --icon-sm: 14px;
+  --icon-md: 16px;
+  --icon-lg: 20px;
+  --icon-xl: 24px;
+}
+
+/* ===== DARK THEME ===== */
+
+/* System preference dark mode */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* Neutral colors inverted */
+    --color-neutral-50: #0f0f0f;
+    --color-neutral-100: #1a1a1a;
+    --color-neutral-200: #262626;
+    --color-neutral-300: #333333;
+    --color-neutral-400: #525252;
+    --color-neutral-500: #737373;
+    --color-neutral-600: #a3a3a3;
+    --color-neutral-700: #d4d4d4;
+    --color-neutral-800: #e5e5e5;
+    --color-neutral-900: #f5f5f5;
+    --color-neutral-950: #fafafa;
+
+    /* Semantic backgrounds */
+    --bg-base: #0f0f0f;
+    --bg-surface-1: #1a1a1a;
+    --bg-surface-2: #242424;
+    --bg-surface-3: #2e2e2e;
+    --bg-elevated: #383838;
+    --bg-overlay: rgba(0, 0, 0, 0.75);
+
+    /* Semantic text */
+    --text-primary: #f0f0f0;
+    --text-secondary: #a0a0a0;
+    --text-muted: #737373;
+    --text-disabled: #525252;
+    --text-inverse: #0f0f0f;
+    --text-link: var(--color-primary-400);
+    --text-link-hover: var(--color-primary-300);
+
+    /* Semantic borders */
+    --border-default: #333333;
+    --border-muted: #262626;
+    --border-emphasis: #444444;
+
+    /* Protocol colors - dark variants */
+    --color-ocpp16-bg: #1e3a5f;
+    --color-ocpp16: #93c5fd;
+    --color-ocpp16-border: #3b82f6;
+    --color-ocpp201-bg: #14532d;
+    --color-ocpp201: #86efac;
+    --color-ocpp201-border: #22c55e;
+    --color-ocpp21-bg: #431407;
+    --color-ocpp21: #fdba74;
+    --color-ocpp21-border: #f97316;
+
+    /* Status colors - dark variants */
+    --color-success-100: #052e16;
+    --color-success-700: #4ade80;
+    --color-warning-100: #422006;
+    --color-warning-700: #fbbf24;
+    --color-danger-100: #450a0a;
+    --color-danger-700: #f87171;
+    --color-info-100: #172554;
+    --color-info-700: #60a5fa;
+    --color-primary-100: #172554;
+    --color-primary-700: #60a5fa;
+
+    /* Shadows - more subtle in dark mode */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* Explicit dark theme class/attribute */
+[data-theme="dark"],
+.dark {
+  /* Neutral colors inverted */
+  --color-neutral-50: #0f0f0f;
+  --color-neutral-100: #1a1a1a;
+  --color-neutral-200: #262626;
+  --color-neutral-300: #333333;
+  --color-neutral-400: #525252;
+  --color-neutral-500: #737373;
+  --color-neutral-600: #a3a3a3;
+  --color-neutral-700: #d4d4d4;
+  --color-neutral-800: #e5e5e5;
+  --color-neutral-900: #f5f5f5;
+  --color-neutral-950: #fafafa;
+
+  /* Semantic backgrounds */
+  --bg-base: #0f0f0f;
+  --bg-surface-1: #1a1a1a;
+  --bg-surface-2: #242424;
+  --bg-surface-3: #2e2e2e;
+  --bg-elevated: #383838;
+  --bg-overlay: rgba(0, 0, 0, 0.75);
+
+  /* Semantic text */
+  --text-primary: #f0f0f0;
+  --text-secondary: #a0a0a0;
+  --text-muted: #737373;
+  --text-disabled: #525252;
+  --text-inverse: #0f0f0f;
+  --text-link: var(--color-primary-400);
+  --text-link-hover: var(--color-primary-300);
+
+  /* Semantic borders */
+  --border-default: #333333;
+  --border-muted: #262626;
+  --border-emphasis: #444444;
+
+  /* Protocol colors - dark variants */
+  --color-ocpp16-bg: #1e3a5f;
+  --color-ocpp16: #93c5fd;
+  --color-ocpp16-border: #3b82f6;
+  --color-ocpp201-bg: #14532d;
+  --color-ocpp201: #86efac;
+  --color-ocpp201-border: #22c55e;
+  --color-ocpp21-bg: #431407;
+  --color-ocpp21: #fdba74;
+  --color-ocpp21-border: #f97316;
+
+  /* Status colors - dark variants */
+  --color-success-100: #052e16;
+  --color-success-700: #4ade80;
+  --color-warning-100: #422006;
+  --color-warning-700: #fbbf24;
+  --color-danger-100: #450a0a;
+  --color-danger-700: #f87171;
+  --color-info-100: #172554;
+  --color-info-700: #60a5fa;
+  --color-primary-100: #172554;
+  --color-primary-700: #60a5fa;
+
+  /* Shadows - more subtle in dark mode */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+}

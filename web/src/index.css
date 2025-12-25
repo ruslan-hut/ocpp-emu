@@ -1,19 +1,36 @@
-* {
+/**
+ * Main Stylesheet Entry Point
+ *
+ * This file imports the design system and provides base styles.
+ * Import order matters: tokens -> utilities -> components -> base
+ */
+
+/* Design System Imports */
+@import './styles/design-tokens.css';
+@import './styles/utilities.css';
+@import './styles/components.css';
+
+/* ===== CSS RESET ===== */
+
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+/* ===== BASE STYLES ===== */
+
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  font-family: var(--font-sans);
+  font-size: 16px; /* Base for rem calculations */
+  line-height: var(--leading-normal);
+  font-weight: var(--font-normal);
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: var(--text-primary);
+  background-color: var(--bg-base);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -21,50 +38,249 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  font-size: var(--text-base); /* 14px for desktop-first */
+}
+
+/* ===== TYPOGRAPHY DEFAULTS ===== */
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--font-semibold);
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
 }
 
 h1 {
-  font-size: 2.5em;
-  line-height: 1.1;
+  font-size: var(--text-3xl);
+}
+
+h2 {
+  font-size: var(--text-2xl);
+}
+
+h3 {
+  font-size: var(--text-xl);
+}
+
+h4 {
+  font-size: var(--text-lg);
+}
+
+h5 {
+  font-size: var(--text-base);
+}
+
+h6 {
+  font-size: var(--text-sm);
+}
+
+p {
+  margin-bottom: var(--space-4);
+}
+
+p:last-child {
+  margin-bottom: 0;
+}
+
+a {
+  color: var(--text-link);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--text-link-hover);
+  text-decoration: underline;
+}
+
+strong, b {
+  font-weight: var(--font-semibold);
+}
+
+small {
+  font-size: var(--text-sm);
+}
+
+code, kbd, pre, samp {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+code {
+  padding: var(--space-0-5) var(--space-1);
+  background: var(--bg-surface-2);
+  border-radius: var(--radius-sm);
+}
+
+pre {
+  padding: var(--space-3);
+  background: var(--bg-surface-2);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+pre code {
+  padding: 0;
+  background: none;
+}
+
+/* ===== FORM ELEMENT DEFAULTS ===== */
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
   cursor: pointer;
-  transition: border-color 0.25s;
 }
 
-button:hover {
-  border-color: #646cff;
+input,
+select,
+textarea {
+  color: var(--text-primary);
+  background: var(--bg-base);
 }
 
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
 }
+
+/* Remove default button styles */
+button:not(.btn) {
+  border-radius: var(--radius-md);
+  border: var(--border-width) solid transparent;
+  padding: var(--space-2) var(--space-3);
+  font-weight: var(--font-medium);
+  background-color: var(--bg-surface-1);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+button:not(.btn):hover {
+  background-color: var(--bg-surface-2);
+}
+
+button:not(.btn):focus,
+button:not(.btn):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--ring-width) var(--color-primary-100);
+}
+
+/* ===== UTILITY CONTAINER ===== */
 
 .container {
-  max-width: 1200px;
+  max-width: var(--content-max-width);
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0 var(--space-4);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+/* ===== LISTS ===== */
+
+ul, ol {
+  padding-left: var(--space-6);
+}
+
+li {
+  margin-bottom: var(--space-1);
+}
+
+li:last-child {
+  margin-bottom: 0;
+}
+
+/* ===== TABLES ===== */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th, td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+}
+
+/* ===== IMAGES ===== */
+
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* ===== ACCESSIBILITY ===== */
+
+/* Focus visible for keyboard navigation */
+:focus-visible {
+  outline: var(--ring-width) solid var(--ring-color);
+  outline-offset: var(--ring-offset);
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
-  button {
-    background-color: #f9f9f9;
+}
+
+/* ===== SCROLLBAR STYLING ===== */
+
+/* Webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-surface-1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-emphasis);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-neutral-400);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-emphasis) var(--bg-surface-1);
+}
+
+/* ===== SELECTION ===== */
+
+::selection {
+  background: var(--color-primary-200);
+  color: var(--color-primary-900);
+}
+
+/* ===== PRINT STYLES ===== */
+
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+
+  .no-print {
+    display: none !important;
   }
 }
