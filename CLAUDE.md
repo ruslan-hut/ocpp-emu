@@ -206,6 +206,31 @@ Frontend connects to WebSocket on mount, receives JSON messages, displays in rea
 5. **Context Cancellation:** Always check for context cancellation in long-running loops
 6. **MongoDB Indexes:** Critical for message query performance - maintained by storage layer
 
+## Frontend UI Standards
+
+All frontend UI work MUST follow the design policy defined in `docs/UI_DESIGN_POLICY.md`. Key requirements:
+
+- **Use design tokens only** - All colors, spacing, and sizing from `web/src/styles/design-tokens.css`
+- **No hardcoded values** - Never use hex colors or pixel values directly
+- **Desktop-first** - Optimize for desktop with 14px base font, compact 34px controls
+- **Dark mode via tokens** - Theme switching handled automatically by CSS variables
+- **Visible borders** - Use `--border-emphasis` for cards (not `--border-default`)
+
+Quick reference:
+```css
+/* Backgrounds */
+--bg-base, --bg-surface-1, --bg-surface-2, --bg-surface-3
+
+/* Text */
+--text-primary, --text-secondary, --text-muted
+
+/* Borders */
+--border-emphasis (cards), --border-default (dividers)
+
+/* Status colors */
+--color-{success|danger|warning|primary}-{100|500|700}
+```
+
 ## Current Development Focus
 
 Project is in active development (v0.1.0). Recent work includes:
@@ -213,5 +238,6 @@ Project is in active development (v0.1.0). Recent work includes:
 - Enhanced message statistics and normalization
 - Docker multi-stage builds and production deployment
 - Frontend message inspector improvements
+- Scenario Testing framework (Phase 5.2)
 
 See `docs/PLAN.md` for detailed roadmap. Completed phase implementation documentation is archived in `archive/`.

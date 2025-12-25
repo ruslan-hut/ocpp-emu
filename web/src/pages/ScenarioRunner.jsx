@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { scenariosAPI, executionsAPI, stationsAPI } from '../services/api'
 import './ScenarioRunner.css'
 
@@ -28,23 +28,46 @@ function ScenarioRunner() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [scenariosRes, stationsRes, executionsRes] = await Promise.all([
-        scenariosAPI.getAll(),
-        stationsAPI.getAll(),
-        executionsAPI.getAll({ status: 'running' }),
-      ])
-      setScenarios(scenariosRes.data || [])
-      setStations(stationsRes.data || [])
-      setExecutions(executionsRes.data || [])
+      setError(null)
+
+      // Load data with individual error handling
+      let scenariosData = []
+      let stationsData = []
+      let executionsData = []
+
+      try {
+        const scenariosRes = await scenariosAPI.getAll()
+        scenariosData = scenariosRes.data || []
+      } catch (err) {
+        console.error('Failed to load scenarios:', err)
+      }
+
+      try {
+        const stationsRes = await stationsAPI.getAll()
+        stationsData = stationsRes.data?.stations || []
+      } catch (err) {
+        console.error('Failed to load stations:', err)
+      }
+
+      try {
+        const executionsRes = await executionsAPI.getAll({ status: 'running' })
+        executionsData = executionsRes.data || []
+      } catch (err) {
+        console.error('Failed to load executions:', err)
+      }
+
+      setScenarios(scenariosData)
+      setStations(stationsData)
+      setExecutions(executionsData)
 
       // Check if there's an active execution
-      const active = (executionsRes.data || []).find(e =>
+      const active = executionsData.find(e =>
         e.status === 'running' || e.status === 'paused'
       )
       if (active) {
         setActiveExecution(active)
         // Select the scenario for the active execution
-        const scenario = (scenariosRes.data || []).find(s => s.scenarioId === active.scenarioId)
+        const scenario = scenariosData.find(s => s.scenarioId === active.scenarioId)
         if (scenario) setSelectedScenario(scenario)
       }
     } catch (err) {
@@ -274,10 +297,10 @@ function ScenarioRunner() {
                   <p className="scenario-desc">{scenario.description}</p>
                   <div className="scenario-meta">
                     <span>{scenario.steps?.length || 0} steps</span>
-                    {scenario.tags && scenario.tags.length > 0 && (
+                    {scenario.tags && Array.isArray(scenario.tags) && scenario.tags.length > 0 && (
                       <span className="tags">
-                        {scenario.tags.slice(0, 3).map(tag => (
-                          <span key={tag} className="tag">{tag}</span>
+                        {scenario.tags.slice(0, 3).map((tag, idx) => (
+                          <span key={`${tag}-${idx}`} className="tag">{tag}</span>
                         ))}
                       </span>
                     )}

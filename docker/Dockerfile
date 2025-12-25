@@ -32,6 +32,9 @@ COPY --from=builder /build/ocpp-emu .
 # Copy default config
 COPY --from=builder /build/configs ./configs
 
+# Copy builtin scenarios
+COPY --from=builder /build/testdata ./testdata
+
 # Create non-root user
 RUN addgroup -g 1000 appuser && \
     adduser -D -u 1000 -G appuser appuser && \
