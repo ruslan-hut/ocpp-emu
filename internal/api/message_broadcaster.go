@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/ruslanhut/ocpp-emu/internal/logging"
+	"github.com/ruslanhut/ocpp-emu/internal/storage"
 )
 
 // MessageBroadcaster manages WebSocket connections and broadcasts messages to clients
@@ -169,6 +170,68 @@ func (mb *MessageBroadcaster) BroadcastMessageEntry(entry logging.MessageEntry) 
 		// Broadcast channel full, drop message
 		mb.incrementDropped()
 		mb.logger.Warn("Broadcast channel full, dropping message")
+	}
+}
+
+// ChangeEventMessage represents a change event message for WebSocket broadcast
+type ChangeEventMessage struct {
+	Type          string                 `json:"type"`
+	Category      string                 `json:"category"`  // "station", "transaction", etc.
+	EventType     string                 `json:"eventType"` // "insert", "update", "delete"
+	Collection    string                 `json:"collection"`
+	DocumentID    string                 `json:"documentId,omitempty"`
+	Document      map[string]interface{} `json:"document,omitempty"`
+	UpdatedFields map[string]interface{} `json:"updatedFields,omitempty"`
+	Timestamp     time.Time              `json:"timestamp"`
+}
+
+// BroadcastChange broadcasts a database change event to all connected clients
+func (mb *MessageBroadcaster) BroadcastChange(category string, event interface{}) {
+	var changeMsg ChangeEventMessage
+
+	// Handle storage.ChangeEvent type
+	if e, ok := event.(storage.ChangeEvent); ok {
+		changeMsg = ChangeEventMessage{
+			Type:          "change_event",
+			Category:      category,
+			EventType:     string(e.Type),
+			Collection:    e.Collection,
+			DocumentID:    e.DocumentID,
+			Document:      e.FullDocument,
+			UpdatedFields: e.UpdatedFields,
+			Timestamp:     e.Timestamp,
+		}
+	} else {
+		// Fallback for other types
+		changeMsg = ChangeEventMessage{
+			Type:      "change_event",
+			Category:  category,
+			Timestamp: time.Now(),
+		}
+	}
+
+	if changeMsg.Timestamp.IsZero() {
+		changeMsg.Timestamp = time.Now()
+	}
+
+	// Marshal and broadcast directly to all clients (no filtering for change events)
+	data, err := json.Marshal(changeMsg)
+	if err != nil {
+		mb.logger.Error("Failed to marshal change event", "error", err)
+		return
+	}
+
+	mb.clientsMu.RLock()
+	defer mb.clientsMu.RUnlock()
+
+	for client := range mb.clients {
+		select {
+		case client.send <- data:
+			// Message sent
+		default:
+			// Client buffer full, skip
+			mb.incrementDropped()
+		}
 	}
 }
 

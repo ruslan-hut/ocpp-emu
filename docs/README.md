@@ -11,10 +11,7 @@ This directory contains all project documentation organized by topic.
 
 ## Implementation Documentation
 
-- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Summary of completed implementations
-- **[2.5-charging-state-machine.md](2.5-charging-state-machine.md)** - Charging state machine implementation
-- **[2.6-2.7-2.8-backend-storage.md](2.6-2.7-2.8-backend-storage.md)** - Backend storage implementation
-- **[2.9-frontend-ui-enhancements.md](2.9-frontend-ui-enhancements.md)** - Frontend UI enhancements
+- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Summary of completed implementations (Phase 2 & 3)
 
 ## Technical Documentation
 
@@ -25,8 +22,8 @@ This directory contains all project documentation organized by topic.
 ## Archived Documentation
 
 Completed phase implementation tasks are archived in the `../archive/` directory:
-- Phase 1 task documentation
-- Phase 2 task documentation
+- Phase 1 task documentation (1.1-1.18)
+- Phase 2 task documentation (2.1-2.12)
 - Initial setup documentation
 
 ## Project Status
@@ -34,11 +31,12 @@ Completed phase implementation tasks are archived in the `../archive/` directory
 **Current Version**: 0.1.0
 
 **Completed Phases**:
-- ✅ Phase 1: Foundation (Weeks 1-2) - All tasks complete
-- ✅ Phase 2: OCPP 1.6 Support (Weeks 3-4) - All tasks complete
+- ✅ Phase 1: Foundation - All tasks complete
+- ✅ Phase 2: OCPP 1.6 Support - All tasks complete (except 2.4 SOAP/XML - skipped)
+- ✅ Phase 3: Enhanced Features - All tasks complete (11/11)
 
-**In Progress**:
-- 🚧 Phase 3: Enhanced Features (Weeks 5-6) - Most tasks complete
+**Next Phase**:
+- Phase 4: OCPP 2.0.1 Support
 
 For detailed status, see [PLAN.md](PLAN.md).
 

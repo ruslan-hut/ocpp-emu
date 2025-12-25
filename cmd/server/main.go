@@ -487,6 +487,37 @@ func main() {
 	mux.HandleFunc("/api/ws/stats", wsHandler.HandleBroadcasterStats)
 	logger.Info("WebSocket endpoints registered")
 
+	// Analytics endpoints
+	analyticsHandler := api.NewAnalyticsHandler(mongoClient, logger)
+	mux.HandleFunc("/api/analytics/messages", analyticsHandler.GetMessageStats)
+	mux.HandleFunc("/api/analytics/transactions", analyticsHandler.GetTransactionStats)
+	mux.HandleFunc("/api/analytics/errors", analyticsHandler.GetErrorStats)
+	mux.HandleFunc("/api/analytics/dashboard", analyticsHandler.GetDashboardStats)
+	logger.Info("Analytics endpoints registered")
+
+	// Initialize Change Stream Watcher for real-time updates
+	changeStreamWatcher := storage.NewChangeStreamWatcher(mongoClient, logger)
+
+	// Register handlers for station and transaction changes
+	changeStreamWatcher.WatchStations(func(event storage.ChangeEvent) {
+		// Broadcast station changes to connected clients
+		messageBroadcaster.BroadcastChange("station", event)
+	})
+
+	changeStreamWatcher.WatchTransactions(func(event storage.ChangeEvent) {
+		// Broadcast transaction changes to connected clients
+		messageBroadcaster.BroadcastChange("transaction", event)
+	})
+
+	// Start change stream watcher
+	if err := changeStreamWatcher.Start(); err != nil {
+		logger.Warn("Failed to start change stream watcher (may require MongoDB replica set)",
+			"error", err,
+		)
+	} else {
+		logger.Info("Change stream watcher started")
+	}
+
 	serverAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	server := &http.Server{
 		Addr:         serverAddr,
@@ -537,6 +568,11 @@ func main() {
 	// Shutdown message logger
 	if err := messageLogger.Shutdown(); err != nil {
 		logger.Error("Failed to shutdown message logger", slog.String("error", err.Error()))
+	}
+
+	// Shutdown change stream watcher
+	if err := changeStreamWatcher.Stop(); err != nil {
+		logger.Error("Failed to shutdown change stream watcher", slog.String("error", err.Error()))
 	}
 
 	// Shutdown message broadcaster
