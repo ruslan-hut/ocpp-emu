@@ -443,13 +443,13 @@ ocpp-emu/
 **Goal**: OCPP 2.0.1 protocol implementation
 
 **OCPP 2.0.1 Protocol:**
-- [ ] **4.1** Implement OCPP 2.0.1 core functionality:
-  - [ ] 4.1a: Enhanced BootNotification with StatusInfo
-  - [ ] 4.1b: TransactionEvent (replaces Start/StopTransaction)
-  - [ ] 4.1c: Get/Set Variables (device model)
-  - [ ] 4.1d: Enhanced authorization
-  - [ ] 4.1e: Certificate management messages
-  - [ ] 4.1f: Security event notifications
+- [x] **4.1** Implement OCPP 2.0.1 core functionality:
+  - [x] 4.1a: Enhanced BootNotification with ChargingStation and StatusInfo
+  - [x] 4.1b: TransactionEvent (replaces Start/StopTransaction)
+  - [x] 4.1c: Get/Set Variables (device model)
+  - [x] 4.1d: Enhanced authorization with IdToken
+  - [x] 4.1e: Certificate management messages
+  - [x] 4.1f: Security event notifications
 - [ ] **4.2** Implement device model system
 - [ ] **4.3** Add ISO 15118 certificate handling
 
@@ -1386,11 +1386,49 @@ db.messages.createIndex(
 
 ---
 
-**Document Version**: 1.6
+**Document Version**: 1.7
 **Last Updated**: 2025-12-25
-**Status**: Active - Phases 1-3 Complete, Ready for Phase 4
+**Status**: Active - Phases 1-3 Complete, Phase 4 Backend In Progress
 
 **Changelog**:
+- v1.7: Phase 4 OCPP 2.0.1 backend implementation
+  - Task 4.1e: Certificate management messages implemented
+    - Added certificate types: CertificateHashDataType, CertificateHashDataChainType
+    - SignCertificate (CS→CSMS): Request certificate signing
+    - CertificateSigned (CSMS→CS): Receive signed certificate
+    - Get15118EVCertificate (CS→CSMS): Request EV certificate for ISO 15118
+    - GetCertificateStatus (CS→CSMS): Get OCSP certificate status
+    - DeleteCertificate (CSMS→CS): Delete certificate
+    - GetInstalledCertificateIds (CSMS→CS): List installed certificates
+    - InstallCertificate (CSMS→CS): Install new certificate
+  - Created `internal/ocpp/v201/types.go` with all OCPP 2.0.1 enums and data types
+    - Action constants, RegistrationStatusType, BootReasonType
+    - ConnectorStatusType, AuthorizationStatusType, IdTokenType
+    - TransactionEventType, TriggerReasonType, ChargingStateType
+    - MeasurandType, ResetType, SetVariableStatusType, GetVariableStatusType
+    - DateTime, StatusInfo, EVSE, ChargingStation, IdToken, Transaction, etc.
+  - Created `internal/ocpp/v201/messages.go` with request/response structures
+    - BootNotification, Heartbeat, StatusNotification
+    - Authorize, TransactionEvent (replaces Start/StopTransaction)
+    - MeterValues, GetVariables, SetVariables
+    - RequestStartTransaction, RequestStopTransaction
+    - Reset, ChangeAvailability, UnlockConnector, ClearCache
+    - DataTransfer, TriggerMessage, SecurityEventNotification, NotifyEvent
+  - Created `internal/ocpp/v201/handler.go` with message handling
+    - Handler struct with callbacks for CSMS-initiated requests
+    - All CSMS→CS handlers (RequestStartTransaction, GetVariables, etc.)
+    - All CS→CSMS send methods (SendBootNotification, SendTransactionEvent, etc.)
+    - HandleCallResult for processing responses
+  - Updated `internal/station/manager.go` for OCPP 2.0.1 support
+    - Added v201Handler initialization
+    - Created setupV201HandlerCallbacks with all handlers
+    - Updated handleCall to route to v201 handler
+    - Updated sendBootNotification for both v16 and v201
+    - Updated handleCallResult for v201 actions
+    - Added handleTransactionEventResponse
+  - Added StringID field to Transaction struct for UUID-based transaction IDs
+  - Tasks completed: 4.1a, 4.1b, 4.1c, 4.1d, 4.1f
+  - Remaining: 4.1e (certificates), 4.2 (device model), 4.3 (ISO 15118)
 - v1.6: Phase 3 completed
   - Implemented MongoDB aggregation pipelines for analytics (3.8)
     - Message statistics (by action, station, time)

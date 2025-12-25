@@ -41,7 +41,8 @@ type Connector struct {
 
 // Transaction represents an active charging transaction
 type Transaction struct {
-	ID              int
+	ID              int    // OCPP 1.6 integer transaction ID
+	StringID        string // OCPP 2.0.1 string transaction ID (UUID)
 	IDTag           string
 	ConnectorID     int
 	StartTime       time.Time

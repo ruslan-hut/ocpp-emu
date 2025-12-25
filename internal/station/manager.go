@@ -13,6 +13,7 @@ import (
 	"github.com/ruslanhut/ocpp-emu/internal/logging"
 	"github.com/ruslanhut/ocpp-emu/internal/ocpp"
 	v16 "github.com/ruslanhut/ocpp-emu/internal/ocpp/v16"
+	v201 "github.com/ruslanhut/ocpp-emu/internal/ocpp/v201"
 	"github.com/ruslanhut/ocpp-emu/internal/storage"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -30,7 +31,8 @@ type Manager struct {
 	cancel        context.CancelFunc
 	syncInterval  time.Duration
 	syncWg        sync.WaitGroup
-	v16Handler    *v16.Handler // OCPP 1.6 message handler
+	v16Handler    *v16.Handler  // OCPP 1.6 message handler
+	v201Handler   *v201.Handler // OCPP 2.0.1 message handler
 }
 
 // Station represents a managed charging station instance
@@ -108,6 +110,11 @@ func NewManager(
 	m.v16Handler = v16.NewHandler(logger)
 	m.v16Handler.SendMessage = connManager.SendMessage
 	m.setupV16HandlerCallbacks()
+
+	// Initialize OCPP 2.0.1 handler
+	m.v201Handler = v201.NewHandler(logger)
+	m.v201Handler.SendMessage = connManager.SendMessage
+	m.setupV201HandlerCallbacks()
 
 	return m
 }
@@ -279,6 +286,297 @@ func (m *Manager) setupV16HandlerCallbacks() {
 		// For now, return unknown vendor
 		return &v16.DataTransferResponse{
 			Status: "UnknownVendorId",
+		}, nil
+	}
+}
+
+// setupV201HandlerCallbacks sets up callbacks for OCPP 2.0.1 handler
+func (m *Manager) setupV201HandlerCallbacks() {
+	// RequestStartTransaction handler (replaces RemoteStartTransaction in 2.0.1)
+	m.v201Handler.OnRequestStartTransaction = func(stationID string, req *v201.RequestStartTransactionRequest) (*v201.RequestStartTransactionResponse, error) {
+		m.logger.Info("Handling RequestStartTransaction (2.0.1)", "stationId", stationID, "idToken", req.IdToken.IdToken)
+
+		// Get station
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists {
+			return &v201.RequestStartTransactionResponse{Status: "Rejected"}, nil
+		}
+
+		// Determine EVSE/connector ID
+		connectorID := 1
+		if req.EvseId != nil {
+			connectorID = *req.EvseId
+		}
+
+		// Start charging session
+		_, err := station.SessionManager.StartCharging(connectorID, req.IdToken.IdToken)
+		if err != nil {
+			m.logger.Error("Failed to start charging", "error", err)
+			return &v201.RequestStartTransactionResponse{Status: "Rejected"}, nil
+		}
+
+		return &v201.RequestStartTransactionResponse{
+			Status: "Accepted",
+		}, nil
+	}
+
+	// RequestStopTransaction handler (replaces RemoteStopTransaction in 2.0.1)
+	m.v201Handler.OnRequestStopTransaction = func(stationID string, req *v201.RequestStopTransactionRequest) (*v201.RequestStopTransactionResponse, error) {
+		m.logger.Info("Handling RequestStopTransaction (2.0.1)", "stationId", stationID, "transactionId", req.TransactionId)
+
+		// Get station
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists {
+			return &v201.RequestStopTransactionResponse{Status: "Rejected"}, nil
+		}
+
+		// Find connector with this transaction
+		connectors := station.SessionManager.GetAllConnectors()
+		var targetConnectorID int
+		found := false
+
+		for _, connector := range connectors {
+			tx := connector.GetTransaction()
+			if tx != nil && tx.StringID == req.TransactionId {
+				targetConnectorID = connector.ID
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			m.logger.Warn("Transaction not found", "transactionId", req.TransactionId)
+			return &v201.RequestStopTransactionResponse{Status: "Rejected"}, nil
+		}
+
+		// Stop charging session
+		err := station.SessionManager.StopCharging(targetConnectorID, v16.ReasonRemote)
+		if err != nil {
+			m.logger.Error("Failed to stop charging", "error", err)
+			return &v201.RequestStopTransactionResponse{Status: "Rejected"}, nil
+		}
+
+		return &v201.RequestStopTransactionResponse{
+			Status: "Accepted",
+		}, nil
+	}
+
+	// Reset handler
+	m.v201Handler.OnReset = func(stationID string, req *v201.ResetRequest) (*v201.ResetResponse, error) {
+		m.logger.Info("Handling Reset (2.0.1)", "stationId", stationID, "type", req.Type)
+
+		// TODO: Implement actual reset logic
+		return &v201.ResetResponse{
+			Status: v201.ResetStatusAccepted,
+		}, nil
+	}
+
+	// GetVariables handler
+	m.v201Handler.OnGetVariables = func(stationID string, req *v201.GetVariablesRequest) (*v201.GetVariablesResponse, error) {
+		m.logger.Info("Handling GetVariables (2.0.1)", "stationId", stationID, "count", len(req.GetVariableData))
+
+		// TODO: Implement device model variable retrieval
+		// For now, return rejected for all
+		results := make([]v201.GetVariableResult, len(req.GetVariableData))
+		for i, data := range req.GetVariableData {
+			results[i] = v201.GetVariableResult{
+				AttributeStatus: v201.GetVariableStatusRejected,
+				Component:       data.Component,
+				Variable:        data.Variable,
+			}
+		}
+		return &v201.GetVariablesResponse{GetVariableResult: results}, nil
+	}
+
+	// SetVariables handler
+	m.v201Handler.OnSetVariables = func(stationID string, req *v201.SetVariablesRequest) (*v201.SetVariablesResponse, error) {
+		m.logger.Info("Handling SetVariables (2.0.1)", "stationId", stationID, "count", len(req.SetVariableData))
+
+		// TODO: Implement device model variable setting
+		// For now, return rejected for all
+		results := make([]v201.SetVariableResult, len(req.SetVariableData))
+		for i, data := range req.SetVariableData {
+			results[i] = v201.SetVariableResult{
+				AttributeStatus: v201.SetVariableStatusRejected,
+				Component:       data.Component,
+				Variable:        data.Variable,
+			}
+		}
+		return &v201.SetVariablesResponse{SetVariableResult: results}, nil
+	}
+
+	// ChangeAvailability handler
+	m.v201Handler.OnChangeAvailability = func(stationID string, req *v201.ChangeAvailabilityRequest) (*v201.ChangeAvailabilityResponse, error) {
+		m.logger.Info("Handling ChangeAvailability (2.0.1)", "stationId", stationID, "status", req.OperationalStatus)
+
+		// Get station
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists {
+			return &v201.ChangeAvailabilityResponse{Status: "Rejected"}, nil
+		}
+
+		// Determine which connector to change (0 means all)
+		connectorID := 0
+		if req.EVSE != nil {
+			connectorID = req.EVSE.ID
+		}
+
+		// Map OCPP 2.0.1 status to 1.6 availability type
+		availType := "Operative"
+		if req.OperationalStatus == "Inoperative" {
+			availType = "Inoperative"
+		}
+
+		// Change availability
+		err := station.SessionManager.ChangeAvailability(connectorID, availType)
+		if err != nil {
+			m.logger.Warn("Cannot change availability immediately", "error", err)
+			return &v201.ChangeAvailabilityResponse{Status: "Scheduled"}, nil
+		}
+
+		return &v201.ChangeAvailabilityResponse{Status: "Accepted"}, nil
+	}
+
+	// UnlockConnector handler
+	m.v201Handler.OnUnlockConnector = func(stationID string, req *v201.UnlockConnectorRequest) (*v201.UnlockConnectorResponse, error) {
+		m.logger.Info("Handling UnlockConnector (2.0.1)", "stationId", stationID, "evseId", req.EvseId, "connectorId", req.ConnectorId)
+
+		// TODO: Implement actual unlock logic
+		return &v201.UnlockConnectorResponse{Status: "UnknownConnector"}, nil
+	}
+
+	// ClearCache handler
+	m.v201Handler.OnClearCache = func(stationID string, req *v201.ClearCacheRequest) (*v201.ClearCacheResponse, error) {
+		m.logger.Info("Handling ClearCache (2.0.1)", "stationId", stationID)
+
+		// TODO: Implement actual cache clear logic
+		return &v201.ClearCacheResponse{Status: "Accepted"}, nil
+	}
+
+	// DataTransfer handler
+	m.v201Handler.OnDataTransfer = func(stationID string, req *v201.DataTransferRequest) (*v201.DataTransferResponse, error) {
+		m.logger.Info("Handling DataTransfer (2.0.1)", "stationId", stationID, "vendorId", req.VendorId, "messageId", req.MessageId)
+
+		// TODO: Implement actual data transfer logic
+		return &v201.DataTransferResponse{Status: v201.DataTransferStatusUnknownVendorId}, nil
+	}
+
+	// TriggerMessage handler
+	m.v201Handler.OnTriggerMessage = func(stationID string, req *v201.TriggerMessageRequest) (*v201.TriggerMessageResponse, error) {
+		m.logger.Info("Handling TriggerMessage (2.0.1)", "stationId", stationID, "requestedMessage", req.RequestedMessage)
+
+		// Get station
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists {
+			return &v201.TriggerMessageResponse{Status: "Rejected"}, nil
+		}
+
+		// Handle different trigger types
+		switch req.RequestedMessage {
+		case "BootNotification":
+			go m.sendBootNotification(stationID)
+			return &v201.TriggerMessageResponse{Status: "Accepted"}, nil
+		case "Heartbeat":
+			go m.sendHeartbeat(stationID, station)
+			return &v201.TriggerMessageResponse{Status: "Accepted"}, nil
+		case "StatusNotification":
+			go m.sendAllConnectorStatus(stationID, station)
+			return &v201.TriggerMessageResponse{Status: "Accepted"}, nil
+		default:
+			return &v201.TriggerMessageResponse{Status: "NotImplemented"}, nil
+		}
+	}
+
+	// GetTransactionStatus handler
+	m.v201Handler.OnGetTransactionStatus = func(stationID string, req *v201.GetTransactionStatusRequest) (*v201.GetTransactionStatusResponse, error) {
+		m.logger.Info("Handling GetTransactionStatus (2.0.1)", "stationId", stationID, "transactionId", req.TransactionId)
+
+		// Get station
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists {
+			return &v201.GetTransactionStatusResponse{MessagesInQueue: false}, nil
+		}
+
+		// Check if transaction is ongoing
+		ongoing := false
+		if req.TransactionId != "" {
+			connectors := station.SessionManager.GetAllConnectors()
+			for _, connector := range connectors {
+				tx := connector.GetTransaction()
+				if tx != nil && tx.StringID == req.TransactionId {
+					ongoing = true
+					break
+				}
+			}
+		}
+
+		return &v201.GetTransactionStatusResponse{
+			OngoingIndicator: &ongoing,
+			MessagesInQueue:  false,
+		}, nil
+	}
+
+	// ==================== Certificate Management Handlers ====================
+
+	// CertificateSigned handler - CSMS sends signed certificate
+	m.v201Handler.OnCertificateSigned = func(stationID string, req *v201.CertificateSignedRequest) (*v201.CertificateSignedResponse, error) {
+		m.logger.Info("Handling CertificateSigned (2.0.1)", "stationId", stationID, "certType", req.CertificateType)
+
+		// TODO: Implement actual certificate installation logic
+		// For now, accept the certificate
+		return &v201.CertificateSignedResponse{
+			Status: "Accepted",
+		}, nil
+	}
+
+	// DeleteCertificate handler
+	m.v201Handler.OnDeleteCertificate = func(stationID string, req *v201.DeleteCertificateRequest) (*v201.DeleteCertificateResponse, error) {
+		m.logger.Info("Handling DeleteCertificate (2.0.1)", "stationId", stationID,
+			"hashAlgorithm", req.CertificateHashData.HashAlgorithm,
+			"serialNumber", req.CertificateHashData.SerialNumber)
+
+		// TODO: Implement actual certificate deletion logic
+		// For now, return NotFound as we don't have certificate storage yet
+		return &v201.DeleteCertificateResponse{
+			Status: "NotFound",
+		}, nil
+	}
+
+	// GetInstalledCertificateIds handler
+	m.v201Handler.OnGetInstalledCertificateIds = func(stationID string, req *v201.GetInstalledCertificateIdsRequest) (*v201.GetInstalledCertificateIdsResponse, error) {
+		m.logger.Info("Handling GetInstalledCertificateIds (2.0.1)", "stationId", stationID, "types", req.CertificateType)
+
+		// TODO: Implement actual certificate enumeration logic
+		// For now, return empty list with NotFound status
+		return &v201.GetInstalledCertificateIdsResponse{
+			Status:                   "NotFound",
+			CertificateHashDataChain: []v201.CertificateHashDataChainType{},
+		}, nil
+	}
+
+	// InstallCertificate handler
+	m.v201Handler.OnInstallCertificate = func(stationID string, req *v201.InstallCertificateRequest) (*v201.InstallCertificateResponse, error) {
+		m.logger.Info("Handling InstallCertificate (2.0.1)", "stationId", stationID, "certType", req.CertificateType)
+
+		// TODO: Implement actual certificate installation logic
+		// For now, accept the certificate
+		return &v201.InstallCertificateResponse{
+			Status: "Accepted",
 		}, nil
 	}
 }
@@ -519,14 +817,14 @@ func (m *Manager) LoadStations(ctx context.Context) error {
 
 		// Create station instance
 		station := &Station{
-			Config:            config,
-			StateMachine:      NewStateMachine(),
-			SessionManager:    sessionManager,
-			pendingRequests:   make(map[string]string),
-			pendingStartTx:    make(map[string]int),
-			pendingStartTags:  make(map[string]string),
-			pendingAuthResp:   make(map[string]chan *v16.AuthorizeResponse),
-			failedAuths:       make(map[string]time.Time),
+			Config:           config,
+			StateMachine:     NewStateMachine(),
+			SessionManager:   sessionManager,
+			pendingRequests:  make(map[string]string),
+			pendingStartTx:   make(map[string]int),
+			pendingStartTags: make(map[string]string),
+			pendingAuthResp:  make(map[string]chan *v16.AuthorizeResponse),
+			failedAuths:      make(map[string]time.Time),
 			RuntimeState: RuntimeState{
 				State:            StateDisconnected,
 				ConnectionStatus: "not_connected",
@@ -953,13 +1251,13 @@ func (m *Manager) AddStation(ctx context.Context, config Config) error {
 
 	// Create station instance
 	station := &Station{
-		Config:            config,
-		StateMachine:      NewStateMachine(),
-		pendingRequests:   make(map[string]string),
-		pendingStartTx:    make(map[string]int),
-		pendingStartTags:  make(map[string]string),
-		pendingAuthResp:   make(map[string]chan *v16.AuthorizeResponse),
-		failedAuths:       make(map[string]time.Time),
+		Config:           config,
+		StateMachine:     NewStateMachine(),
+		pendingRequests:  make(map[string]string),
+		pendingStartTx:   make(map[string]int),
+		pendingStartTags: make(map[string]string),
+		pendingAuthResp:  make(map[string]chan *v16.AuthorizeResponse),
+		failedAuths:      make(map[string]time.Time),
 		RuntimeState: RuntimeState{
 			State:            StateDisconnected,
 			ConnectionStatus: "not_connected",
@@ -1228,6 +1526,8 @@ func (m *Manager) handleCall(stationID string, call *ocpp.Call) {
 	switch protocolVersion {
 	case "ocpp1.6", "1.6":
 		response, err = m.v16Handler.HandleCall(stationID, call)
+	case "ocpp2.0.1", "2.0.1", "ocpp201":
+		response, err = m.v201Handler.HandleCall(stationID, call)
 	default:
 		m.logger.Error("Unsupported protocol version", "stationId", stationID, "version", protocolVersion)
 		m.sendNotImplementedError(stationID, call.UniqueID, call.Action)
@@ -1277,16 +1577,24 @@ func (m *Manager) handleCallResult(stationID string, result *ocpp.CallResult) {
 		return
 	}
 
-	// Handle response based on action
-	switch v16.Action(action) {
-	case v16.ActionBootNotification:
-		m.handleBootNotificationResponse(stationID, station, result)
-	case v16.ActionHeartbeat:
+	// Get protocol version
+	station.mu.RLock()
+	protocolVersion := station.Config.ProtocolVersion
+	station.mu.RUnlock()
+
+	// Handle response based on action and protocol version
+	// Note: action names are the same in v16 and v201 for common messages
+	switch action {
+	case "BootNotification":
+		m.handleBootNotificationResponse(stationID, station, result, protocolVersion)
+	case "Heartbeat":
 		m.handleHeartbeatResponse(stationID, station, result)
-	case v16.ActionAuthorize:
+	case "Authorize":
 		m.handleAuthorizeResponse(stationID, station, result)
-	case v16.ActionStartTransaction:
+	case "StartTransaction":
 		m.handleStartTransactionResponse(stationID, station, result)
+	case "TransactionEvent":
+		m.handleTransactionEventResponse(stationID, station, result)
 	default:
 		m.logger.Debug("CallResult for action", "stationId", stationID, "action", action)
 	}
@@ -1316,17 +1624,51 @@ func (m *Manager) sendBootNotification(stationID string) {
 	}
 
 	station.mu.RLock()
-	req := v16.BootNotificationRequest{
-		ChargePointVendor:       station.Config.Vendor,
-		ChargePointModel:        station.Config.Model,
-		ChargePointSerialNumber: station.Config.SerialNumber,
-		FirmwareVersion:         station.Config.FirmwareVersion,
-		Iccid:                   station.Config.ICCID,
-		Imsi:                    station.Config.IMSI,
-	}
+	protocolVersion := station.Config.ProtocolVersion
+	vendor := station.Config.Vendor
+	model := station.Config.Model
+	serialNumber := station.Config.SerialNumber
+	firmwareVersion := station.Config.FirmwareVersion
+	iccid := station.Config.ICCID
+	imsi := station.Config.IMSI
 	station.mu.RUnlock()
 
-	call, err := ocpp.NewCall(string(v16.ActionBootNotification), req)
+	var call *ocpp.Call
+	var err error
+
+	switch protocolVersion {
+	case "ocpp2.0.1", "2.0.1", "ocpp201":
+		// OCPP 2.0.1 BootNotification
+		req := v201.BootNotificationRequest{
+			ChargingStation: v201.ChargingStation{
+				Model:           model,
+				VendorName:      vendor,
+				SerialNumber:    serialNumber,
+				FirmwareVersion: firmwareVersion,
+			},
+			Reason: v201.BootReasonPowerUp,
+		}
+		// Add modem info if available
+		if iccid != "" || imsi != "" {
+			req.ChargingStation.Modem = &v201.Modem{
+				ICCID: iccid,
+				IMSI:  imsi,
+			}
+		}
+		call, err = ocpp.NewCall(string(v201.ActionBootNotification), req)
+	default:
+		// Default to OCPP 1.6
+		req := v16.BootNotificationRequest{
+			ChargePointVendor:       vendor,
+			ChargePointModel:        model,
+			ChargePointSerialNumber: serialNumber,
+			FirmwareVersion:         firmwareVersion,
+			Iccid:                   iccid,
+			Imsi:                    imsi,
+		}
+		call, err = ocpp.NewCall(string(v16.ActionBootNotification), req)
+	}
+
 	if err != nil {
 		m.logger.Error("Failed to create BootNotification", "stationId", stationID, "error", err)
 		return
@@ -1348,7 +1690,7 @@ func (m *Manager) sendBootNotification(stationID string) {
 		return
 	}
 
-	m.logger.Info("Sent BootNotification", "stationId", stationID, "uniqueId", call.UniqueID)
+	m.logger.Info("Sent BootNotification", "stationId", stationID, "uniqueId", call.UniqueID, "protocol", protocolVersion)
 
 	// Store sent message
 	go m.storeMessage(stationID, "sent", call)
@@ -1702,23 +2044,43 @@ func (m *Manager) GetStats() map[string]interface{} {
 }
 
 // handleBootNotificationResponse processes BootNotification responses and starts heartbeat
-func (m *Manager) handleBootNotificationResponse(stationID string, station *Station, result *ocpp.CallResult) {
-	var resp v16.BootNotificationResponse
-	if err := json.Unmarshal(result.Payload, &resp); err != nil {
-		m.logger.Error("Failed to unmarshal BootNotification response", "stationId", stationID, "error", err)
-		return
+func (m *Manager) handleBootNotificationResponse(stationID string, station *Station, result *ocpp.CallResult, protocolVersion string) {
+	var status string
+	var interval int
+
+	switch protocolVersion {
+	case "ocpp2.0.1", "2.0.1", "ocpp201":
+		var resp v201.BootNotificationResponse
+		if err := json.Unmarshal(result.Payload, &resp); err != nil {
+			m.logger.Error("Failed to unmarshal BootNotification response (2.0.1)", "stationId", stationID, "error", err)
+			return
+		}
+		status = string(resp.Status)
+		interval = resp.Interval
+		m.logger.Info("BootNotification response (2.0.1)",
+			"stationId", stationID,
+			"status", resp.Status,
+			"interval", resp.Interval,
+			"currentTime", resp.CurrentTime,
+		)
+	default:
+		var resp v16.BootNotificationResponse
+		if err := json.Unmarshal(result.Payload, &resp); err != nil {
+			m.logger.Error("Failed to unmarshal BootNotification response", "stationId", stationID, "error", err)
+			return
+		}
+		status = string(resp.Status)
+		interval = resp.Interval
+		m.logger.Info("BootNotification response",
+			"stationId", stationID,
+			"status", resp.Status,
+			"interval", resp.Interval,
+			"currentTime", resp.CurrentTime,
+		)
 	}
 
-	m.logger.Info("BootNotification accepted",
-		"stationId", stationID,
-		"status", resp.Status,
-		"interval", resp.Interval,
-		"currentTime", resp.CurrentTime,
-	)
-
-	if resp.Status == "Accepted" {
+	if status == "Accepted" {
 		// Start heartbeat with interval from CSMS (or use configured default)
-		interval := resp.Interval
 		if interval <= 0 {
 			station.mu.RLock()
 			interval = station.Config.Simulation.HeartbeatInterval
@@ -1943,6 +2305,32 @@ func (m *Manager) handleStartTransactionResponse(stationID string, station *Stat
 				"oldTransactionId", oldID,
 				"newTransactionId", resp.TransactionId,
 				"error", err,
+			)
+		}
+	}
+}
+
+// handleTransactionEventResponse processes TransactionEvent responses (OCPP 2.0.1)
+func (m *Manager) handleTransactionEventResponse(stationID string, station *Station, result *ocpp.CallResult) {
+	var resp v201.TransactionEventResponse
+	if err := json.Unmarshal(result.Payload, &resp); err != nil {
+		m.logger.Error("Failed to unmarshal TransactionEvent response", "stationId", stationID, "error", err)
+		return
+	}
+
+	m.logger.Info("TransactionEvent response received",
+		"stationId", stationID,
+		"messageId", result.UniqueID,
+		"totalCost", resp.TotalCost,
+		"chargingPriority", resp.ChargingPriority,
+	)
+
+	// Check if authorization info was returned
+	if resp.IdTokenInfo != nil {
+		if resp.IdTokenInfo.Status != v201.AuthorizationStatusAccepted {
+			m.logger.Warn("Transaction authorization rejected",
+				"stationId", stationID,
+				"status", resp.IdTokenInfo.Status,
 			)
 		}
 	}
