@@ -566,11 +566,11 @@ See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
 - [x] **8.5** Update breakpoints to desktop-first approach
   - [x] 8.5a: Define desktop breakpoints (1280px base, 1536px large, 1920px ultra-wide)
   - [x] 8.5b: Add max-width media queries for tablet/mobile fallback
-- [ ] **8.6** Implement compact, information-dense layouts
-  - [ ] 8.6a: Reduce default padding/margins for desktop
+- [x] **8.6** Implement compact, information-dense layouts
+  - [x] 8.6a: Reduce default padding/margins for desktop
   - [x] 8.6b: Create compact button variants
   - [x] 8.6c: Create dense data table styles
-  - [ ] 8.6d: Reduce card whitespace for desktop
+  - [x] 8.6d: Reduce card whitespace for desktop
 
 **Page-Specific Layout Updates:**
 - [ ] **8.7** Redesign Stations page for desktop

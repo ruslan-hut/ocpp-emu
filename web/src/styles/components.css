@@ -533,12 +533,101 @@
 }
 
 /* Compact Card */
+.card--compact {
+  border-radius: var(--radius-md);
+}
+
 .card--compact .card__header {
   padding: var(--space-2) var(--space-3);
+  gap: var(--space-1-5);
+}
+
+.card--compact .card__title {
+  font-size: var(--text-sm);
 }
 
 .card--compact .card__body {
   padding: var(--space-2) var(--space-3);
+}
+
+.card--compact .card__footer {
+  padding: var(--space-1-5) var(--space-3);
+}
+
+/* Dense Card - minimal spacing for data-heavy UIs */
+.card--dense {
+  border-radius: var(--radius-sm);
+}
+
+.card--dense .card__header {
+  padding: var(--space-1-5) var(--space-2);
+  gap: var(--space-1);
+}
+
+.card--dense .card__title {
+  font-size: var(--text-sm);
+}
+
+.card--dense .card__body {
+  padding: var(--space-1-5) var(--space-2);
+}
+
+.card--dense .card__footer {
+  padding: var(--space-1) var(--space-2);
+}
+
+/* Horizontal Card - info on left, actions on right */
+.card--horizontal {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+}
+
+.card--horizontal .card__header {
+  border-bottom: none;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.card--horizontal .card__body {
+  flex: 1;
+  padding: 0 var(--space-3);
+  min-width: 0;
+}
+
+.card--horizontal .card__footer {
+  border-top: none;
+  background: transparent;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+/* Card Grid - optimized for multiple cards */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-3);
+}
+
+.card-grid--compact {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-2);
+}
+
+.card-grid--dense {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-1-5);
+}
+
+/* Card List - stacked cards with minimal gap */
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.card-list--dense {
+  gap: var(--space-1);
 }
 
 /* ===== MODALS ===== */
