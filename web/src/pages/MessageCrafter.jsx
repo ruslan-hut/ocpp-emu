@@ -585,388 +585,274 @@ function MessageCrafter() {
 
   const connectedStations = stations.filter(s => s.runtimeState?.connectionStatus === 'connected')
 
+  // Determine validation status for inline display
+  const getValidationStatus = () => {
+    if (!validationEnabled || !validationResult) return null
+    if (validationResult.errors.length > 0) return 'error'
+    if (validationResult.warnings.length > 0) return 'warning'
+    return 'valid'
+  }
+
   return (
-    <div className="message-crafter">
-      <div className="page-header">
-        <div>
+    <div className="message-crafter message-crafter--desktop">
+      {/* Compact Header */}
+      <div className="crafter-header">
+        <div className="crafter-header__title">
           <h2>Message Crafter</h2>
-          <p>Craft and send custom OCPP messages for testing</p>
+          <span className="crafter-header__subtitle">Craft and send custom OCPP messages</span>
         </div>
-        <button
-          className="btn-templates"
-          onClick={() => setShowTemplateLibrary(true)}
-        >
-          📚 Template Library
-        </button>
+        <div className="crafter-header__actions">
+          <button
+            className="btn-templates--compact"
+            onClick={() => setShowTemplateLibrary(true)}
+          >
+            Templates
+          </button>
+        </div>
       </div>
 
-      <div className="crafter-container">
-        {/* Station Selection */}
-        <div className="crafter-section">
-          <h3>1. Select Station</h3>
-          <select
-            value={selectedStation}
-            onChange={(e) => setSelectedStation(e.target.value)}
-            className="station-select"
-          >
-            <option value="">-- Select a station --</option>
-            {connectedStations.map(station => (
-              <option key={station.stationId} value={station.stationId}>
-                {station.name} ({station.stationId})
-              </option>
-            ))}
-          </select>
-
-          {selectedStation && selectedStationObj && (
-            <div className="station-info">
-              <div className="info-row">
-                <span className="label">Protocol:</span>
-                <span className={`protocol-badge ${isOcpp201 ? 'ocpp201' : 'ocpp16'}`}>
+      {/* Three Column Layout */}
+      <div className="crafter-layout">
+        {/* Left Column - Settings */}
+        <div className="crafter-column crafter-column--settings">
+          {/* Station Selection */}
+          <div className="settings-group">
+            <label className="settings-label">Station</label>
+            <select
+              value={selectedStation}
+              onChange={(e) => setSelectedStation(e.target.value)}
+              className="settings-select"
+            >
+              <option value="">Select station...</option>
+              {connectedStations.map(station => (
+                <option key={station.stationId} value={station.stationId}>
+                  {station.name}
+                </option>
+              ))}
+            </select>
+            {selectedStation && selectedStationObj && (
+              <div className="station-meta">
+                <span className={`protocol-tag ${isOcpp21 ? 'ocpp21' : isOcpp201 ? 'ocpp201' : 'ocpp16'}`}>
                   {protocolVersion.toUpperCase()}
                 </span>
+                <span className="status-tag status-tag--connected">Connected</span>
               </div>
-              <div className="info-row">
-                <span className="label">Status:</span>
-                <span className="value status-connected">Connected</span>
-              </div>
-              {isOcpp201 && (
-                <div className="protocol-note">
-                  Using OCPP 2.0.1 message templates (TransactionEvent, IdToken, etc.)
-                </div>
-              )}
-            </div>
-          )}
-
-          {connectedStations.length === 0 && (
-            <div className="warning">
-              ⚠️ No connected stations found. Start a station first.
-            </div>
-          )}
-        </div>
-
-        {/* Message Type */}
-        <div className="crafter-section">
-          <h3>2. Message Type</h3>
-          <div className="message-type-selector">
-            <button
-              className={`type-btn ${messageType === 'Call' ? 'active' : ''}`}
-              onClick={() => setMessageType('Call')}
-            >
-              Call (2)
-            </button>
-            <button
-              className={`type-btn ${messageType === 'CallResult' ? 'active' : ''}`}
-              onClick={() => setMessageType('CallResult')}
-            >
-              CallResult (3)
-            </button>
-            <button
-              className={`type-btn ${messageType === 'CallError' ? 'active' : ''}`}
-              onClick={() => setMessageType('CallError')}
-            >
-              CallError (4)
-            </button>
+            )}
+            {connectedStations.length === 0 && (
+              <div className="warning-inline">No connected stations</div>
+            )}
           </div>
-        </div>
 
-        {/* Message Details */}
-        {messageType === 'Call' && (
-          <div className="crafter-section">
-            <h3>3. Action & Payload</h3>
-            <div className="form-group">
-              <label>Action</label>
+          {/* Message Type */}
+          <div className="settings-group">
+            <label className="settings-label">Message Type</label>
+            <div className="type-selector">
+              <button
+                className={`type-btn--compact ${messageType === 'Call' ? 'active' : ''}`}
+                onClick={() => setMessageType('Call')}
+              >
+                Call
+              </button>
+              <button
+                className={`type-btn--compact ${messageType === 'CallResult' ? 'active' : ''}`}
+                onClick={() => setMessageType('CallResult')}
+              >
+                Result
+              </button>
+              <button
+                className={`type-btn--compact ${messageType === 'CallError' ? 'active' : ''}`}
+                onClick={() => setMessageType('CallError')}
+              >
+                Error
+              </button>
+            </div>
+          </div>
+
+          {/* Action (for Call type) */}
+          {messageType === 'Call' && (
+            <div className="settings-group">
+              <label className="settings-label">Action</label>
               <select
                 value={action}
                 onChange={(e) => handleActionChange(e.target.value)}
-                className="action-select"
+                className="settings-select"
               >
                 {Object.keys(messageTemplates).map(actionName => (
                   <option key={actionName} value={actionName}>{actionName}</option>
                 ))}
               </select>
             </div>
+          )}
 
-            <div className="form-group">
-              <label>Unique ID</label>
-              <input
-                type="text"
-                value={uniqueId}
-                onChange={(e) => setUniqueId(e.target.value)}
-                className="unique-id-input"
-              />
-            </div>
-
-            <div className="form-group">
-              <div className="editor-header">
-                <label>Payload (JSON)</label>
-                <button
-                  type="button"
-                  className="btn-format"
-                  onClick={formatJSON}
-                  title="Format JSON"
-                >
-                  Format
-                </button>
-              </div>
-              <div className="monaco-editor-container">
-                <Editor
-                  height="300px"
-                  defaultLanguage="json"
-                  value={payload}
-                  onChange={handleEditorChange}
-                  onMount={handleEditorMount}
-                  theme="vs-dark"
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 13,
-                    lineNumbers: 'on',
-                    scrollBeyondLastLine: false,
-                    automaticLayout: true,
-                    tabSize: 2,
-                    formatOnPaste: true,
-                    formatOnType: true
-                  }}
-                />
-              </div>
-              {jsonError && (
-                <div className="json-error">
-                  ⚠️ {jsonError}
-                </div>
-              )}
-            </div>
+          {/* Unique ID */}
+          <div className="settings-group">
+            <label className="settings-label">Message ID</label>
+            <input
+              type="text"
+              value={uniqueId}
+              onChange={(e) => setUniqueId(e.target.value)}
+              className="settings-input settings-input--mono"
+              placeholder="Auto-generated"
+            />
           </div>
-        )}
 
-        {messageType === 'CallResult' && (
-          <div className="crafter-section">
-            <h3>3. Response Details</h3>
-            <div className="form-group">
-              <label>Unique ID (from original Call)</label>
-              <input
-                type="text"
-                value={uniqueId}
-                onChange={(e) => setUniqueId(e.target.value)}
-                className="unique-id-input"
-              />
-            </div>
-
-            <div className="form-group">
-              <div className="editor-header">
-                <label>Result Payload (JSON)</label>
-                <button
-                  type="button"
-                  className="btn-format"
-                  onClick={formatJSON}
-                  title="Format JSON"
-                >
-                  Format
-                </button>
-              </div>
-              <div className="monaco-editor-container">
-                <Editor
-                  height="300px"
-                  defaultLanguage="json"
-                  value={payload}
-                  onChange={handleEditorChange}
-                  onMount={handleEditorMount}
-                  theme="vs-dark"
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 13,
-                    lineNumbers: 'on',
-                    scrollBeyondLastLine: false,
-                    automaticLayout: true,
-                    tabSize: 2,
-                    formatOnPaste: true,
-                    formatOnType: true
-                  }}
-                />
-              </div>
-              {jsonError && (
-                <div className="json-error">
-                  ⚠️ {jsonError}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {messageType === 'CallError' && (
-          <div className="crafter-section">
-            <h3>3. Error Details</h3>
-            <div className="form-group">
-              <label>Unique ID (from original Call)</label>
-              <input
-                type="text"
-                value={uniqueId}
-                onChange={(e) => setUniqueId(e.target.value)}
-                className="unique-id-input"
-              />
-            </div>
-
-            <div className="form-group">
-              <div className="editor-header">
-                <label>Error Details (JSON)</label>
-                <button
-                  type="button"
-                  className="btn-format"
-                  onClick={formatJSON}
-                  title="Format JSON"
-                >
-                  Format
-                </button>
-              </div>
-              <div className="monaco-editor-container">
-                <Editor
-                  height="300px"
-                  defaultLanguage="json"
-                  value={payload}
-                  onChange={handleEditorChange}
-                  onMount={handleEditorMount}
-                  theme="vs-dark"
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 13,
-                    lineNumbers: 'on',
-                    scrollBeyondLastLine: false,
-                    automaticLayout: true,
-                    tabSize: 2,
-                    formatOnPaste: true,
-                    formatOnType: true
-                  }}
-                />
-              </div>
-              {jsonError && (
-                <div className="json-error">
-                  ⚠️ {jsonError}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Validation Settings */}
-        <div className="crafter-section">
-          <h3>4. Validation (Optional)</h3>
-          <div className="validation-controls">
-            <div className="validation-toggle">
-              <label className="toggle-label">
+          {/* Validation Toggle */}
+          <div className="settings-group">
+            <label className="settings-label">Validation</label>
+            <div className="validation-row">
+              <label className="toggle-compact">
                 <input
                   type="checkbox"
                   checked={validationEnabled}
                   onChange={(e) => setValidationEnabled(e.target.checked)}
                 />
-                <span>Enable OCPP Message Validation</span>
+                <span>{validationEnabled ? 'Enabled' : 'Disabled'}</span>
               </label>
-            </div>
-
-            {validationEnabled && (
-              <div className="validation-mode">
-                <label>Validation Mode:</label>
-                <div className="mode-selector">
+              {validationEnabled && (
+                <div className="mode-toggle">
                   <button
-                    className={`mode-btn ${validationMode === ValidationMode.STRICT ? 'active' : ''}`}
+                    className={`mode-btn--sm ${validationMode === ValidationMode.STRICT ? 'active' : ''}`}
                     onClick={() => setValidationMode(ValidationMode.STRICT)}
                   >
                     Strict
                   </button>
                   <button
-                    className={`mode-btn ${validationMode === ValidationMode.LENIENT ? 'active' : ''}`}
+                    className={`mode-btn--sm ${validationMode === ValidationMode.LENIENT ? 'active' : ''}`}
                     onClick={() => setValidationMode(ValidationMode.LENIENT)}
                   >
                     Lenient
                   </button>
                 </div>
-                <p className="mode-description">
-                  {validationMode === ValidationMode.STRICT
-                    ? 'Enforce full OCPP spec compliance - all errors and warnings must be resolved'
-                    : 'Allow testing of edge cases - warnings are allowed, only errors block sending'}
-                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Send Button */}
+          <div className="settings-group settings-group--send">
+            <button
+              className="btn-send--compact"
+              onClick={handleSend}
+              disabled={!selectedStation || sending}
+            >
+              {sending ? 'Sending...' : 'Send Message'}
+            </button>
+          </div>
+        </div>
+
+        {/* Middle Column - Editor */}
+        <div className="crafter-column crafter-column--editor">
+          <div className="editor-panel">
+            <div className="editor-panel__header">
+              <span className="editor-panel__title">
+                {messageType === 'Call' ? 'Payload' : messageType === 'CallResult' ? 'Result Payload' : 'Error Details'}
+              </span>
+              <div className="editor-panel__actions">
+                <button
+                  type="button"
+                  className="btn-action--xs"
+                  onClick={formatJSON}
+                  title="Format JSON"
+                >
+                  Format
+                </button>
+              </div>
+            </div>
+            <div className="editor-container">
+              <Editor
+                height="100%"
+                defaultLanguage="json"
+                value={payload}
+                onChange={handleEditorChange}
+                onMount={handleEditorMount}
+                theme="vs-dark"
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 13,
+                  lineNumbers: 'on',
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  tabSize: 2,
+                  formatOnPaste: true,
+                  formatOnType: true,
+                  wordWrap: 'on'
+                }}
+              />
+            </div>
+            {/* Inline Validation Status */}
+            {jsonError && (
+              <div className="editor-status editor-status--error">
+                JSON Error: {jsonError}
               </div>
             )}
-
-            {validationEnabled && validationResult && (
-              <div className={`validation-result ${
-                validationResult.valid ? 'valid' :
-                validationResult.errors.length > 0 ? 'error' : 'warning'
-              }`}>
-                <div className="validation-header">
-                  {validationResult.valid && validationResult.errors.length === 0 && validationResult.warnings.length === 0 && (
-                    <span>✅ Message is valid</span>
-                  )}
-                  {validationResult.errors.length > 0 && (
-                    <span>❌ {validationResult.errors.length} error{validationResult.errors.length > 1 ? 's' : ''} found</span>
-                  )}
-                  {validationResult.errors.length === 0 && validationResult.warnings.length > 0 && (
-                    <span>⚠️ {validationResult.warnings.length} warning{validationResult.warnings.length > 1 ? 's' : ''}</span>
-                  )}
-                </div>
-
+            {!jsonError && validationEnabled && validationResult && (
+              <div className={`editor-status editor-status--${getValidationStatus()}`}>
                 {validationResult.errors.length > 0 && (
-                  <div className="validation-messages">
-                    <strong>Errors:</strong>
-                    <ul>
-                      {validationResult.errors.map((err, i) => (
-                        <li key={i}>
-                          <code>{err.field}</code>: {err.message}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <span>{validationResult.errors.length} error{validationResult.errors.length > 1 ? 's' : ''}</span>
                 )}
-
-                {validationResult.warnings.length > 0 && (
-                  <div className="validation-messages">
-                    <strong>Warnings:</strong>
-                    <ul>
-                      {validationResult.warnings.map((warn, i) => (
-                        <li key={i}>
-                          <code>{warn.field}</code>: {warn.message}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                {validationResult.errors.length === 0 && validationResult.warnings.length > 0 && (
+                  <span>{validationResult.warnings.length} warning{validationResult.warnings.length > 1 ? 's' : ''}</span>
+                )}
+                {validationResult.errors.length === 0 && validationResult.warnings.length === 0 && (
+                  <span>Valid</span>
                 )}
               </div>
             )}
           </div>
         </div>
 
-        {/* Message Preview */}
-        <div className="crafter-section">
-          <h3>Message Preview</h3>
-          <pre className="message-preview">
-            {formatMessage()}
-          </pre>
-        </div>
+        {/* Right Column - Preview & Results */}
+        <div className="crafter-column crafter-column--preview">
+          {/* Message Preview */}
+          <div className="preview-panel">
+            <div className="preview-panel__header">
+              <span className="preview-panel__title">Message Preview</span>
+            </div>
+            <pre className="preview-content">
+              {formatMessage()}
+            </pre>
+          </div>
 
-        {/* Send Button */}
-        <div className="crafter-section">
-          <button
-            className="btn-send"
-            onClick={handleSend}
-            disabled={!selectedStation || sending}
-          >
-            {sending ? 'Sending...' : '📤 Send Message'}
-          </button>
-        </div>
+          {/* Validation Details (expanded) */}
+          {validationEnabled && validationResult && (validationResult.errors.length > 0 || validationResult.warnings.length > 0) && (
+            <div className="validation-panel">
+              <div className="validation-panel__header">
+                <span className="validation-panel__title">Validation Issues</span>
+              </div>
+              <div className="validation-panel__content">
+                {validationResult.errors.map((err, i) => (
+                  <div key={`err-${i}`} className="validation-item validation-item--error">
+                    <code>{err.field}</code>
+                    <span>{err.message}</span>
+                  </div>
+                ))}
+                {validationResult.warnings.map((warn, i) => (
+                  <div key={`warn-${i}`} className="validation-item validation-item--warning">
+                    <code>{warn.field}</code>
+                    <span>{warn.message}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-        {/* Result */}
-        {result && (
-          <div className={`result ${result.success ? 'success' : 'error'}`}>
-            {result.success ? (
-              <>
-                <div className="result-header">✅ {result.message}</div>
-                <div className="result-details">
-                  <strong>Sent:</strong>
+          {/* Result */}
+          {result && (
+            <div className={`result-panel result-panel--${result.success ? 'success' : 'error'}`}>
+              <div className="result-panel__header">
+                {result.success ? 'Message Sent' : 'Error'}
+              </div>
+              {result.success ? (
+                <div className="result-panel__content">
                   <pre>{JSON.stringify(result.sentMessage, null, 2)}</pre>
                 </div>
-              </>
-            ) : (
-              <div className="result-header">❌ {result.error}</div>
-            )}
-          </div>
-        )}
+              ) : (
+                <div className="result-panel__error">
+                  {result.error}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Template Library Modal */}

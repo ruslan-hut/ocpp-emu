@@ -587,10 +587,10 @@ See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
   - [x] 8.9a: Multi-column grid layout for stats cards
   - [x] 8.9b: Side-by-side station overview and activity feed
   - [x] 8.9c: Compact statistics widgets
-- [ ] **8.10** Redesign Message Crafter for desktop
-  - [ ] 8.10a: Three-column layout (station/settings, editor, preview)
-  - [ ] 8.10b: Compact form controls
-  - [ ] 8.10c: Inline validation display
+- [x] **8.10** Redesign Message Crafter for desktop
+  - [x] 8.10a: Three-column layout (station/settings, editor, preview)
+  - [x] 8.10b: Compact form controls
+  - [x] 8.10c: Inline validation display
 
 **Component Standardization:**
 - [ ] **8.11** Standardize button styles
