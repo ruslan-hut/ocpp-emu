@@ -2051,6 +2051,297 @@
   flex-shrink: 0;
 }
 
+/* ===== MODAL ALIASES ===== */
+/* Legacy modal class aliases for backwards compatibility */
+/* New code should use BEM notation: .modal, .modal__header, .modal__body */
+
+/* Modal Content - legacy alias for .modal */
+.modal-content {
+  background: var(--bg-base);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Modal Header - legacy alias */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border-bottom: var(--border-width) solid var(--border-default);
+  flex-shrink: 0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.modal-header-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Modal Body - legacy alias */
+.modal-body {
+  padding: var(--space-6);
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Modal Footer - legacy alias */
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-6);
+  border-top: var(--border-width) solid var(--border-default);
+  background: var(--bg-surface-1);
+  flex-shrink: 0;
+}
+
+/* Connectors Modal - wide screen optimization */
+.connectors-modal {
+  max-width: 1400px;
+}
+
+@media (min-width: 1536px) {
+  .connectors-modal {
+    max-width: 1600px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .connectors-modal {
+    max-width: 1800px;
+  }
+}
+
+/* Component-specific overlay aliases */
+.station-form-overlay,
+.import-export-overlay,
+.template-library-overlay,
+.station-config-overlay,
+.templates-overlay,
+.save-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal-backdrop);
+  padding: var(--space-4);
+}
+
+/* Station Form Modal */
+.station-form {
+  background: var(--bg-base);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Import Export Modal */
+.import-export-modal {
+  background: var(--bg-base);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Template Library Modal */
+.template-library {
+  background: var(--bg-base);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Station Config Modal */
+.station-config {
+  background: var(--bg-base);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Templates Manager Modal */
+.templates-manager {
+  background: var(--bg-base);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Save Dialog - compact modal */
+.save-dialog {
+  background: var(--bg-base);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-6);
+  width: 100%;
+  max-width: 400px;
+}
+
+.save-dialog h3 {
+  margin: 0 0 var(--space-4) 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+/* Dialog Actions */
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* Auto Refresh Controls - used in modal headers */
+.auto-refresh-controls {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-1-5) var(--space-3);
+  background: var(--bg-surface-1);
+  border-radius: var(--radius-md);
+}
+
+/* Modal Animation */
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-overlay--animated {
+  animation: modal-fade-in var(--transition-normal);
+}
+
+.modal--animated,
+.modal-content--animated {
+  animation: modal-slide-up var(--transition-normal);
+}
+
+/* Modal with wider desktop width */
+.modal--2xl {
+  width: 1100px;
+}
+
+.modal--3xl {
+  width: 1400px;
+}
+
+/* Modal content scrolling utility */
+.modal-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-neutral-300) transparent;
+}
+
+.modal-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-neutral-300);
+  border-radius: var(--radius-full);
+}
+
+.modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-neutral-400);
+}
+
+/* Responsive modal adjustments */
+@media (max-width: 768px) {
+  .modal-content,
+  .station-form,
+  .import-export-modal,
+  .template-library,
+  .station-config,
+  .templates-manager {
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .modal-header {
+    padding: var(--space-4);
+  }
+
+  .modal-header h2 {
+    font-size: var(--text-lg);
+  }
+
+  .modal-body {
+    padding: var(--space-4);
+  }
+
+  .modal-footer {
+    padding: var(--space-3) var(--space-4);
+  }
+}
+
 /* ===== TABLES ===== */
 
 .table {

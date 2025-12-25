@@ -605,10 +605,10 @@ See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
   - [x] 8.13a: Consistent input heights and padding
   - [x] 8.13b: Unified select dropdown styling
   - [x] 8.13c: Consistent label and help text styling
-- [ ] **8.14** Standardize modal dialogs
-  - [ ] 8.14a: Consistent modal header/footer styling
-  - [ ] 8.14b: Maximum width constraints for desktop
-  - [ ] 8.14c: Backdrop and animation consistency
+- [x] **8.14** Standardize modal dialogs
+  - [x] 8.14a: Consistent modal header/footer styling
+  - [x] 8.14b: Maximum width constraints for desktop
+  - [x] 8.14c: Backdrop and animation consistency
 
 **Deliverable**: Desktop-optimized, compact UI with unified dark theme and consistent design language
 
