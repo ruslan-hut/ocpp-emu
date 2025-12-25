@@ -578,11 +578,11 @@ See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
   - [x] 8.7b: Create table view option for station list
   - [x] 8.7c: Add inline action buttons (no dropdown menus)
   - [x] 8.7d: Optimize connectors modal for wide screens
-- [ ] **8.8** Redesign Message Inspector for desktop
-  - [ ] 8.8a: Implement two-column layout (list left, details right)
-  - [ ] 8.8b: Fixed filter bar at top
-  - [ ] 8.8c: Resizable split panels
-  - [ ] 8.8d: Compact message list rows
+- [x] **8.8** Redesign Message Inspector for desktop
+  - [x] 8.8a: Implement two-column layout (list left, details right)
+  - [x] 8.8b: Fixed filter bar at top
+  - [x] 8.8c: Resizable split panels
+  - [x] 8.8d: Compact message list rows
 - [ ] **8.9** Redesign Dashboard for desktop
   - [ ] 8.9a: Multi-column grid layout for stats cards
   - [ ] 8.9b: Side-by-side station overview and activity feed

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { messagesAPI } from '../services/api'
 import './Messages.css'
 
@@ -14,18 +14,25 @@ function Messages() {
   const [liveUpdates, setLiveUpdates] = useState(true)
   const [wsConnected, setWsConnected] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [selectedMessage, setSelectedMessage] = useState(null)
+  const [splitPosition, setSplitPosition] = useState(() => {
+    const saved = localStorage.getItem('messagesSplitPosition')
+    return saved ? parseInt(saved, 10) : 50
+  })
+  const [isResizing, setIsResizing] = useState(false)
   const [filters, setFilters] = useState({
     direction: 'all',
     stationId: '',
     messageType: 'all',
     action: '',
     searchQuery: '',
-    limit: 50,
+    limit: 100,
   })
 
   const wsRef = useRef(null)
   const messagesEndRef = useRef(null)
   const exportMenuRef = useRef(null)
+  const splitContainerRef = useRef(null)
 
   // Helper function to format payload for search
   const getSearchablePayload = (payload) => {
@@ -340,8 +347,59 @@ function Messages() {
       messageType: 'all',
       action: '',
       searchQuery: '',
-      limit: 50,
+      limit: 100,
     })
+  }
+
+  // Resize handlers for split panel
+  const handleResizeStart = useCallback((e) => {
+    e.preventDefault()
+    setIsResizing(true)
+  }, [])
+
+  const handleResizeMove = useCallback((e) => {
+    if (!isResizing || !splitContainerRef.current) return
+
+    const container = splitContainerRef.current
+    const containerRect = container.getBoundingClientRect()
+    const newPosition = ((e.clientX - containerRect.left) / containerRect.width) * 100
+
+    // Clamp between 30% and 70%
+    const clampedPosition = Math.min(Math.max(newPosition, 30), 70)
+    setSplitPosition(clampedPosition)
+  }, [isResizing])
+
+  const handleResizeEnd = useCallback(() => {
+    if (isResizing) {
+      setIsResizing(false)
+      localStorage.setItem('messagesSplitPosition', splitPosition.toString())
+    }
+  }, [isResizing, splitPosition])
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleResizeMove)
+      document.addEventListener('mouseup', handleResizeEnd)
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleResizeMove)
+      document.removeEventListener('mouseup', handleResizeEnd)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isResizing, handleResizeMove, handleResizeEnd])
+
+  const handleMessageSelect = (message, index) => {
+    setSelectedMessage({ ...message, index })
+  }
+
+  const formatTimestampCompact = (timestamp) => {
+    if (!timestamp) return ''
+    const date = new Date(timestamp)
+    return date.toLocaleTimeString('en-US', { hour12: false })
   }
 
   const hasActiveFilters = () => {
@@ -447,127 +505,106 @@ function Messages() {
   }
 
   return (
-    <div className="messages">
-      <div className="page-header">
-        <h2>OCPP Messages</h2>
-        <div className="header-actions">
-          <div className="live-updates-toggle">
-            <label>
-              <input
-                type="checkbox"
-                checked={liveUpdates}
-                onChange={(e) => setLiveUpdates(e.target.checked)}
-              />
-              <span>Live Updates</span>
-              {wsConnected && <span className="ws-indicator connected">●</span>}
-              {!wsConnected && liveUpdates && <span className="ws-indicator disconnected">●</span>}
-            </label>
-          </div>
+    <div className="messages messages--desktop">
+      {/* Fixed Header Bar */}
+      <div className="messages-header">
+        <div className="messages-header__top">
+          <h2>OCPP Messages</h2>
+          <div className="header-actions">
+            <div className="live-updates-toggle">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={liveUpdates}
+                  onChange={(e) => setLiveUpdates(e.target.checked)}
+                />
+                <span>Live</span>
+                {wsConnected && <span className="ws-indicator connected">●</span>}
+                {!wsConnected && liveUpdates && <span className="ws-indicator disconnected">●</span>}
+              </label>
+            </div>
 
-          <div className="export-dropdown" ref={exportMenuRef}>
-            <button
-              className="btn-export"
-              onClick={() => setShowExportMenu(!showExportMenu)}
-              disabled={filteredMessages.length === 0}
-            >
-              📥 Export ({filteredMessages.length})
-            </button>
-            {showExportMenu && (
-              <div className="export-menu">
-                <button onClick={() => { handleExport('json'); setShowExportMenu(false); }}>
-                  Export as JSON
-                </button>
-                <button onClick={() => { handleExport('csv'); setShowExportMenu(false); }}>
-                  Export as CSV
-                </button>
+            {/* Inline Stats */}
+            {(stats || messageCounts.total > 0) && (
+              <div className="stats-inline">
+                <span className="stat-inline">
+                  <span className="stat-inline__value">{displayStats.total}</span>
+                  <span className="stat-inline__label">total</span>
+                </span>
+                <span className="stat-inline stat-inline--sent">
+                  <span className="stat-inline__value">{displayStats.sent}</span>
+                  <span className="stat-inline__label">sent</span>
+                </span>
+                <span className="stat-inline stat-inline--received">
+                  <span className="stat-inline__value">{displayStats.received}</span>
+                  <span className="stat-inline__label">recv</span>
+                </span>
               </div>
             )}
-          </div>
 
-          <button className="btn-danger" onClick={handleClearMessages}>
-            Clear All Messages
-          </button>
-        </div>
-      </div>
+            <div className="export-dropdown" ref={exportMenuRef}>
+              <button
+                className="btn-export btn-export--sm"
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={filteredMessages.length === 0}
+              >
+                Export
+              </button>
+              {showExportMenu && (
+                <div className="export-menu">
+                  <button onClick={() => { handleExport('json'); setShowExportMenu(false); }}>
+                    Export as JSON
+                  </button>
+                  <button onClick={() => { handleExport('csv'); setShowExportMenu(false); }}>
+                    Export as CSV
+                  </button>
+                </div>
+              )}
+            </div>
 
-      {(stats || messageCounts.total > 0) && (
-        <div className="message-stats">
-          <div className="stat-item">
-            <span className="stat-label">Total:</span>
-            <span className="stat-value">{displayStats.total}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Sent:</span>
-            <span className="stat-value">{displayStats.sent}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Received:</span>
-            <span className="stat-value">{displayStats.received}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Buffered:</span>
-            <span className="stat-value">{displayStats.buffered}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Dropped:</span>
-            <span className="stat-value">{displayStats.dropped}</span>
+            <button className="btn-danger btn-danger--sm" onClick={handleClearMessages}>
+              Clear
+            </button>
           </div>
         </div>
-      )}
 
-      <div className="filters-container">
-        {/* Search Bar */}
-        <div className="search-bar">
+        {/* Compact Filter Bar */}
+        <div className="filters-bar">
           <input
             type="text"
-            className="search-input"
-            placeholder="🔍 Search messages (station, action, payload, error...)..."
+            className="search-input search-input--compact"
+            placeholder="Search messages..."
             value={filters.searchQuery}
             onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
           />
-          {hasActiveFilters() && (
-            <button className="btn-clear-filters" onClick={handleClearFilters}>
-              Clear Filters
-            </button>
-          )}
-        </div>
 
-        {/* Filters Row */}
-        <div className="filters">
-          <div className="filter-group">
-            <label htmlFor="direction">Direction:</label>
+          <div className="filters-inline">
             <select
-              id="direction"
+              className="filter-select"
               value={filters.direction}
               onChange={(e) => handleFilterChange('direction', e.target.value)}
             >
-              <option value="all">All</option>
+              <option value="all">All Directions</option>
               <option value="sent">Sent</option>
               <option value="received">Received</option>
             </select>
-          </div>
 
-          <div className="filter-group">
-            <label htmlFor="messageType">Message Type:</label>
             <select
-              id="messageType"
+              className="filter-select"
               value={filters.messageType}
               onChange={(e) => handleFilterChange('messageType', e.target.value)}
             >
-              <option value="all">All</option>
-              <option value="Call">Call (2)</option>
-              <option value="CallResult">CallResult (3)</option>
-              <option value="CallError">CallError (4)</option>
+              <option value="all">All Types</option>
+              <option value="Call">Call</option>
+              <option value="CallResult">CallResult</option>
+              <option value="CallError">CallError</option>
             </select>
-          </div>
 
-          <div className="filter-group">
-            <label htmlFor="action">Action:</label>
             <input
-              id="action"
               type="text"
+              className="filter-input"
               list="action-suggestions"
-              placeholder="Filter by action..."
+              placeholder="Action..."
               value={filters.action}
               onChange={(e) => handleFilterChange('action', e.target.value)}
             />
@@ -576,124 +613,174 @@ function Messages() {
                 <option key={action} value={action} />
               ))}
             </datalist>
-          </div>
 
-          <div className="filter-group">
-            <label htmlFor="stationId">Station ID:</label>
             <input
-              id="stationId"
               type="text"
-              placeholder="Filter by station..."
+              className="filter-input"
+              placeholder="Station ID..."
               value={filters.stationId}
               onChange={(e) => handleFilterChange('stationId', e.target.value)}
             />
-          </div>
 
-          <div className="filter-group">
-            <label htmlFor="limit">Limit:</label>
             <select
-              id="limit"
+              className="filter-select filter-select--sm"
               value={filters.limit}
               onChange={(e) => handleFilterChange('limit', parseInt(e.target.value))}
             >
-              <option value="25">25</option>
               <option value="50">50</option>
               <option value="100">100</option>
               <option value="200">200</option>
+              <option value="500">500</option>
             </select>
-          </div>
-        </div>
 
-        {/* Active Filter Tags */}
-        {hasActiveFilters() && (
-          <div className="active-filters">
-            <span className="active-filters-label">Active filters:</span>
-            {filters.direction !== 'all' && (
-              <span className="filter-tag">
-                Direction: {filters.direction}
-                <button onClick={() => handleFilterChange('direction', 'all')}>×</button>
-              </span>
-            )}
-            {filters.messageType !== 'all' && (
-              <span className="filter-tag">
-                Type: {filters.messageType}
-                <button onClick={() => handleFilterChange('messageType', 'all')}>×</button>
-              </span>
-            )}
-            {filters.action && (
-              <span className="filter-tag">
-                Action: {filters.action}
-                <button onClick={() => handleFilterChange('action', '')}>×</button>
-              </span>
-            )}
-            {filters.stationId && (
-              <span className="filter-tag">
-                Station: {filters.stationId}
-                <button onClick={() => handleFilterChange('stationId', '')}>×</button>
-              </span>
-            )}
-            {filters.searchQuery && (
-              <span className="filter-tag">
-                Search: "{filters.searchQuery}"
-                <button onClick={() => handleFilterChange('searchQuery', '')}>×</button>
-              </span>
+            {hasActiveFilters() && (
+              <button className="btn-clear-filters--sm" onClick={handleClearFilters}>
+                Clear
+              </button>
             )}
           </div>
-        )}
 
-        {/* Results Count */}
-        <div className="results-info">
-          Showing {filteredMessages.length} of {messages.length} messages
+          <div className="results-count">
+            {filteredMessages.length} / {messages.length}
+          </div>
         </div>
       </div>
 
-      {filteredMessages.length === 0 ? (
-        <div className="empty-state">
-          <p>{messages.length === 0 ? 'No messages found' : 'No messages match your filters'}</p>
-          {messages.length > 0 && hasActiveFilters() && (
-            <button className="btn-secondary" onClick={handleClearFilters}>
-              Clear All Filters
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="messages-list">
-          {filteredMessages.map((message, index) => (
-            <div key={index} className={`message-card ${message.direction}`}>
-              <div className="message-header">
-                <div className="message-info">
-                  <span className={`direction-badge ${message.direction}`}>
-                    {message.direction}
-                  </span>
-                  <span className="message-type">{message.messageType}</span>
-                  <span className="message-station">{message.stationId}</span>
-                </div>
-                <div className="message-timestamp">
-                  {formatTimestamp(message.timestamp)}
-                </div>
-              </div>
-
-              <div className="message-details">
-                <div className="detail-row">
-                  <span className="detail-label">Message ID:</span>
-                  <span className="detail-value">{message.messageId || 'N/A'}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Action:</span>
-                  <span className="detail-value">{message.action || 'N/A'}</span>
-                </div>
-              </div>
-
-              {message.payload && (
-                <details className="message-payload">
-                  <summary>View Payload</summary>
-                  <pre>{formatPayload(message.payload)}</pre>
-                </details>
+      {/* Split Panel Content */}
+      <div className="messages-content" ref={splitContainerRef}>
+        {/* Message List Panel */}
+        <div
+          className="messages-list-panel"
+          style={{ width: `${splitPosition}%` }}
+        >
+          {filteredMessages.length === 0 ? (
+            <div className="empty-state empty-state--compact">
+              <p>{messages.length === 0 ? 'No messages found' : 'No messages match filters'}</p>
+              {messages.length > 0 && hasActiveFilters() && (
+                <button className="btn-link" onClick={handleClearFilters}>
+                  Clear filters
+                </button>
               )}
             </div>
-          ))}
+          ) : (
+            <div className="messages-list messages-list--compact">
+              {filteredMessages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`message-row ${message.direction} ${selectedMessage?.index === index ? 'selected' : ''}`}
+                  onClick={() => handleMessageSelect(message, index)}
+                >
+                  <span className={`direction-indicator ${message.direction}`}>
+                    {message.direction === 'sent' ? '→' : '←'}
+                  </span>
+                  <span className="message-row__time">
+                    {formatTimestampCompact(message.timestamp)}
+                  </span>
+                  <span className={`message-row__type message-row__type--${message.messageType?.toLowerCase()}`}>
+                    {message.messageType === 'CallResult' ? 'Result' : message.messageType === 'CallError' ? 'Error' : message.messageType}
+                  </span>
+                  <span className="message-row__action">
+                    {message.action || '-'}
+                  </span>
+                  <span className="message-row__station">
+                    {message.stationId}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Resize Handle */}
+        <div
+          className={`resize-handle ${isResizing ? 'resizing' : ''}`}
+          onMouseDown={handleResizeStart}
+        >
+          <div className="resize-handle__grip" />
+        </div>
+
+        {/* Message Detail Panel */}
+        <div
+          className="messages-detail-panel"
+          style={{ width: `${100 - splitPosition}%` }}
+        >
+          {selectedMessage ? (
+            <div className="message-detail">
+              <div className="message-detail__header">
+                <div className="message-detail__title">
+                  <span className={`direction-badge direction-badge--lg ${selectedMessage.direction}`}>
+                    {selectedMessage.direction}
+                  </span>
+                  <span className="message-detail__action">{selectedMessage.action || 'N/A'}</span>
+                  <span className={`message-type-badge message-type-badge--${selectedMessage.messageType?.toLowerCase()}`}>
+                    {selectedMessage.messageType}
+                  </span>
+                </div>
+                <button className="btn-close-detail" onClick={() => setSelectedMessage(null)}>
+                  ×
+                </button>
+              </div>
+
+              <div className="message-detail__meta">
+                <div className="meta-row">
+                  <span className="meta-label">Timestamp</span>
+                  <span className="meta-value">{formatTimestamp(selectedMessage.timestamp)}</span>
+                </div>
+                <div className="meta-row">
+                  <span className="meta-label">Station ID</span>
+                  <span className="meta-value meta-value--mono">{selectedMessage.stationId}</span>
+                </div>
+                <div className="meta-row">
+                  <span className="meta-label">Message ID</span>
+                  <span className="meta-value meta-value--mono">{selectedMessage.messageId || 'N/A'}</span>
+                </div>
+                {selectedMessage.correlationId && (
+                  <div className="meta-row">
+                    <span className="meta-label">Correlation ID</span>
+                    <span className="meta-value meta-value--mono">{selectedMessage.correlationId}</span>
+                  </div>
+                )}
+                <div className="meta-row">
+                  <span className="meta-label">Protocol</span>
+                  <span className="meta-value">{selectedMessage.protocolVersion || 'OCPP 1.6'}</span>
+                </div>
+                {selectedMessage.errorCode && (
+                  <div className="meta-row meta-row--error">
+                    <span className="meta-label">Error Code</span>
+                    <span className="meta-value meta-value--error">{selectedMessage.errorCode}</span>
+                  </div>
+                )}
+                {selectedMessage.errorDescription && (
+                  <div className="meta-row meta-row--error">
+                    <span className="meta-label">Error Description</span>
+                    <span className="meta-value meta-value--error">{selectedMessage.errorDescription}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="message-detail__payload">
+                <div className="payload-header">
+                  <span className="payload-title">Payload</span>
+                  <button
+                    className="btn-copy"
+                    onClick={() => {
+                      navigator.clipboard.writeText(formatPayload(selectedMessage.payload))
+                    }}
+                  >
+                    Copy
+                  </button>
+                </div>
+                <pre className="payload-content">{formatPayload(selectedMessage.payload)}</pre>
+              </div>
+            </div>
+          ) : (
+            <div className="message-detail__empty">
+              <div className="empty-detail-icon">📋</div>
+              <p>Select a message to view details</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
