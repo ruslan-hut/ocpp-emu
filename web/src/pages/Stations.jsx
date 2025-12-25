@@ -24,6 +24,7 @@ function Stations() {
   const [refreshInterval, setRefreshInterval] = useState(5)
   const [showConfig, setShowConfig] = useState(false)
   const [configuringStation, setConfiguringStation] = useState(null)
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('stationsViewMode') || 'list')
 
   useEffect(() => {
     fetchStations()
@@ -231,6 +232,147 @@ function Stations() {
     setConfiguringStation(null)
   }
 
+  const handleViewModeChange = (mode) => {
+    setViewMode(mode)
+    localStorage.setItem('stationsViewMode', mode)
+  }
+
+  const getProtocolClass = (version) => {
+    if (version === 'ocpp2.1' || version === '2.1') return 'ocpp21'
+    if (version === 'ocpp2.0.1' || version === '2.0.1') return 'ocpp201'
+    return 'ocpp16'
+  }
+
+  const renderStationCard = (station, isHorizontal = false) => (
+    <div key={station.stationId} className={`station-card ${isHorizontal ? 'station-card--horizontal' : ''}`}>
+      <div className="station-card__main">
+        <div className="station-header">
+          <div className="station-header__info">
+            <h3>{station.name}</h3>
+            <span className="station-id-inline">{station.stationId}</span>
+          </div>
+          <span className={`status-badge ${station.runtimeState?.connectionStatus}`}>
+            {station.runtimeState?.connectionStatus || 'unknown'}
+          </span>
+        </div>
+
+        <div className="station-info">
+          <div className="station-info__grid">
+            <div className="info-cell">
+              <span className="info-cell__label">Vendor</span>
+              <span className="info-cell__value">{station.vendor}</span>
+            </div>
+            <div className="info-cell">
+              <span className="info-cell__label">Model</span>
+              <span className="info-cell__value">{station.model}</span>
+            </div>
+            <div className="info-cell">
+              <span className="info-cell__label">Protocol</span>
+              <span className={`protocol-badge ${getProtocolClass(station.protocolVersion)}`}>
+                {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
+              </span>
+            </div>
+            <div className="info-cell">
+              <span className="info-cell__label">Connectors</span>
+              <span className="info-cell__value">{station.connectors?.length || 0}</span>
+            </div>
+          </div>
+          <div className="station-url">
+            <span className="info-cell__label">CSMS:</span>
+            <span className="info-cell__value url">{station.csmsUrl || 'Not configured'}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="station-actions">
+        {station.runtimeState?.connectionStatus === 'connected' ? (
+          <button className="btn-action btn-stop" onClick={() => handleStop(station.stationId)}>
+            Stop
+          </button>
+        ) : (
+          <button
+            className="btn-action btn-start"
+            onClick={() => handleStart(station.stationId)}
+            disabled={!station.enabled}
+          >
+            Start
+          </button>
+        )}
+        <button className="btn-action btn-connectors" onClick={() => handleViewConnectors(station.stationId)}>
+          Connectors
+        </button>
+        <button className="btn-action btn-config" onClick={() => handleConfigureStation(station)}>
+          Configure
+        </button>
+        <button className="btn-action btn-edit" onClick={() => handleEditStation(station)}>
+          Edit
+        </button>
+      </div>
+    </div>
+  )
+
+  const renderTableView = () => (
+    <div className="stations-table-wrapper">
+      <table className="stations-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Station ID</th>
+            <th>Status</th>
+            <th>Protocol</th>
+            <th>Vendor / Model</th>
+            <th>Connectors</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {stations.map((station) => (
+            <tr key={station.stationId}>
+              <td className="cell-name">{station.name}</td>
+              <td className="cell-id">{station.stationId}</td>
+              <td>
+                <span className={`status-badge status-badge--sm ${station.runtimeState?.connectionStatus}`}>
+                  {station.runtimeState?.connectionStatus || 'unknown'}
+                </span>
+              </td>
+              <td>
+                <span className={`protocol-badge ${getProtocolClass(station.protocolVersion)}`}>
+                  {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
+                </span>
+              </td>
+              <td className="cell-vendor">{station.vendor} / {station.model}</td>
+              <td className="cell-connectors">{station.connectors?.length || 0}</td>
+              <td className="cell-actions">
+                {station.runtimeState?.connectionStatus === 'connected' ? (
+                  <button className="btn-action btn-action--sm btn-stop" onClick={() => handleStop(station.stationId)}>
+                    Stop
+                  </button>
+                ) : (
+                  <button
+                    className="btn-action btn-action--sm btn-start"
+                    onClick={() => handleStart(station.stationId)}
+                    disabled={!station.enabled}
+                  >
+                    Start
+                  </button>
+                )}
+                <button className="btn-action btn-action--sm btn-connectors" onClick={() => handleViewConnectors(station.stationId)}>
+                  Connectors
+                </button>
+                <button className="btn-action btn-action--sm btn-config" onClick={() => handleConfigureStation(station)}>
+                  Config
+                </button>
+                <button className="btn-action btn-action--sm btn-edit" onClick={() => handleEditStation(station)}>
+                  Edit
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+
   if (loading) {
     return <div className="loading">Loading stations...</div>
   }
@@ -242,15 +384,60 @@ function Stations() {
   return (
     <div className="stations">
       <div className="page-header">
-        <h2>Charging Stations</h2>
+        <div className="page-header__title">
+          <h2>Charging Stations</h2>
+          <span className="station-count">{stations.length} station{stations.length !== 1 ? 's' : ''}</span>
+        </div>
         <div className="header-actions">
-          <button className="btn-secondary" onClick={() => setShowTemplates(true)}>
-            📋 Templates
+          {stations.length > 0 && (
+            <div className="view-toggle">
+              <button
+                className={`view-toggle__btn ${viewMode === 'list' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('list')}
+                title="List view"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <rect x="1" y="2" width="14" height="3" rx="1"/>
+                  <rect x="1" y="7" width="14" height="3" rx="1"/>
+                  <rect x="1" y="12" width="14" height="2" rx="1"/>
+                </svg>
+              </button>
+              <button
+                className={`view-toggle__btn ${viewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('grid')}
+                title="Grid view"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <rect x="1" y="1" width="6" height="6" rx="1"/>
+                  <rect x="9" y="1" width="6" height="6" rx="1"/>
+                  <rect x="1" y="9" width="6" height="6" rx="1"/>
+                  <rect x="9" y="9" width="6" height="6" rx="1"/>
+                </svg>
+              </button>
+              <button
+                className={`view-toggle__btn ${viewMode === 'table' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('table')}
+                title="Table view"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <rect x="1" y="1" width="14" height="2"/>
+                  <rect x="1" y="5" width="5" height="2"/>
+                  <rect x="8" y="5" width="7" height="2"/>
+                  <rect x="1" y="9" width="5" height="2"/>
+                  <rect x="8" y="9" width="7" height="2"/>
+                  <rect x="1" y="13" width="5" height="2"/>
+                  <rect x="8" y="13" width="7" height="2"/>
+                </svg>
+              </button>
+            </div>
+          )}
+          <button className="btn-secondary btn-secondary--sm" onClick={() => setShowTemplates(true)}>
+            Templates
           </button>
-          <button className="btn-secondary" onClick={() => setShowImportExport(true)}>
-            📥📤 Import/Export
+          <button className="btn-secondary btn-secondary--sm" onClick={() => setShowImportExport(true)}>
+            Import/Export
           </button>
-          <button className="btn-primary" onClick={handleCreateStation}>
+          <button className="btn-primary btn-primary--sm" onClick={handleCreateStation}>
             + Add Station
           </button>
         </div>
@@ -272,115 +459,11 @@ function Stations() {
             </button>
           </div>
         </div>
+      ) : viewMode === 'table' ? (
+        renderTableView()
       ) : (
-        <div className="stations-grid">
-          {stations.map((station) => (
-            <div key={station.stationId} className="station-card">
-              <div className="station-header">
-                <h3>{station.name}</h3>
-                <span className={`status-badge ${station.runtimeState?.connectionStatus}`}>
-                  {station.runtimeState?.connectionStatus || 'unknown'}
-                </span>
-              </div>
-
-              <div className="station-info">
-                <div className="info-row">
-                  <span className="label">ID:</span>
-                  <span className="value station-id">{station.stationId}</span>
-                </div>
-                <div className="info-row">
-                  <span className="label">Vendor:</span>
-                  <span className="value">{station.vendor}</span>
-                </div>
-                <div className="info-row">
-                  <span className="label">Model:</span>
-                  <span className="value">{station.model}</span>
-                </div>
-                <div className="info-row">
-                  <span className="label">Protocol:</span>
-                  <span className={`protocol-badge ${
-                    station.protocolVersion === 'ocpp2.1' || station.protocolVersion === '2.1' ? 'ocpp21' :
-                    station.protocolVersion === 'ocpp2.0.1' || station.protocolVersion === '2.0.1' ? 'ocpp201' : 'ocpp16'
-                  }`}>
-                    {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
-                  </span>
-                </div>
-                <div className="info-row">
-                  <span className="label">Connectors:</span>
-                  <span className="value">
-                    {station.connectors?.length || 0}
-                    {station.connectors && station.connectors.length > 0 && (
-                      <span className="connector-types">
-                        {' '}({station.connectors.map(c => c.type).join(', ')})
-                      </span>
-                    )}
-                  </span>
-                </div>
-                <div className="info-row">
-                  <span className="label">CSMS:</span>
-                  <span className="value url">{station.csmsUrl || 'Not configured'}</span>
-                </div>
-                <div className="info-row">
-                  <span className="label">Enabled:</span>
-                  <span className="value">
-                    <span className={`badge ${station.enabled ? 'enabled' : 'disabled'}`}>
-                      {station.enabled ? 'Yes' : 'No'}
-                    </span>
-                  </span>
-                </div>
-                {station.tags && station.tags.length > 0 && (
-                  <div className="info-row">
-                    <span className="label">Tags:</span>
-                    <span className="value tags">
-                      {station.tags.map(tag => (
-                        <span key={tag} className="tag">{tag}</span>
-                      ))}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div className="station-actions">
-                {station.runtimeState?.connectionStatus === 'connected' ? (
-                  <button
-                    className="btn-action btn-stop"
-                    onClick={() => handleStop(station.stationId)}
-                  >
-                    ⏹ Stop
-                  </button>
-                ) : (
-                  <button
-                    className="btn-action btn-start"
-                    onClick={() => handleStart(station.stationId)}
-                    disabled={!station.enabled}
-                  >
-                    ▶ Start
-                  </button>
-                )}
-                <button
-                  className="btn-action btn-connectors"
-                  onClick={() => handleViewConnectors(station.stationId)}
-                  title="Manage connectors"
-                >
-                  🔌 Connectors
-                </button>
-                <button
-                  className="btn-action btn-config"
-                  onClick={() => handleConfigureStation(station)}
-                  title="Configure station settings"
-                >
-                  ⚙️ Configure
-                </button>
-                <button
-                  className="btn-action btn-edit"
-                  onClick={() => handleEditStation(station)}
-                  title="Full configuration editor"
-                >
-                  ✏️ Edit
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className={`stations-${viewMode === 'grid' ? 'grid' : 'list'}`}>
+          {stations.map((station) => renderStationCard(station, viewMode === 'list'))}
         </div>
       )}
 

@@ -573,11 +573,11 @@ See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
   - [x] 8.6d: Reduce card whitespace for desktop
 
 **Page-Specific Layout Updates:**
-- [ ] **8.7** Redesign Stations page for desktop
-  - [ ] 8.7a: Implement horizontal station cards (info left, actions right)
-  - [ ] 8.7b: Create table view option for station list
-  - [ ] 8.7c: Add inline action buttons (no dropdown menus)
-  - [ ] 8.7d: Optimize connectors modal for wide screens
+- [x] **8.7** Redesign Stations page for desktop
+  - [x] 8.7a: Implement horizontal station cards (info left, actions right)
+  - [x] 8.7b: Create table view option for station list
+  - [x] 8.7c: Add inline action buttons (no dropdown menus)
+  - [x] 8.7d: Optimize connectors modal for wide screens
 - [ ] **8.8** Redesign Message Inspector for desktop
   - [ ] 8.8a: Implement two-column layout (list left, details right)
   - [ ] 8.8b: Fixed filter bar at top
