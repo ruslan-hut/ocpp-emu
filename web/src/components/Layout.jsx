@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import ThemeToggle from './ui/ThemeToggle'
 import './Layout.css'
 
 function Layout({ children }) {
@@ -30,6 +31,9 @@ function Layout({ children }) {
               Message Crafter
             </Link>
           </nav>
+          <div className="header-actions">
+            <ThemeToggle />
+          </div>
         </div>
       </header>
       <main className="main-content">

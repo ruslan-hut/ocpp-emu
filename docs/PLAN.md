@@ -549,18 +549,18 @@ See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
   - [ ] 8.3b: Refactor MessageInspector.css dark mode (already complete)
   - [ ] 8.3c: Refactor StationForm.css dark mode (already complete)
   - [ ] 8.3d: Refactor MessageCrafter.css dark mode (already complete)
-  - [ ] 8.3e: Add dark mode to Stations.css
+  - [x] 8.3e: Add dark mode to Stations.css
   - [ ] 8.3f: Add dark mode to StationConfig.css
   - [ ] 8.3g: Add dark mode to ConnectorCard.css
   - [ ] 8.3h: Add dark mode to Dashboard.css
   - [ ] 8.3i: Add dark mode to TemplatesManager.css
   - [ ] 8.3j: Add dark mode to ImportExport.css
   - [ ] 8.3k: Add dark mode to remaining CSS files (App.css, index.css)
-- [ ] **8.4** Implement theme toggle component
-  - [ ] 8.4a: Create ThemeProvider context
-  - [ ] 8.4b: Add theme toggle button in header/navigation
-  - [ ] 8.4c: Persist theme preference in localStorage
-  - [ ] 8.4d: Respect system preference (prefers-color-scheme)
+- [x] **8.4** Implement theme toggle component
+  - [x] 8.4a: Create ThemeProvider context
+  - [x] 8.4b: Add theme toggle button in header/navigation
+  - [x] 8.4c: Persist theme preference in localStorage
+  - [x] 8.4d: Respect system preference (prefers-color-scheme)
 
 **Desktop-First Layout System:**
 - [ ] **8.5** Update breakpoints to desktop-first approach
