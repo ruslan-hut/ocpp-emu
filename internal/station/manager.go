@@ -14,6 +14,7 @@ import (
 	"github.com/ruslanhut/ocpp-emu/internal/ocpp"
 	v16 "github.com/ruslanhut/ocpp-emu/internal/ocpp/v16"
 	v201 "github.com/ruslanhut/ocpp-emu/internal/ocpp/v201"
+	v21 "github.com/ruslanhut/ocpp-emu/internal/ocpp/v21"
 	"github.com/ruslanhut/ocpp-emu/internal/storage"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -33,6 +34,7 @@ type Manager struct {
 	syncWg        sync.WaitGroup
 	v16Handler    *v16.Handler  // OCPP 1.6 message handler
 	v201Handler   *v201.Handler // OCPP 2.0.1 message handler
+	v21Handler    *v21.Handler  // OCPP 2.1 message handler
 }
 
 // Station represents a managed charging station instance
@@ -117,6 +119,11 @@ func NewManager(
 	m.v201Handler = v201.NewHandler(logger)
 	m.v201Handler.SendMessage = connManager.SendMessage
 	m.setupV201HandlerCallbacks()
+
+	// Initialize OCPP 2.1 handler
+	m.v21Handler = v21.NewHandler(logger)
+	m.v21Handler.SendMessage = connManager.SendMessage
+	m.setupV21HandlerCallbacks()
 
 	return m
 }
@@ -729,6 +736,307 @@ func (m *Manager) setupV201HandlerCallbacks() {
 
 		m.logger.Info("Installed certificate", "stationId", stationID, "certType", req.CertificateType)
 		return &v201.InstallCertificateResponse{Status: string(status)}, nil
+	}
+}
+
+// setupV21HandlerCallbacks sets up callbacks for OCPP 2.1 handler
+func (m *Manager) setupV21HandlerCallbacks() {
+	// Since v21.Handler embeds v201.Handler, most callbacks are inherited
+	// We only need to add 2.1-specific callbacks here
+
+	// CostUpdated handler - CSMS updates running transaction cost
+	m.v21Handler.OnCostUpdated = func(stationID string, req *v21.CostUpdatedRequest) (*v21.CostUpdatedResponse, error) {
+		m.logger.Info("Handling CostUpdated (2.1)", "stationId", stationID, "transactionId", req.TransactionId, "totalCost", req.TotalCost)
+
+		// Get station
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists {
+			m.logger.Warn("Station not found for CostUpdated", "stationId", stationID)
+			return &v21.CostUpdatedResponse{}, nil
+		}
+
+		// Find the transaction and update cost (for display purposes)
+		connectors := station.SessionManager.GetAllConnectors()
+		for _, connector := range connectors {
+			tx := connector.GetTransaction()
+			if tx != nil && tx.StringID == req.TransactionId {
+				// Store cost for potential display/logging
+				m.logger.Info("Updated transaction cost",
+					"stationId", stationID,
+					"transactionId", req.TransactionId,
+					"cost", req.TotalCost,
+				)
+				break
+			}
+		}
+
+		return &v21.CostUpdatedResponse{}, nil
+	}
+
+	// CustomerInformation handler - request customer information report
+	m.v21Handler.OnCustomerInformation = func(stationID string, req *v21.CustomerInformationRequest) (*v21.CustomerInformationResponse, error) {
+		m.logger.Info("Handling CustomerInformation (2.1)", "stationId", stationID, "requestId", req.RequestId)
+
+		// For emulator, we accept but report no customer data
+		go func() {
+			time.Sleep(100 * time.Millisecond) // Brief delay before sending notification
+			m.sendNotifyCustomerInformation(stationID, req.RequestId, "", true)
+		}()
+
+		return &v21.CustomerInformationResponse{Status: "Accepted"}, nil
+	}
+
+	// SetDisplayMessage handler - display message on station screen
+	m.v21Handler.OnSetDisplayMessage = func(stationID string, req *v21.SetDisplayMessageRequest) (*v21.SetDisplayMessageResponse, error) {
+		m.logger.Info("Handling SetDisplayMessage (2.1)",
+			"stationId", stationID,
+			"priority", req.Message.Priority,
+			"content", req.Message.Message.Content,
+		)
+
+		// For emulator, we accept all display messages
+		return &v21.SetDisplayMessageResponse{Status: v21.DisplayMessageStatusAccepted}, nil
+	}
+
+	// GetDisplayMessages handler - retrieve stored display messages
+	m.v21Handler.OnGetDisplayMessages = func(stationID string, req *v21.GetDisplayMessagesRequest) (*v21.GetDisplayMessagesResponse, error) {
+		m.logger.Info("Handling GetDisplayMessages (2.1)", "stationId", stationID, "requestId", req.RequestId)
+
+		// For emulator, return that we have no stored messages (async response via NotifyDisplayMessages)
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			m.sendNotifyDisplayMessages(stationID, req.RequestId, nil, true)
+		}()
+
+		return &v21.GetDisplayMessagesResponse{Status: "Accepted"}, nil
+	}
+
+	// ClearDisplayMessage handler - clear specific display message
+	m.v21Handler.OnClearDisplayMessage = func(stationID string, req *v21.ClearDisplayMessageRequest) (*v21.ClearDisplayMessageResponse, error) {
+		m.logger.Info("Handling ClearDisplayMessage (2.1)", "stationId", stationID, "messageId", req.Id)
+
+		// For emulator, report success (message not found since we don't store them)
+		return &v21.ClearDisplayMessageResponse{Status: v21.ClearMessageStatusAccepted}, nil
+	}
+
+	// ReserveNow handler - make a reservation
+	m.v21Handler.OnReserveNow = func(stationID string, req *v21.ReserveNowRequest) (*v21.ReserveNowResponse, error) {
+		m.logger.Info("Handling ReserveNow (2.1)",
+			"stationId", stationID,
+			"reservationId", req.Id,
+			"evseId", req.EvseId,
+			"expiryDateTime", req.ExpiryDateTime,
+		)
+
+		// Get station
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists {
+			return &v21.ReserveNowResponse{Status: v21.ReservationStatusRejected}, nil
+		}
+
+		// Check if EVSE is available
+		connectorID := 0
+		if req.EvseId != nil {
+			connectorID = *req.EvseId
+		}
+
+		if connectorID > 0 {
+			connector, err := station.SessionManager.GetConnector(connectorID)
+			if err != nil || connector == nil {
+				return &v21.ReserveNowResponse{Status: v21.ReservationStatusUnavailable}, nil
+			}
+			state := connector.GetState()
+			if state != ConnectorStateAvailable {
+				if state == ConnectorStatePreparing || state == ConnectorStateCharging {
+					return &v21.ReserveNowResponse{Status: v21.ReservationStatusOccupied}, nil
+				}
+				if state == ConnectorStateFaulted {
+					return &v21.ReserveNowResponse{Status: v21.ReservationStatusFaulted}, nil
+				}
+				return &v21.ReserveNowResponse{Status: v21.ReservationStatusUnavailable}, nil
+			}
+		}
+
+		// For emulator, accept the reservation
+		m.logger.Info("Reservation accepted", "stationId", stationID, "reservationId", req.Id)
+		return &v21.ReserveNowResponse{Status: v21.ReservationStatusAccepted}, nil
+	}
+
+	// CancelReservation handler - cancel a reservation
+	m.v21Handler.OnCancelReservation = func(stationID string, req *v21.CancelReservationRequest) (*v21.CancelReservationResponse, error) {
+		m.logger.Info("Handling CancelReservation (2.1)", "stationId", stationID, "reservationId", req.ReservationId)
+
+		// For emulator, accept the cancellation
+		return &v21.CancelReservationResponse{Status: v21.CancelReservationStatusAccepted}, nil
+	}
+
+	// SetChargingProfile handler - set/update charging profile
+	m.v21Handler.OnSetChargingProfile = func(stationID string, req *v21.SetChargingProfileRequest) (*v21.SetChargingProfileResponse, error) {
+		m.logger.Info("Handling SetChargingProfile (2.1)",
+			"stationId", stationID,
+			"evseId", req.EvseId,
+			"profileId", req.ChargingProfile.ID,
+			"purpose", req.ChargingProfile.ChargingProfilePurpose,
+		)
+
+		// For emulator, accept all charging profiles
+		return &v21.SetChargingProfileResponse{Status: v21.ChargingProfileStatusAccepted}, nil
+	}
+
+	// GetChargingProfiles handler - get installed charging profiles
+	m.v21Handler.OnGetChargingProfiles = func(stationID string, req *v21.GetChargingProfilesRequest) (*v21.GetChargingProfilesResponse, error) {
+		m.logger.Info("Handling GetChargingProfiles (2.1)", "stationId", stationID, "requestId", req.RequestId)
+
+		// For emulator, report no profiles (async response via ReportChargingProfiles)
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			m.sendReportChargingProfiles(stationID, req.RequestId, nil, true)
+		}()
+
+		return &v21.GetChargingProfilesResponse{Status: "NoProfiles"}, nil
+	}
+
+	// ClearChargingProfile handler - clear charging profiles
+	m.v21Handler.OnClearChargingProfile = func(stationID string, req *v21.ClearChargingProfileRequest) (*v21.ClearChargingProfileResponse, error) {
+		m.logger.Info("Handling ClearChargingProfile (2.1)",
+			"stationId", stationID,
+			"chargingProfileId", req.ChargingProfileId,
+		)
+
+		// For emulator, report unknown (no profiles stored)
+		return &v21.ClearChargingProfileResponse{Status: v21.ClearChargingProfileStatusUnknown}, nil
+	}
+
+	// GetCompositeSchedule handler - get composite charging schedule
+	m.v21Handler.OnGetCompositeSchedule = func(stationID string, req *v21.GetCompositeScheduleRequest) (*v21.GetCompositeScheduleResponse, error) {
+		m.logger.Info("Handling GetCompositeSchedule (2.1)",
+			"stationId", stationID,
+			"evseId", req.EvseId,
+			"duration", req.Duration,
+		)
+
+		// For emulator, report accepted but empty schedule
+		return &v21.GetCompositeScheduleResponse{Status: "Accepted"}, nil
+	}
+
+	// GetLocalListVersion handler
+	m.v21Handler.OnGetLocalListVersion = func(stationID string, req *v21.GetLocalListVersionRequest) (*v21.GetLocalListVersionResponse, error) {
+		m.logger.Info("Handling GetLocalListVersion (2.1)", "stationId", stationID)
+		return &v21.GetLocalListVersionResponse{VersionNumber: 0}, nil
+	}
+
+	// SendLocalList handler
+	m.v21Handler.OnSendLocalList = func(stationID string, req *v21.SendLocalListRequest) (*v21.SendLocalListResponse, error) {
+		m.logger.Info("Handling SendLocalList (2.1)", "stationId", stationID, "version", req.VersionNumber)
+		return &v21.SendLocalListResponse{Status: "Accepted"}, nil
+	}
+
+	// UpdateFirmware handler
+	m.v21Handler.OnUpdateFirmware = func(stationID string, req *v21.UpdateFirmwareRequest) (*v21.UpdateFirmwareResponse, error) {
+		m.logger.Info("Handling UpdateFirmware (2.1)", "stationId", stationID, "requestId", req.RequestId)
+
+		// Send firmware status notifications
+		go func() {
+			m.sendFirmwareStatusNotification(stationID, req.RequestId, "Downloading")
+			time.Sleep(2 * time.Second)
+			m.sendFirmwareStatusNotification(stationID, req.RequestId, "Downloaded")
+			time.Sleep(1 * time.Second)
+			m.sendFirmwareStatusNotification(stationID, req.RequestId, "Installing")
+			time.Sleep(2 * time.Second)
+			m.sendFirmwareStatusNotification(stationID, req.RequestId, "Installed")
+		}()
+
+		return &v21.UpdateFirmwareResponse{Status: "Accepted"}, nil
+	}
+
+	// SetNetworkProfile handler
+	m.v21Handler.OnSetNetworkProfile = func(stationID string, req *v21.SetNetworkProfileRequest) (*v21.SetNetworkProfileResponse, error) {
+		m.logger.Info("Handling SetNetworkProfile (2.1)", "stationId", stationID, "slot", req.ConfigurationSlot)
+		return &v21.SetNetworkProfileResponse{Status: "Accepted"}, nil
+	}
+
+	// GetLog handler
+	m.v21Handler.OnGetLog = func(stationID string, req *v21.GetLogRequest) (*v21.GetLogResponse, error) {
+		m.logger.Info("Handling GetLog (2.1)", "stationId", stationID, "logType", req.LogType)
+
+		// Send log status notifications
+		go func() {
+			m.sendLogStatusNotification(stationID, "Accepted")
+			time.Sleep(1 * time.Second)
+			m.sendLogStatusNotification(stationID, "Uploading")
+			time.Sleep(2 * time.Second)
+			m.sendLogStatusNotification(stationID, "Uploaded")
+		}()
+
+		return &v21.GetLogResponse{Status: "Accepted"}, nil
+	}
+}
+
+// Helper methods for OCPP 2.1 async notifications
+
+func (m *Manager) sendNotifyCustomerInformation(stationID string, requestId int, data string, tbc bool) {
+	req := &v21.NotifyCustomerInformationRequest{
+		Data:      data,
+		SeqNo:     0,
+		RequestId: requestId,
+		Tbc:       tbc,
+	}
+	_, err := m.v21Handler.SendNotifyCustomerInformation(stationID, req)
+	if err != nil {
+		m.logger.Error("Failed to send NotifyCustomerInformation", "error", err)
+	}
+}
+
+func (m *Manager) sendNotifyDisplayMessages(stationID string, requestId int, messages []v21.DisplayMessageType, tbc bool) {
+	req := &v21.NotifyDisplayMessagesRequest{
+		RequestId:   requestId,
+		Tbc:         tbc,
+		MessageInfo: messages,
+	}
+	_, err := m.v21Handler.SendNotifyDisplayMessages(stationID, req)
+	if err != nil {
+		m.logger.Error("Failed to send NotifyDisplayMessages", "error", err)
+	}
+}
+
+func (m *Manager) sendReportChargingProfiles(stationID string, requestId int, profiles []v21.ChargingProfileType, tbc bool) {
+	req := &v21.ReportChargingProfilesRequest{
+		RequestId:           requestId,
+		ChargingLimitSource: "Other",
+		EvseId:              0,
+		Tbc:                 tbc,
+		ChargingProfile:     profiles,
+	}
+	_, err := m.v21Handler.SendReportChargingProfiles(stationID, req)
+	if err != nil {
+		m.logger.Error("Failed to send ReportChargingProfiles", "error", err)
+	}
+}
+
+func (m *Manager) sendFirmwareStatusNotification(stationID string, requestId int, status string) {
+	req := &v21.FirmwareStatusNotificationRequest{
+		Status:    status,
+		RequestId: &requestId,
+	}
+	_, err := m.v21Handler.SendFirmwareStatusNotification(stationID, req)
+	if err != nil {
+		m.logger.Error("Failed to send FirmwareStatusNotification", "error", err)
+	}
+}
+
+func (m *Manager) sendLogStatusNotification(stationID string, status string) {
+	req := &v21.LogStatusNotificationRequest{
+		Status: status,
+	}
+	_, err := m.v21Handler.SendLogStatusNotification(stationID, req)
+	if err != nil {
+		m.logger.Error("Failed to send LogStatusNotification", "error", err)
 	}
 }
 
@@ -1704,6 +2012,8 @@ func (m *Manager) handleCall(stationID string, call *ocpp.Call) {
 		response, err = m.v16Handler.HandleCall(stationID, call)
 	case "ocpp2.0.1", "2.0.1", "ocpp201":
 		response, err = m.v201Handler.HandleCall(stationID, call)
+	case "ocpp2.1", "2.1", "ocpp21":
+		response, err = m.v21Handler.HandleCall(stationID, call)
 	default:
 		m.logger.Error("Unsupported protocol version", "stationId", stationID, "version", protocolVersion)
 		m.sendNotImplementedError(stationID, call.UniqueID, call.Action)

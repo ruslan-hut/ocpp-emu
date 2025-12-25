@@ -195,6 +195,12 @@
   border: 1px solid #a5d6a7;
 }
 
+.protocol-badge.ocpp21 {
+  background: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffcc80;
+}
+
 .connector-types {
   color: #6b7280;
   font-size: 0.75rem;

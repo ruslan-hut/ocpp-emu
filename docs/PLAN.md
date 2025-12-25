@@ -1388,7 +1388,7 @@ db.messages.createIndex(
 
 **Document Version**: 1.7
 **Last Updated**: 2025-12-25
-**Status**: Active - Phases 1-3 Complete, Phase 4 Backend In Progress
+**Status**: Active - Phases 1-5 Complete
 
 **Changelog**:
 - v1.7: Phase 4 OCPP 2.0.1 backend implementation
@@ -1470,6 +1470,39 @@ db.messages.createIndex(
     - Visible in Stations page, MessageCrafter
   - Protocol version selector already present in StationForm and StationConfig
   - Phase 4 (OCPP 2.0.1) complete!
+- v2.1: Implemented OCPP 2.1 protocol support (Phase 5)
+  - Created `internal/ocpp/v21/types.go`:
+    - Reexported v201 action constants with additional 2.1-specific actions
+    - Cost/tariff types: CostType, SalesTariffType, ConsumptionCostType, ChargingScheduleType
+    - Display message types: DisplayMessageType, MessagePriorityType, MessageStateType, MessageFormatType
+    - Reservation types: ReservationStatusType, CancelReservationStatusType, ConnectorType
+    - Charging profile types: ChargingProfileType, ChargingProfilePurposeType, ChargingProfileKindType
+    - EV charging needs types: ACChargingParametersType, DCChargingParametersType, ChargingNeedsType
+  - Created `internal/ocpp/v21/messages.go`:
+    - Cost/tariff: CostUpdated, CustomerInformation, NotifyCustomerInformation, NotifyEVChargingNeeds
+    - Display messages: SetDisplayMessage, GetDisplayMessages, ClearDisplayMessage, NotifyDisplayMessages
+    - Reservations: ReserveNow, CancelReservation
+    - Charging profiles: SetChargingProfile, GetChargingProfiles, ClearChargingProfile, GetCompositeSchedule, ReportChargingProfiles, NotifyChargingLimit, ClearedChargingLimit
+    - Local list: GetLocalListVersion, SendLocalList
+    - Firmware: UpdateFirmware, SetNetworkProfile, GetLog, LogStatusNotification, FirmwareStatusNotification
+  - Created `internal/ocpp/v21/handler.go`:
+    - Handler embeds v201.Handler for inherited 2.0.1 functionality
+    - 2.1-specific callbacks for all new message types
+    - Outgoing message methods for async notifications
+    - Fall-through to v201 handler for inherited actions
+  - Updated `internal/station/manager.go` for OCPP 2.1:
+    - Added v21Handler initialization and setup
+    - Created setupV21HandlerCallbacks with handlers for all 2.1 messages
+    - Handler implementations: CostUpdated, CustomerInformation, SetDisplayMessage, GetDisplayMessages, ClearDisplayMessage, ReserveNow, CancelReservation, SetChargingProfile, GetChargingProfiles, ClearChargingProfile, GetCompositeSchedule, GetLocalListVersion, SendLocalList, UpdateFirmware, SetNetworkProfile, GetLog
+    - Async notification helpers: sendNotifyCustomerInformation, sendNotifyDisplayMessages, sendReportChargingProfiles, sendFirmwareStatusNotification, sendLogStatusNotification
+    - Updated handleCall routing for ocpp2.1/2.1/ocpp21 protocol versions
+  - Updated frontend for OCPP 2.1:
+    - Added ocpp21Templates with all 2.1-specific message templates (extends ocpp201Templates)
+    - Templates include: CostUpdated, NotifyCustomerInformation, NotifyEVChargingNeeds, SetDisplayMessage, GetDisplayMessages, ClearDisplayMessage, NotifyDisplayMessages, ReserveNow, CancelReservation, SetChargingProfile, GetChargingProfiles, ClearChargingProfile, GetCompositeSchedule, ReportChargingProfiles, NotifyChargingLimit, ClearedChargingLimit, GetLocalListVersion, SendLocalList, UpdateFirmware, SetNetworkProfile, GetLog
+    - Updated template selection logic to detect ocpp2.1 protocol
+    - Added OCPP 2.1 protocol badge styling (orange color scheme)
+    - Updated Stations.jsx protocol badge rendering for all three protocols
+  - Phase 5 OCPP 2.1 implementation complete!
 - v1.6: Phase 3 completed
   - Implemented MongoDB aggregation pipelines for analytics (3.8)
     - Message statistics (by action, station, time)

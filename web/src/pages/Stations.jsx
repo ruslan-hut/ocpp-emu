@@ -298,7 +298,10 @@ function Stations() {
                 </div>
                 <div className="info-row">
                   <span className="label">Protocol:</span>
-                  <span className={`protocol-badge ${station.protocolVersion === 'ocpp2.0.1' || station.protocolVersion === 'ocpp2.1' ? 'ocpp201' : 'ocpp16'}`}>
+                  <span className={`protocol-badge ${
+                    station.protocolVersion === 'ocpp2.1' || station.protocolVersion === '2.1' ? 'ocpp21' :
+                    station.protocolVersion === 'ocpp2.0.1' || station.protocolVersion === '2.0.1' ? 'ocpp201' : 'ocpp16'
+                  }`}>
                     {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
                   </span>
                 </div>
