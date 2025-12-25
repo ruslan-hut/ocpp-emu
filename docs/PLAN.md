@@ -593,10 +593,10 @@ See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
   - [x] 8.10c: Inline validation display
 
 **Component Standardization:**
-- [ ] **8.11** Standardize button styles
-  - [ ] 8.11a: Create consistent button component with size variants (sm, md, lg)
-  - [ ] 8.11b: Consolidate btn-primary, btn-secondary, btn-action styles
-  - [ ] 8.11c: Standardize icon button styling
+- [x] **8.11** Standardize button styles
+  - [x] 8.11a: Create consistent button component with size variants (sm, md, lg)
+  - [x] 8.11b: Consolidate btn-primary, btn-secondary, btn-action styles
+  - [x] 8.11c: Standardize icon button styling
 - [ ] **8.12** Standardize badge/status indicators
   - [ ] 8.12a: Create unified StatusBadge component
   - [ ] 8.12b: Consistent color scheme for connection states
