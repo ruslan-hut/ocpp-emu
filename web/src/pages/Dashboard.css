@@ -85,17 +85,42 @@
   color: #333;
 }
 
-@media (prefers-color-scheme: dark) {
-  .info-section {
-    background: #2a2a2a;
-  }
+/* ==========================================
+   Dark Mode
+   ========================================== */
 
-  .info-item {
-    background: #1a1a1a;
-    color: #e0e0e0;
-  }
+[data-theme="dark"] .dashboard h2 {
+  color: var(--color-primary-400);
+}
 
-  .info-item strong {
-    color: #fff;
-  }
+[data-theme="dark"] .stat-card {
+  background: linear-gradient(135deg, #4c5fd5 0%, #5d3f8a 100%);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .stat-card:hover {
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .stat-detail {
+  border-top-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .info-section {
+  background: var(--bg-surface-1);
+  border: var(--border-width) solid var(--border-default);
+}
+
+[data-theme="dark"] .info-section h3 {
+  color: var(--color-primary-400);
+}
+
+[data-theme="dark"] .info-item {
+  background: var(--bg-surface-2);
+  color: var(--text-secondary);
+  border-left-color: var(--color-primary-400);
+}
+
+[data-theme="dark"] .info-item strong {
+  color: var(--text-primary);
 }

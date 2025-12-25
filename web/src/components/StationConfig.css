@@ -250,101 +250,124 @@
   cursor: not-allowed;
 }
 
-/* Dark Mode */
-@media (prefers-color-scheme: dark) {
-  .station-config-modal {
-    background: #2d2d2d;
-  }
+/* ==========================================
+   Dark Mode
+   ========================================== */
 
-  .station-config-header {
-    border-bottom-color: #444;
-  }
+[data-theme="dark"] .station-config-overlay {
+  background: rgba(0, 0, 0, 0.75);
+}
 
-  .station-config-header h2 {
-    color: #e0e0e0;
-  }
+[data-theme="dark"] .station-config-modal {
+  background: var(--bg-surface-1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
 
-  .config-subtitle {
-    color: #aaa;
-  }
+[data-theme="dark"] .station-config-header {
+  border-bottom-color: var(--border-default);
+}
 
-  .station-config-header .btn-close {
-    background: #3a3a3a;
-    color: #e0e0e0;
-  }
+[data-theme="dark"] .station-config-header h2 {
+  color: var(--text-primary);
+}
 
-  .station-config-header .btn-close:hover {
-    background: #4a4a4a;
-  }
+[data-theme="dark"] .config-subtitle {
+  color: var(--text-muted);
+}
 
-  .station-config-tabs {
-    background: #2d2d2d;
-    border-bottom-color: #444;
-  }
+[data-theme="dark"] .station-config-header .btn-close {
+  background: var(--bg-surface-2);
+  color: var(--text-secondary);
+}
 
-  .tab-btn {
-    color: #aaa;
-  }
+[data-theme="dark"] .station-config-header .btn-close:hover {
+  background: var(--bg-surface-3);
+  color: var(--text-primary);
+}
 
-  .tab-btn:hover {
-    color: #a3b5ff;
-    background: rgba(102, 126, 234, 0.1);
-  }
+[data-theme="dark"] .station-config-tabs {
+  background: var(--bg-surface-1);
+  border-bottom-color: var(--border-default);
+}
 
-  .tab-btn.active {
-    color: #a3b5ff;
-    border-bottom-color: #667eea;
-    background: #2d2d2d;
-  }
+[data-theme="dark"] .tab-btn {
+  color: var(--text-muted);
+}
 
-  .config-section {
-    background: #3a3a3a;
-    border-color: #444;
-  }
+[data-theme="dark"] .tab-btn:hover {
+  color: var(--color-primary-400);
+  background: rgba(102, 126, 234, 0.1);
+}
 
-  .config-section h3 {
-    color: #e0e0e0;
-    border-bottom-color: #444;
-  }
+[data-theme="dark"] .tab-btn.active {
+  color: var(--color-primary-400);
+  border-bottom-color: var(--color-primary-500);
+  background: var(--bg-surface-1);
+}
 
-  .config-note {
-    color: #aaa;
-  }
+[data-theme="dark"] .config-section {
+  background: var(--bg-surface-2);
+  border-color: var(--border-default);
+}
 
-  .config-field label {
-    color: #e0e0e0;
-  }
+[data-theme="dark"] .config-section h3 {
+  color: var(--text-primary);
+  border-bottom-color: var(--border-default);
+}
 
-  .config-field input[type="text"],
-  .config-field input[type="number"],
-  .config-field input[type="password"],
-  .config-field select {
-    background: #2d2d2d;
-    border-color: #444;
-    color: #e0e0e0;
-  }
+[data-theme="dark"] .config-note {
+  color: var(--text-muted);
+}
 
-  .config-field input.disabled-input {
-    background: #1a1a1a;
-    color: #6c757d;
-  }
+[data-theme="dark"] .config-field label {
+  color: var(--text-primary);
+}
 
-  .config-field small {
-    color: #aaa;
-  }
+[data-theme="dark"] .config-field input[type="text"],
+[data-theme="dark"] .config-field input[type="number"],
+[data-theme="dark"] .config-field input[type="password"],
+[data-theme="dark"] .config-field select {
+  background: var(--bg-surface-1);
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
 
-  .station-config-footer {
-    border-top-color: #444;
-    background: #2d2d2d;
-  }
+[data-theme="dark"] .config-field input[type="text"]:focus,
+[data-theme="dark"] .config-field input[type="number"]:focus,
+[data-theme="dark"] .config-field input[type="password"]:focus,
+[data-theme="dark"] .config-field select:focus {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
 
-  .btn-cancel {
-    background: #495057;
-  }
+[data-theme="dark"] .config-field input.disabled-input {
+  background: var(--bg-base);
+  color: var(--text-muted);
+}
 
-  .btn-cancel:hover {
-    background: #3a3f44;
-  }
+[data-theme="dark"] .config-field small {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .station-config-footer {
+  border-top-color: var(--border-default);
+  background: var(--bg-surface-1);
+}
+
+[data-theme="dark"] .btn-cancel {
+  background: var(--color-neutral-600);
+}
+
+[data-theme="dark"] .btn-cancel:hover {
+  background: var(--color-neutral-500);
+}
+
+[data-theme="dark"] .btn-save {
+  background: var(--color-primary-600);
+}
+
+[data-theme="dark"] .btn-save:hover:not(:disabled) {
+  background: var(--color-primary-500);
 }
 
 /* Responsive */

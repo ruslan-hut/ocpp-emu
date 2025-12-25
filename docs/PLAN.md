@@ -550,9 +550,9 @@ See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
   - [ ] 8.3c: Refactor StationForm.css dark mode (already complete)
   - [ ] 8.3d: Refactor MessageCrafter.css dark mode (already complete)
   - [x] 8.3e: Add dark mode to Stations.css
-  - [ ] 8.3f: Add dark mode to StationConfig.css
+  - [x] 8.3f: Add dark mode to StationConfig.css
   - [ ] 8.3g: Add dark mode to ConnectorCard.css
-  - [ ] 8.3h: Add dark mode to Dashboard.css
+  - [x] 8.3h: Add dark mode to Dashboard.css
   - [ ] 8.3i: Add dark mode to TemplatesManager.css
   - [ ] 8.3j: Add dark mode to ImportExport.css
   - [ ] 8.3k: Add dark mode to remaining CSS files (App.css, index.css)
