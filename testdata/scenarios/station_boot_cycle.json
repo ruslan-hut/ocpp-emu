@@ -1,0 +1,70 @@
+{
+  "scenarioId": "station-boot-cycle",
+  "name": "Station Boot Cycle",
+  "description": "Start station, wait for boot, then stop",
+  "version": "1.0",
+  "isBuiltin": true,
+  "tags": ["boot", "basic", "lifecycle"],
+  "steps": [
+    {
+      "type": "api_call",
+      "description": "Start the station",
+      "params": {
+        "action": "start_station"
+      }
+    },
+    {
+      "type": "wait_condition",
+      "description": "Wait for station to connect",
+      "timeout": 30000,
+      "params": {
+        "condition": "station_connected"
+      }
+    },
+    {
+      "type": "wait_for_message",
+      "description": "Wait for BootNotification request",
+      "timeout": 10000,
+      "params": {
+        "direction": "sent",
+        "action": "BootNotification"
+      }
+    },
+    {
+      "type": "wait_for_message",
+      "description": "Wait for BootNotification response",
+      "timeout": 10000,
+      "params": {
+        "direction": "received",
+        "action": "BootNotification"
+      },
+      "validate": {
+        "status": "Accepted"
+      }
+    },
+    {
+      "type": "wait_for_message",
+      "description": "Wait for first Heartbeat",
+      "timeout": 120000,
+      "params": {
+        "direction": "sent",
+        "action": "Heartbeat"
+      }
+    },
+    {
+      "type": "api_call",
+      "description": "Stop the station",
+      "params": {
+        "action": "stop_station"
+      }
+    },
+    {
+      "type": "wait_condition",
+      "description": "Wait for station to disconnect",
+      "timeout": 10000,
+      "params": {
+        "condition": "station_disconnected"
+      }
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "scenarioId": "connector-availability",
+  "name": "Connector Availability Check",
+  "description": "Verify connector status notifications are sent correctly",
+  "version": "1.0",
+  "isBuiltin": true,
+  "tags": ["connector", "status", "basic"],
+  "steps": [
+    {
+      "type": "wait_condition",
+      "description": "Wait for station to connect",
+      "timeout": 30000,
+      "params": {
+        "condition": "station_connected"
+      }
+    },
+    {
+      "type": "wait_for_message",
+      "description": "Wait for BootNotification acceptance",
+      "timeout": 10000,
+      "params": {
+        "direction": "received",
+        "action": "BootNotification"
+      }
+    },
+    {
+      "type": "wait_for_message",
+      "description": "Wait for StatusNotification for connector 1",
+      "timeout": 10000,
+      "params": {
+        "direction": "sent",
+        "action": "StatusNotification"
+      }
+    },
+    {
+      "type": "wait_for_state",
+      "description": "Verify connector 1 is available",
+      "timeout": 5000,
+      "params": {
+        "target": "connector",
+        "connectorId": 1,
+        "state": "Available"
+      }
+    }
+  ]
+}

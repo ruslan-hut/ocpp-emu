@@ -1,0 +1,109 @@
+{
+  "scenarioId": "happy-path-charging",
+  "name": "Happy Path Charging Session",
+  "description": "Complete charging session from boot to transaction end",
+  "version": "1.0",
+  "isBuiltin": true,
+  "tags": ["charging", "happy-path", "basic"],
+  "steps": [
+    {
+      "type": "wait_condition",
+      "description": "Wait for station to connect",
+      "timeout": 30000,
+      "params": {
+        "condition": "station_connected"
+      }
+    },
+    {
+      "type": "wait_for_message",
+      "description": "Wait for BootNotification response",
+      "timeout": 10000,
+      "params": {
+        "direction": "received",
+        "action": "BootNotification"
+      },
+      "validate": {
+        "status": "Accepted"
+      }
+    },
+    {
+      "type": "delay",
+      "description": "Wait for station to stabilize",
+      "params": {
+        "duration": 2000
+      }
+    },
+    {
+      "type": "api_call",
+      "description": "Start charging session",
+      "params": {
+        "action": "start_charging",
+        "connectorId": 1,
+        "idTag": "TEST_TAG_001"
+      }
+    },
+    {
+      "type": "wait_for_message",
+      "description": "Wait for Authorize request",
+      "timeout": 10000,
+      "params": {
+        "direction": "sent",
+        "action": "Authorize"
+      }
+    },
+    {
+      "type": "wait_for_message",
+      "description": "Wait for StartTransaction request",
+      "timeout": 10000,
+      "params": {
+        "direction": "sent",
+        "action": "StartTransaction"
+      }
+    },
+    {
+      "type": "wait_for_state",
+      "description": "Wait for connector to be charging",
+      "timeout": 15000,
+      "params": {
+        "target": "connector",
+        "connectorId": 1,
+        "state": "Charging"
+      }
+    },
+    {
+      "type": "delay",
+      "description": "Simulate charging for 5 seconds",
+      "params": {
+        "duration": 5000
+      }
+    },
+    {
+      "type": "api_call",
+      "description": "Stop charging session",
+      "params": {
+        "action": "stop_charging",
+        "connectorId": 1,
+        "reason": "Local"
+      }
+    },
+    {
+      "type": "wait_for_message",
+      "description": "Wait for StopTransaction request",
+      "timeout": 10000,
+      "params": {
+        "direction": "sent",
+        "action": "StopTransaction"
+      }
+    },
+    {
+      "type": "wait_for_state",
+      "description": "Wait for connector to be available",
+      "timeout": 15000,
+      "params": {
+        "target": "connector",
+        "connectorId": 1,
+        "state": "Available"
+      }
+    }
+  ]
+}

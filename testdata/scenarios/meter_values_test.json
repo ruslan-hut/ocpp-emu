@@ -1,0 +1,74 @@
+{
+  "scenarioId": "meter-values-test",
+  "name": "Meter Values Test",
+  "description": "Start charging and verify meter values are sent",
+  "version": "1.0",
+  "isBuiltin": true,
+  "tags": ["charging", "meter-values", "monitoring"],
+  "steps": [
+    {
+      "type": "wait_condition",
+      "description": "Wait for station to connect",
+      "timeout": 30000,
+      "params": {
+        "condition": "station_connected"
+      }
+    },
+    {
+      "type": "wait_for_message",
+      "description": "Wait for BootNotification acceptance",
+      "timeout": 10000,
+      "params": {
+        "direction": "received",
+        "action": "BootNotification"
+      }
+    },
+    {
+      "type": "api_call",
+      "description": "Start charging session",
+      "params": {
+        "action": "start_charging",
+        "connectorId": 1,
+        "idTag": "METER_TEST_TAG"
+      }
+    },
+    {
+      "type": "wait_for_state",
+      "description": "Wait for charging to start",
+      "timeout": 15000,
+      "params": {
+        "target": "connector",
+        "connectorId": 1,
+        "state": "Charging"
+      }
+    },
+    {
+      "type": "wait_for_message",
+      "description": "Wait for first MeterValues message",
+      "timeout": 120000,
+      "params": {
+        "direction": "sent",
+        "action": "MeterValues"
+      }
+    },
+    {
+      "type": "api_call",
+      "description": "Stop charging session",
+      "params": {
+        "action": "stop_charging",
+        "connectorId": 1,
+        "reason": "Local"
+      }
+    },
+    {
+      "type": "wait_for_state",
+      "description": "Wait for connector to be available",
+      "timeout": 15000,
+      "params": {
+        "target": "connector",
+        "connectorId": 1,
+        "state": "Available"
+      }
+    }
+  ]
+}
