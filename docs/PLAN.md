@@ -546,9 +546,9 @@ See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
 **Dark Theme Implementation:**
 - [ ] **8.3** Consolidate dark theme across all CSS files
   - [x] 8.3a: Create unified dark theme color palette in CSS variables
-  - [ ] 8.3b: Refactor MessageInspector.css dark mode (already complete)
+  - [x] 8.3b: Refactor Messages.css dark mode to use design tokens
   - [ ] 8.3c: Refactor StationForm.css dark mode (already complete)
-  - [ ] 8.3d: Refactor MessageCrafter.css dark mode (already complete)
+  - [x] 8.3d: Refactor MessageCrafter.css dark mode to use design tokens
   - [x] 8.3e: Add dark mode to Stations.css
   - [x] 8.3f: Add dark mode to StationConfig.css
   - [x] 8.3g: Add dark mode to ConnectorCard.css
