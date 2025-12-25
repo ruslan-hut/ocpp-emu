@@ -179,3 +179,96 @@
     border-radius: 0;
   }
 }
+
+/* ==========================================
+   Dark Mode
+   ========================================== */
+
+[data-theme="dark"] .templates-overlay {
+  background-color: rgba(0, 0, 0, 0.75);
+}
+
+[data-theme="dark"] .templates-container {
+  background: var(--bg-surface-1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .templates-header {
+  border-bottom-color: var(--border-default);
+}
+
+[data-theme="dark"] .templates-header h2 {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .templates-actions {
+  border-bottom-color: var(--border-default);
+}
+
+[data-theme="dark"] .template-card {
+  background: var(--bg-surface-1);
+  border-color: var(--border-default);
+}
+
+[data-theme="dark"] .template-card:hover {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
+}
+
+[data-theme="dark"] .template-card.selected {
+  border-color: var(--color-primary-500);
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+[data-theme="dark"] .template-header h3 {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .template-protocol {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: var(--color-primary-400);
+}
+
+[data-theme="dark"] .template-description {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .template-details {
+  background-color: var(--bg-surface-2);
+}
+
+[data-theme="dark"] .detail-item {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .detail-label {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-use {
+  background-color: var(--color-primary-600);
+}
+
+[data-theme="dark"] .btn-use:hover {
+  background-color: var(--color-primary-500);
+}
+
+[data-theme="dark"] .btn-export {
+  background-color: var(--color-success-600);
+}
+
+[data-theme="dark"] .btn-export:hover {
+  background-color: var(--color-success-500);
+}
+
+[data-theme="dark"] .btn-delete {
+  background-color: var(--color-danger-600);
+}
+
+[data-theme="dark"] .btn-delete:hover {
+  background-color: var(--color-danger-500);
+}
+
+[data-theme="dark"] .empty-templates {
+  color: var(--text-muted);
+}

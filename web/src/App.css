@@ -36,3 +36,23 @@
   border-radius: 4px;
   background-color: rgba(68, 255, 68, 0.1);
 }
+
+/* ==========================================
+   Dark Mode
+   ========================================== */
+
+[data-theme="dark"] .loading {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .error {
+  color: var(--color-danger-400);
+  border-color: var(--color-danger-600);
+  background-color: var(--color-danger-900);
+}
+
+[data-theme="dark"] .success {
+  color: var(--color-success-400);
+  border-color: var(--color-success-600);
+  background-color: var(--color-success-900);
+}
