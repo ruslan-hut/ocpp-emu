@@ -37,13 +37,14 @@ type Manager struct {
 
 // Station represents a managed charging station instance
 type Station struct {
-	Config         Config
-	StateMachine   *StateMachine
-	RuntimeState   RuntimeState
-	SessionManager *SessionManager   // Enhanced session manager for charging
-	DeviceModel    *v201.DeviceModel // OCPP 2.0.1 device model
-	mu             sync.RWMutex
-	lastSync       time.Time
+	Config           Config
+	StateMachine     *StateMachine
+	RuntimeState     RuntimeState
+	SessionManager   *SessionManager        // Enhanced session manager for charging
+	DeviceModel      *v201.DeviceModel      // OCPP 2.0.1 device model
+	CertificateStore *v201.CertificateStore // ISO 15118 certificate management
+	mu               sync.RWMutex
+	lastSync         time.Time
 
 	// Heartbeat management
 	heartbeatCancel context.CancelFunc
@@ -579,6 +580,10 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		case "StatusNotification":
 			go m.sendAllConnectorStatus(stationID, station)
 			return &v201.TriggerMessageResponse{Status: "Accepted"}, nil
+		case "SignCertificate":
+			// Generate and send SignCertificate request for charging station certificate
+			go m.sendSignCertificateRequest(stationID, station, v201.CertificateUseChargingStationCertificate)
+			return &v201.TriggerMessageResponse{Status: "Accepted"}, nil
 		default:
 			return &v201.TriggerMessageResponse{Status: "NotImplemented"}, nil
 		}
@@ -618,15 +623,40 @@ func (m *Manager) setupV201HandlerCallbacks() {
 
 	// ==================== Certificate Management Handlers ====================
 
-	// CertificateSigned handler - CSMS sends signed certificate
+	// CertificateSigned handler - CSMS sends signed certificate after CSR
 	m.v201Handler.OnCertificateSigned = func(stationID string, req *v201.CertificateSignedRequest) (*v201.CertificateSignedResponse, error) {
 		m.logger.Info("Handling CertificateSigned (2.0.1)", "stationId", stationID, "certType", req.CertificateType)
 
-		// TODO: Implement actual certificate installation logic
-		// For now, accept the certificate
-		return &v201.CertificateSignedResponse{
-			Status: "Accepted",
-		}, nil
+		// Get station to access certificate store
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists || station.CertificateStore == nil {
+			return &v201.CertificateSignedResponse{Status: "Rejected"}, nil
+		}
+
+		// Determine certificate type
+		certType := v201.CertificateUseChargingStationCertificate
+		if req.CertificateType == "V2GCertificate" {
+			certType = v201.CertificateUseV2GCertificate
+		}
+
+		// Check if we have a pending CSR for this certificate type
+		if !station.CertificateStore.HasPendingCSR(certType) {
+			m.logger.Warn("No pending CSR for certificate type", "certType", certType)
+			return &v201.CertificateSignedResponse{Status: "Rejected"}, nil
+		}
+
+		// Install the signed certificate
+		status, err := station.CertificateStore.InstallSignedCertificate(certType, req.CertificateChain)
+		if err != nil {
+			m.logger.Error("Failed to install signed certificate", "error", err)
+			return &v201.CertificateSignedResponse{Status: status}, nil
+		}
+
+		m.logger.Info("Installed signed certificate", "stationId", stationID, "certType", certType)
+		return &v201.CertificateSignedResponse{Status: status}, nil
 	}
 
 	// DeleteCertificate handler
@@ -635,34 +665,70 @@ func (m *Manager) setupV201HandlerCallbacks() {
 			"hashAlgorithm", req.CertificateHashData.HashAlgorithm,
 			"serialNumber", req.CertificateHashData.SerialNumber)
 
-		// TODO: Implement actual certificate deletion logic
-		// For now, return NotFound as we don't have certificate storage yet
-		return &v201.DeleteCertificateResponse{
-			Status: "NotFound",
-		}, nil
+		// Get station to access certificate store
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists || station.CertificateStore == nil {
+			return &v201.DeleteCertificateResponse{Status: "Failed"}, nil
+		}
+
+		// Delete the certificate
+		status := station.CertificateStore.DeleteCertificate(req.CertificateHashData)
+		m.logger.Info("Deleted certificate", "stationId", stationID, "status", status, "serialNumber", req.CertificateHashData.SerialNumber)
+
+		return &v201.DeleteCertificateResponse{Status: string(status)}, nil
 	}
 
 	// GetInstalledCertificateIds handler
 	m.v201Handler.OnGetInstalledCertificateIds = func(stationID string, req *v201.GetInstalledCertificateIdsRequest) (*v201.GetInstalledCertificateIdsResponse, error) {
 		m.logger.Info("Handling GetInstalledCertificateIds (2.0.1)", "stationId", stationID, "types", req.CertificateType)
 
-		// TODO: Implement actual certificate enumeration logic
-		// For now, return empty list with NotFound status
+		// Get station to access certificate store
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists || station.CertificateStore == nil {
+			return &v201.GetInstalledCertificateIdsResponse{
+				Status:                   "NotFound",
+				CertificateHashDataChain: []v201.CertificateHashDataChainType{},
+			}, nil
+		}
+
+		// Get installed certificate IDs
+		status, certChain := station.CertificateStore.GetInstalledCertificateIds(req.CertificateType)
+		m.logger.Info("Got installed certificates", "stationId", stationID, "status", status, "count", len(certChain))
+
 		return &v201.GetInstalledCertificateIdsResponse{
-			Status:                   "NotFound",
-			CertificateHashDataChain: []v201.CertificateHashDataChainType{},
+			Status:                   string(status),
+			CertificateHashDataChain: certChain,
 		}, nil
 	}
 
-	// InstallCertificate handler
+	// InstallCertificate handler - for root certificates
 	m.v201Handler.OnInstallCertificate = func(stationID string, req *v201.InstallCertificateRequest) (*v201.InstallCertificateResponse, error) {
 		m.logger.Info("Handling InstallCertificate (2.0.1)", "stationId", stationID, "certType", req.CertificateType)
 
-		// TODO: Implement actual certificate installation logic
-		// For now, accept the certificate
-		return &v201.InstallCertificateResponse{
-			Status: "Accepted",
-		}, nil
+		// Get station to access certificate store
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists || station.CertificateStore == nil {
+			return &v201.InstallCertificateResponse{Status: "Rejected"}, nil
+		}
+
+		// Install the certificate
+		status, err := station.CertificateStore.InstallCertificate(v201.CertificateUseType(req.CertificateType), req.Certificate)
+		if err != nil {
+			m.logger.Error("Failed to install certificate", "error", err)
+			return &v201.InstallCertificateResponse{Status: string(status)}, nil
+		}
+
+		m.logger.Info("Installed certificate", "stationId", stationID, "certType", req.CertificateType)
+		return &v201.InstallCertificateResponse{Status: string(status)}, nil
 	}
 }
 
@@ -910,11 +976,15 @@ func (m *Manager) LoadStations(ctx context.Context) error {
 			deviceModel.AddConnectorComponent(conn.ID, 1, conn.Type)
 		}
 
+		// Create certificate store for ISO 15118 support
+		certStore := v201.NewCertificateStore(config.StationID, config.Vendor, "US")
+
 		station := &Station{
 			Config:           config,
 			StateMachine:     NewStateMachine(),
 			SessionManager:   sessionManager,
 			DeviceModel:      deviceModel,
+			CertificateStore: certStore,
 			pendingRequests:  make(map[string]string),
 			pendingStartTx:   make(map[string]int),
 			pendingStartTags: make(map[string]string),
@@ -1349,6 +1419,7 @@ func (m *Manager) AddStation(ctx context.Context, config Config) error {
 		Config:           config,
 		StateMachine:     NewStateMachine(),
 		DeviceModel:      v201.NewDeviceModel(),
+		CertificateStore: v201.NewCertificateStore(config.StationID, config.Vendor, "US"),
 		pendingRequests:  make(map[string]string),
 		pendingStartTx:   make(map[string]int),
 		pendingStartTags: make(map[string]string),
@@ -2571,6 +2642,64 @@ func (m *Manager) sendStatusNotification(stationID string, connectorID int, stat
 		"stationId", stationID,
 		"connectorId", connectorID,
 		"status", status,
+		"uniqueId", call.UniqueID,
+	)
+
+	// Store sent message
+	go m.storeMessage(stationID, "sent", call)
+}
+
+// sendSignCertificateRequest generates a CSR and sends SignCertificate request to CSMS
+func (m *Manager) sendSignCertificateRequest(stationID string, station *Station, certType v201.CertificateUseType) {
+	if station.CertificateStore == nil {
+		m.logger.Error("Certificate store not initialized", "stationId", stationID)
+		return
+	}
+
+	// Generate CSR
+	csrPEM, err := station.CertificateStore.GenerateCSR(certType)
+	if err != nil {
+		m.logger.Error("Failed to generate CSR", "stationId", stationID, "error", err)
+		return
+	}
+
+	// Determine certificate type string for OCPP message
+	certTypeStr := "ChargingStationCertificate"
+	if certType == v201.CertificateUseV2GCertificate {
+		certTypeStr = "V2GCertificate"
+	}
+
+	// Create SignCertificate request
+	req := &v201.SignCertificateRequest{
+		Csr:             csrPEM,
+		CertificateType: certTypeStr,
+	}
+
+	call, err := ocpp.NewCall(string(v201.ActionSignCertificate), req)
+	if err != nil {
+		m.logger.Error("Failed to create SignCertificate request", "stationId", stationID, "error", err)
+		return
+	}
+
+	// Track pending request
+	station.pendingMu.Lock()
+	station.pendingRequests[call.UniqueID] = string(v201.ActionSignCertificate)
+	station.pendingMu.Unlock()
+
+	data, err := call.ToBytes()
+	if err != nil {
+		m.logger.Error("Failed to marshal SignCertificate", "stationId", stationID, "error", err)
+		return
+	}
+
+	if err := m.connManager.SendMessage(stationID, data); err != nil {
+		m.logger.Error("Failed to send SignCertificate", "stationId", stationID, "error", err)
+		return
+	}
+
+	m.logger.Info("Sent SignCertificate request",
+		"stationId", stationID,
+		"certType", certTypeStr,
 		"uniqueId", call.UniqueID,
 	)
 

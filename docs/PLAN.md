@@ -451,7 +451,7 @@ ocpp-emu/
   - [x] 4.1e: Certificate management messages
   - [x] 4.1f: Security event notifications
 - [x] **4.2** Implement device model system
-- [ ] **4.3** Add ISO 15118 certificate handling
+- [x] **4.3** Add ISO 15118 certificate handling
 
 **Frontend Updates:**
 - [ ] **4.4** Update UI to support OCPP 2.0.1 specific features
@@ -1439,7 +1439,23 @@ db.messages.createIndex(
   - Integrated DeviceModel into Station struct
   - Updated GetVariables/SetVariables handlers to use device model
   - Station initialization now configures device model with station info and connectors
-  - Remaining: 4.3 (ISO 15118 certificates), 4.4-4.5 (frontend updates)
+- v1.9: Implemented ISO 15118 certificate handling (task 4.3)
+  - Created `internal/ocpp/v201/certificates.go` with full certificate management:
+    - CertificateStore for managing certificates by type (V2G, MO, CSMS, Manufacturer root certs)
+    - StoredCertificate with PEM storage, hash data, and private key support
+    - CSR generation (ECDSA P-256) for SignCertificate requests
+    - Certificate installation, deletion, and retrieval
+    - Certificate chain validation against installed root certificates
+    - Hash data computation (SHA256) for certificate identification
+  - Added CertificateStore to Station struct with initialization
+  - Updated certificate handlers to use CertificateStore:
+    - InstallCertificate: installs root certificates
+    - CertificateSigned: installs signed certificates after CSR
+    - DeleteCertificate: removes certificates by hash
+    - GetInstalledCertificateIds: returns installed certificates
+  - Added SignCertificate trigger in TriggerMessage handler
+  - Added sendSignCertificateRequest method for CSR generation
+  - Phase 4 backend complete, remaining: 4.4-4.5 (frontend updates)
 - v1.6: Phase 3 completed
   - Implemented MongoDB aggregation pipelines for analytics (3.8)
     - Message statistics (by action, station, time)
