@@ -583,10 +583,10 @@ See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
   - [x] 8.8b: Fixed filter bar at top
   - [x] 8.8c: Resizable split panels
   - [x] 8.8d: Compact message list rows
-- [ ] **8.9** Redesign Dashboard for desktop
-  - [ ] 8.9a: Multi-column grid layout for stats cards
-  - [ ] 8.9b: Side-by-side station overview and activity feed
-  - [ ] 8.9c: Compact statistics widgets
+- [x] **8.9** Redesign Dashboard for desktop
+  - [x] 8.9a: Multi-column grid layout for stats cards
+  - [x] 8.9b: Side-by-side station overview and activity feed
+  - [x] 8.9c: Compact statistics widgets
 - [ ] **8.10** Redesign Message Crafter for desktop
   - [ ] 8.10a: Three-column layout (station/settings, editor, preview)
   - [ ] 8.10b: Compact form controls
