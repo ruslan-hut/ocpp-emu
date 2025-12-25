@@ -19,6 +19,9 @@ type MessageBroadcaster interface {
 	BroadcastMessageEntry(entry MessageEntry)
 }
 
+// MessageListener is a callback function for message notifications
+type MessageListener func(entry MessageEntry)
+
 // MessageLogger handles OCPP message logging with buffering and real-time streaming
 type MessageLogger struct {
 	db            *storage.MongoDBClient
@@ -31,6 +34,10 @@ type MessageLogger struct {
 	config        LoggerConfig
 	stats         LoggerStats
 	statsMu       sync.RWMutex
+
+	// Listeners for scenario execution and other components
+	listeners   map[string]MessageListener
+	listenersMu sync.RWMutex
 }
 
 // LoggerConfig represents the message logger configuration
@@ -101,6 +108,7 @@ func NewMessageLogger(
 		ctx:           ctx,
 		cancel:        cancel,
 		config:        config,
+		listeners:     make(map[string]MessageListener),
 	}
 
 	return ml
@@ -110,6 +118,36 @@ func NewMessageLogger(
 func (ml *MessageLogger) SetBroadcaster(broadcaster MessageBroadcaster) {
 	ml.broadcaster = broadcaster
 	ml.logger.Info("Message broadcaster set for real-time streaming")
+}
+
+// AddListener registers a new message listener and returns its ID
+func (ml *MessageLogger) AddListener(callback MessageListener) string {
+	ml.listenersMu.Lock()
+	defer ml.listenersMu.Unlock()
+
+	id := fmt.Sprintf("listener_%d", len(ml.listeners)+1)
+	ml.listeners[id] = callback
+	ml.logger.Debug("Added message listener", "id", id)
+	return id
+}
+
+// RemoveListener unregisters a message listener by its ID
+func (ml *MessageLogger) RemoveListener(id string) {
+	ml.listenersMu.Lock()
+	defer ml.listenersMu.Unlock()
+
+	delete(ml.listeners, id)
+	ml.logger.Debug("Removed message listener", "id", id)
+}
+
+// notifyListeners sends a message entry to all registered listeners
+func (ml *MessageLogger) notifyListeners(entry MessageEntry) {
+	ml.listenersMu.RLock()
+	defer ml.listenersMu.RUnlock()
+
+	for _, listener := range ml.listeners {
+		go listener(entry)
+	}
 }
 
 // Start begins the message logging process
@@ -245,6 +283,9 @@ func (ml *MessageLogger) LogMessage(
 	if ml.broadcaster != nil {
 		ml.broadcaster.BroadcastMessageEntry(entry)
 	}
+
+	// Notify registered listeners (for scenario execution, etc.)
+	ml.notifyListeners(entry)
 
 	select {
 	case ml.messageBuffer <- entry:

@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Stations from './pages/Stations'
 import Messages from './pages/Messages'
 import MessageCrafter from './pages/MessageCrafter'
+import ScenarioRunner from './pages/ScenarioRunner'
 import './App.css'
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
           <Route path="/stations" element={<Stations />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/message-crafter" element={<MessageCrafter />} />
+          <Route path="/scenarios" element={<ScenarioRunner />} />
         </Routes>
       </Layout>
     </Router>

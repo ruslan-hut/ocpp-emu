@@ -286,25 +286,25 @@ function Stations() {
 
       <div className="station-actions">
         {station.runtimeState?.connectionStatus === 'connected' ? (
-          <button className="btn-action btn-stop" onClick={() => handleStop(station.stationId)}>
+          <button className="btn btn-action btn-stop" onClick={() => handleStop(station.stationId)}>
             Stop
           </button>
         ) : (
           <button
-            className="btn-action btn-start"
+            className="btn btn-action btn-start"
             onClick={() => handleStart(station.stationId)}
             disabled={!station.enabled}
           >
             Start
           </button>
         )}
-        <button className="btn-action btn-connectors" onClick={() => handleViewConnectors(station.stationId)}>
+        <button className="btn btn-action btn-connectors" onClick={() => handleViewConnectors(station.stationId)}>
           Connectors
         </button>
-        <button className="btn-action btn-config" onClick={() => handleConfigureStation(station)}>
+        <button className="btn btn-action btn-config" onClick={() => handleConfigureStation(station)}>
           Configure
         </button>
-        <button className="btn-action btn-edit" onClick={() => handleEditStation(station)}>
+        <button className="btn btn-action btn-edit" onClick={() => handleEditStation(station)}>
           Edit
         </button>
       </div>
@@ -344,25 +344,25 @@ function Stations() {
               <td className="cell-connectors">{station.connectors?.length || 0}</td>
               <td className="cell-actions">
                 {station.runtimeState?.connectionStatus === 'connected' ? (
-                  <button className="btn-action btn-action--sm btn-stop" onClick={() => handleStop(station.stationId)}>
+                  <button className="btn btn-action btn-action--sm btn-stop" onClick={() => handleStop(station.stationId)}>
                     Stop
                   </button>
                 ) : (
                   <button
-                    className="btn-action btn-action--sm btn-start"
+                    className="btn btn-action btn-action--sm btn-start"
                     onClick={() => handleStart(station.stationId)}
                     disabled={!station.enabled}
                   >
                     Start
                   </button>
                 )}
-                <button className="btn-action btn-action--sm btn-connectors" onClick={() => handleViewConnectors(station.stationId)}>
+                <button className="btn btn-action btn-action--sm btn-connectors" onClick={() => handleViewConnectors(station.stationId)}>
                   Connectors
                 </button>
-                <button className="btn-action btn-action--sm btn-config" onClick={() => handleConfigureStation(station)}>
+                <button className="btn btn-action btn-action--sm btn-config" onClick={() => handleConfigureStation(station)}>
                   Config
                 </button>
-                <button className="btn-action btn-action--sm btn-edit" onClick={() => handleEditStation(station)}>
+                <button className="btn btn-action btn-action--sm btn-edit" onClick={() => handleEditStation(station)}>
                   Edit
                 </button>
               </td>
@@ -431,13 +431,13 @@ function Stations() {
               </button>
             </div>
           )}
-          <button className="btn-secondary btn-secondary--sm" onClick={() => setShowTemplates(true)}>
+          <button className="btn btn-secondary btn-secondary--sm" onClick={() => setShowTemplates(true)}>
             Templates
           </button>
-          <button className="btn-secondary btn-secondary--sm" onClick={() => setShowImportExport(true)}>
+          <button className="btn btn-secondary btn-secondary--sm" onClick={() => setShowImportExport(true)}>
             Import/Export
           </button>
-          <button className="btn-primary btn-primary--sm" onClick={handleCreateStation}>
+          <button className="btn btn-primary btn-primary--sm" onClick={handleCreateStation}>
             + Add Station
           </button>
         </div>
@@ -448,13 +448,13 @@ function Stations() {
           <h3>No stations configured</h3>
           <p>Get started by creating your first charging station</p>
           <div className="empty-state-actions">
-            <button className="btn-primary" onClick={handleCreateStation}>
+            <button className="btn btn-primary" onClick={handleCreateStation}>
               Create New Station
             </button>
-            <button className="btn-secondary" onClick={() => setShowTemplates(true)}>
+            <button className="btn btn-secondary" onClick={() => setShowTemplates(true)}>
               Use Template
             </button>
-            <button className="btn-secondary" onClick={() => setShowImportExport(true)}>
+            <button className="btn btn-secondary" onClick={() => setShowImportExport(true)}>
               Import Stations
             </button>
           </div>

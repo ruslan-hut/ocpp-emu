@@ -68,4 +68,24 @@ export const connectionsAPI = {
   getAll: () => api.get('/api/connections'),
 }
 
+// Scenarios API
+export const scenariosAPI = {
+  getAll: (params) => api.get('/api/scenarios', { params }),
+  getById: (id) => api.get(`/api/scenarios/${id}`),
+  create: (scenario) => api.post('/api/scenarios', scenario),
+  update: (id, scenario) => api.put(`/api/scenarios/${id}`, scenario),
+  delete: (id) => api.delete(`/api/scenarios/${id}`),
+  execute: (id, stationId) => api.post(`/api/scenarios/${id}/execute`, { stationId }),
+}
+
+// Executions API
+export const executionsAPI = {
+  getAll: (params) => api.get('/api/executions', { params }),
+  getById: (id) => api.get(`/api/executions/${id}`),
+  pause: (id) => api.post(`/api/executions/${id}/pause`),
+  resume: (id) => api.post(`/api/executions/${id}/resume`),
+  stop: (id) => api.post(`/api/executions/${id}/stop`),
+  delete: (id) => api.delete(`/api/executions/${id}`),
+}
+
 export default api

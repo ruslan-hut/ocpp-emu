@@ -185,6 +185,39 @@ type ChangeEventMessage struct {
 	Timestamp     time.Time              `json:"timestamp"`
 }
 
+// ScenarioProgressMessage represents a scenario execution progress update
+type ScenarioProgressMessage struct {
+	Type     string      `json:"type"`
+	Progress interface{} `json:"progress"`
+}
+
+// BroadcastScenarioProgress broadcasts scenario execution progress to all clients
+func (mb *MessageBroadcaster) BroadcastScenarioProgress(progress interface{}) {
+	msg := ScenarioProgressMessage{
+		Type:     "scenario_progress",
+		Progress: progress,
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		mb.logger.Error("Failed to marshal scenario progress", "error", err)
+		return
+	}
+
+	mb.clientsMu.RLock()
+	defer mb.clientsMu.RUnlock()
+
+	for client := range mb.clients {
+		select {
+		case client.send <- data:
+			// Message sent
+		default:
+			// Client buffer full, skip
+			mb.incrementDropped()
+		}
+	}
+}
+
 // BroadcastChange broadcasts a database change event to all connected clients
 func (mb *MessageBroadcaster) BroadcastChange(category string, event interface{}) {
 	var changeMsg ChangeEventMessage

@@ -16,6 +16,7 @@ import (
 	"github.com/ruslanhut/ocpp-emu/internal/config"
 	"github.com/ruslanhut/ocpp-emu/internal/connection"
 	"github.com/ruslanhut/ocpp-emu/internal/logging"
+	"github.com/ruslanhut/ocpp-emu/internal/scenario"
 	"github.com/ruslanhut/ocpp-emu/internal/station"
 	"github.com/ruslanhut/ocpp-emu/internal/storage"
 )
@@ -495,6 +496,39 @@ func main() {
 	mux.HandleFunc("/api/analytics/dashboard", analyticsHandler.GetDashboardStats)
 	logger.Info("Analytics endpoints registered")
 
+	// Initialize Scenario Runner
+	scenarioStorage, err := scenario.NewStorage(mongoClient.GetDatabase(), logger)
+	if err != nil {
+		logger.Error("Failed to initialize scenario storage", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	stationController := scenario.NewStationManagerController(stationManager)
+	scenarioRunner := scenario.NewRunner(
+		scenarioStorage,
+		stationController,
+		messageLogger,
+		messageBroadcaster,
+		logger,
+	)
+	logger.Info("Scenario runner initialized")
+
+	// Load builtin scenarios
+	scenarioLoader := scenario.NewLoader(scenarioStorage, logger)
+	if err := scenarioLoader.LoadBuiltinScenarios(ctx, "testdata/scenarios"); err != nil {
+		logger.Warn("Failed to load builtin scenarios", slog.String("error", err.Error()))
+	}
+
+	// Scenario API Handler
+	scenarioHandler := api.NewScenarioHandler(scenarioRunner, scenarioStorage, logger)
+
+	// Scenario endpoints
+	mux.HandleFunc("/api/scenarios", scenarioHandler.HandleScenarios)
+	mux.HandleFunc("/api/scenarios/", scenarioHandler.HandleScenario)
+	mux.HandleFunc("/api/executions", scenarioHandler.HandleExecutions)
+	mux.HandleFunc("/api/executions/", scenarioHandler.HandleExecutions)
+	logger.Info("Scenario endpoints registered")
+
 	// Initialize Change Stream Watcher for real-time updates
 	changeStreamWatcher := storage.NewChangeStreamWatcher(mongoClient, logger)
 
@@ -551,6 +585,13 @@ func main() {
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("Server forced to shutdown", slog.String("error", err.Error()))
+	}
+
+	// Shutdown scenario runner
+	if err := scenarioRunner.Shutdown(shutdownCtx); err != nil {
+		logger.Error("Failed to shutdown scenario runner", slog.String("error", err.Error()))
+	} else {
+		logger.Info("Scenario runner shutdown complete")
 	}
 
 	// Shutdown station manager (stops all stations)

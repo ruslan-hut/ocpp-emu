@@ -30,6 +30,9 @@ function Layout({ children }) {
             <Link to="/message-crafter" className={`nav-link ${isActive('/message-crafter')}`}>
               Message Crafter
             </Link>
+            <Link to="/scenarios" className={`nav-link ${isActive('/scenarios')}`}>
+              Scenarios
+            </Link>
           </nav>
           <div className="header-actions">
             <ThemeToggle />
