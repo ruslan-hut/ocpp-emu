@@ -173,6 +173,28 @@
   color: #6b7280;
 }
 
+/* Protocol Badges */
+.protocol-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.protocol-badge.ocpp16 {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #90caf9;
+}
+
+.protocol-badge.ocpp201 {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
 .connector-types {
   color: #6b7280;
   font-size: 0.75rem;

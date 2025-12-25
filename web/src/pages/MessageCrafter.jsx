@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import Editor from '@monaco-editor/react'
 import { stationsAPI } from '../services/api'
 import TemplateLibrary from '../components/TemplateLibrary'
-import { ocppValidator, ValidationMode } from '../services/ocppValidator'
+import { ocppValidator, ValidationMode, OCPPProtocol } from '../services/ocppValidator'
 import './MessageCrafter.css'
 
 function MessageCrafter() {
@@ -22,7 +22,7 @@ function MessageCrafter() {
   const editorRef = useRef(null)
 
   // OCPP 1.6 message templates
-  const messageTemplates = {
+  const ocpp16Templates = {
     Heartbeat: '{}',
     BootNotification: JSON.stringify({
       chargePointVendor: "VendorName",
@@ -67,6 +67,128 @@ function MessageCrafter() {
     }, null, 2)
   }
 
+  // OCPP 2.0.1 message templates
+  const ocpp201Templates = {
+    Heartbeat: '{}',
+    BootNotification: JSON.stringify({
+      reason: "PowerUp",
+      chargingStation: {
+        model: "ModelX",
+        vendorName: "VendorName",
+        serialNumber: "SN123456",
+        firmwareVersion: "1.0.0"
+      }
+    }, null, 2),
+    StatusNotification: JSON.stringify({
+      timestamp: new Date().toISOString(),
+      connectorStatus: "Available",
+      evseId: 1,
+      connectorId: 1
+    }, null, 2),
+    Authorize: JSON.stringify({
+      idToken: {
+        idToken: "TAG123456",
+        type: "ISO14443"
+      }
+    }, null, 2),
+    TransactionEvent: JSON.stringify({
+      eventType: "Started",
+      timestamp: new Date().toISOString(),
+      triggerReason: "Authorized",
+      seqNo: 0,
+      transactionInfo: {
+        transactionId: "TX-" + Date.now(),
+        chargingState: "Charging"
+      },
+      idToken: {
+        idToken: "TAG123456",
+        type: "ISO14443"
+      },
+      evse: {
+        id: 1,
+        connectorId: 1
+      }
+    }, null, 2),
+    NotifyReport: JSON.stringify({
+      requestId: 1,
+      generatedAt: new Date().toISOString(),
+      seqNo: 0,
+      reportData: [{
+        component: {
+          name: "ChargingStation"
+        },
+        variable: {
+          name: "Model"
+        },
+        variableAttribute: [{
+          type: "Actual",
+          value: "ModelX",
+          mutability: "ReadOnly"
+        }]
+      }]
+    }, null, 2),
+    GetVariables: JSON.stringify({
+      getVariableData: [{
+        component: {
+          name: "ChargingStation"
+        },
+        variable: {
+          name: "Model"
+        },
+        attributeType: "Actual"
+      }]
+    }, null, 2),
+    SetVariables: JSON.stringify({
+      setVariableData: [{
+        component: {
+          name: "ChargingStation"
+        },
+        variable: {
+          name: "AllowNewSessionsPendingFirmwareUpdate"
+        },
+        attributeType: "Actual",
+        attributeValue: "true"
+      }]
+    }, null, 2),
+    SignCertificate: JSON.stringify({
+      csr: "-----BEGIN CERTIFICATE REQUEST-----\nMIIBIjANBgkqh...\n-----END CERTIFICATE REQUEST-----",
+      certificateType: "ChargingStationCertificate"
+    }, null, 2),
+    Get15118EVCertificate: JSON.stringify({
+      iso15118SchemaVersion: "urn:iso:15118:2:2013:MsgDef",
+      action: "Install",
+      exiRequest: "base64-encoded-exi-request"
+    }, null, 2),
+    SecurityEventNotification: JSON.stringify({
+      type: "FirmwareUpdated",
+      timestamp: new Date().toISOString(),
+      techInfo: "Firmware updated to version 1.1.0"
+    }, null, 2),
+    DataTransfer: JSON.stringify({
+      vendorId: "VendorName",
+      messageId: "CustomMessage",
+      data: "test data"
+    }, null, 2),
+    LogStatusNotification: JSON.stringify({
+      status: "Uploaded",
+      requestId: 1
+    }, null, 2),
+    FirmwareStatusNotification: JSON.stringify({
+      status: "Installed",
+      requestId: 1
+    }, null, 2)
+  }
+
+  // Get selected station object
+  const selectedStationObj = stations.find(s => s.stationId === selectedStation)
+
+  // Get protocol version from selected station
+  const protocolVersion = selectedStationObj?.protocolVersion || 'ocpp1.6'
+  const isOcpp201 = protocolVersion === 'ocpp2.0.1' || protocolVersion === 'ocpp2.1'
+
+  // Get templates based on protocol version
+  const messageTemplates = isOcpp201 ? ocpp201Templates : ocpp16Templates
+
   useEffect(() => {
     fetchStations()
   }, [])
@@ -81,7 +203,20 @@ function MessageCrafter() {
     if (messageTemplates[action]) {
       setPayload(messageTemplates[action])
     }
-  }, [action])
+  }, [action, messageTemplates])
+
+  // Reset action to first available when station changes (protocol might differ)
+  useEffect(() => {
+    const availableActions = Object.keys(messageTemplates)
+    if (!availableActions.includes(action)) {
+      setAction(availableActions[0] || 'Heartbeat')
+    }
+  }, [selectedStation, messageTemplates])
+
+  // Update validator protocol when station changes
+  useEffect(() => {
+    ocppValidator.setProtocol(protocolVersion)
+  }, [protocolVersion])
 
   const fetchStations = async () => {
     try {
@@ -250,7 +385,6 @@ function MessageCrafter() {
   }
 
   const connectedStations = stations.filter(s => s.runtimeState?.connectionStatus === 'connected')
-  const selectedStationObj = stations.find(s => s.stationId === selectedStation)
 
   return (
     <div className="message-crafter">
@@ -288,12 +422,19 @@ function MessageCrafter() {
             <div className="station-info">
               <div className="info-row">
                 <span className="label">Protocol:</span>
-                <span className="value">{selectedStationObj.protocolVersion}</span>
+                <span className={`protocol-badge ${isOcpp201 ? 'ocpp201' : 'ocpp16'}`}>
+                  {protocolVersion.toUpperCase()}
+                </span>
               </div>
               <div className="info-row">
                 <span className="label">Status:</span>
                 <span className="value status-connected">Connected</span>
               </div>
+              {isOcpp201 && (
+                <div className="protocol-note">
+                  Using OCPP 2.0.1 message templates (TransactionEvent, IdToken, etc.)
+                </div>
+              )}
             </div>
           )}
 

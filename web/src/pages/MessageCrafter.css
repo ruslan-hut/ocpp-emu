@@ -109,6 +109,38 @@
   color: #28a745;
 }
 
+/* Protocol Badges */
+.protocol-badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.protocol-badge.ocpp16 {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #90caf9;
+}
+
+.protocol-badge.ocpp201 {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.protocol-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #e8f5e9;
+  border-left: 3px solid #4caf50;
+  border-radius: 0 4px 4px 0;
+  font-size: 13px;
+  color: #2e7d32;
+}
+
 .warning {
   padding: 12px;
   background: #fff3cd;

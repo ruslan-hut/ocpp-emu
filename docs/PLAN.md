@@ -454,8 +454,8 @@ ocpp-emu/
 - [x] **4.3** Add ISO 15118 certificate handling
 
 **Frontend Updates:**
-- [ ] **4.4** Update UI to support OCPP 2.0.1 specific features
-- [ ] **4.5** Add protocol version selector per station
+- [x] **4.4** Update UI to support OCPP 2.0.1 specific features
+- [x] **4.5** Add protocol version selector per station
 
 **Deliverable**: Full OCPP 2.0.1 support with device model
 
@@ -1455,7 +1455,21 @@ db.messages.createIndex(
     - GetInstalledCertificateIds: returns installed certificates
   - Added SignCertificate trigger in TriggerMessage handler
   - Added sendSignCertificateRequest method for CSR generation
-  - Phase 4 backend complete, remaining: 4.4-4.5 (frontend updates)
+- v2.0: Implemented OCPP 2.0.1 frontend updates (tasks 4.4-4.5)
+  - Updated MessageCrafter with protocol-aware templates:
+    - OCPP 2.0.1 templates: BootNotification, TransactionEvent, StatusNotification, Authorize, GetVariables, SetVariables, SignCertificate, Get15118EVCertificate, SecurityEventNotification, etc.
+    - Templates switch automatically based on selected station's protocol
+    - Protocol badge shows current protocol version
+  - Updated OCPP validator service for 2.0.1:
+    - Added OCPP201_SCHEMAS with validation for all new message types
+    - Protocol-aware validation (setProtocol method)
+    - Nested object validation for chargingStation, idToken, transactionInfo, evse
+    - Enum validation for OCPP 2.0.1 status codes
+  - Added protocol badges throughout UI:
+    - Color-coded badges (blue for 1.6, green for 2.0.1)
+    - Visible in Stations page, MessageCrafter
+  - Protocol version selector already present in StationForm and StationConfig
+  - Phase 4 (OCPP 2.0.1) complete!
 - v1.6: Phase 3 completed
   - Implemented MongoDB aggregation pipelines for analytics (3.8)
     - Message statistics (by action, station, time)

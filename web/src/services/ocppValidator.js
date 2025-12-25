@@ -1,4 +1,11 @@
-// OCPP 1.6 Message Validation Service
+// OCPP Message Validation Service (1.6 and 2.0.1)
+
+// OCPP Protocol versions
+export const OCPPProtocol = {
+  OCPP16: 'ocpp1.6',
+  OCPP201: 'ocpp2.0.1',
+  OCPP21: 'ocpp2.1'
+}
 
 // OCPP 1.6 Action Schemas
 const OCPP16_SCHEMAS = {
@@ -120,6 +127,222 @@ const OCPP16_SCHEMAS = {
   }
 }
 
+// OCPP 2.0.1 Action Schemas
+const OCPP201_SCHEMAS = {
+  Heartbeat: {
+    required: [],
+    optional: []
+  },
+
+  BootNotification: {
+    required: ['reason', 'chargingStation'],
+    optional: [],
+    types: {
+      reason: 'string',
+      chargingStation: 'object'
+    },
+    enums: {
+      reason: ['ApplicationReset', 'FirmwareUpdate', 'LocalReset', 'PowerUp', 'RemoteReset', 'ScheduledReset', 'Triggered', 'Unknown', 'Watchdog']
+    },
+    nested: {
+      chargingStation: {
+        required: ['model', 'vendorName'],
+        optional: ['serialNumber', 'modem', 'firmwareVersion'],
+        types: {
+          model: 'string',
+          vendorName: 'string',
+          serialNumber: 'string',
+          firmwareVersion: 'string',
+          modem: 'object'
+        }
+      }
+    }
+  },
+
+  StatusNotification: {
+    required: ['timestamp', 'connectorStatus', 'evseId', 'connectorId'],
+    optional: [],
+    types: {
+      timestamp: 'string',
+      connectorStatus: 'string',
+      evseId: 'number',
+      connectorId: 'number'
+    },
+    enums: {
+      connectorStatus: ['Available', 'Occupied', 'Reserved', 'Unavailable', 'Faulted']
+    }
+  },
+
+  Authorize: {
+    required: ['idToken'],
+    optional: ['certificate', 'iso15118CertificateHashData'],
+    types: {
+      idToken: 'object',
+      certificate: 'string',
+      iso15118CertificateHashData: 'array'
+    },
+    nested: {
+      idToken: {
+        required: ['idToken', 'type'],
+        optional: ['additionalInfo'],
+        types: {
+          idToken: 'string',
+          type: 'string',
+          additionalInfo: 'array'
+        },
+        enums: {
+          type: ['Central', 'eMAID', 'ISO14443', 'ISO15693', 'KeyCode', 'Local', 'MacAddress', 'NoAuthorization']
+        }
+      }
+    }
+  },
+
+  TransactionEvent: {
+    required: ['eventType', 'timestamp', 'triggerReason', 'seqNo', 'transactionInfo'],
+    optional: ['meterValue', 'idToken', 'evse', 'offline', 'numberOfPhasesUsed', 'cableMaxCurrent', 'reservationId'],
+    types: {
+      eventType: 'string',
+      timestamp: 'string',
+      triggerReason: 'string',
+      seqNo: 'number',
+      transactionInfo: 'object',
+      meterValue: 'array',
+      idToken: 'object',
+      evse: 'object',
+      offline: 'boolean',
+      numberOfPhasesUsed: 'number',
+      cableMaxCurrent: 'number',
+      reservationId: 'number'
+    },
+    enums: {
+      eventType: ['Ended', 'Started', 'Updated'],
+      triggerReason: ['Authorized', 'CablePluggedIn', 'ChargingRateChanged', 'ChargingStateChanged', 'Deauthorized', 'EnergyLimitReached', 'EVCommunicationLost', 'EVConnectTimeout', 'MeterValueClock', 'MeterValuePeriodic', 'TimeLimitReached', 'Trigger', 'UnlockCommand', 'StopAuthorized', 'EVDeparted', 'EVDetected', 'RemoteStop', 'RemoteStart', 'AbnormalCondition', 'SignedDataReceived', 'ResetCommand']
+    },
+    nested: {
+      transactionInfo: {
+        required: ['transactionId'],
+        optional: ['chargingState', 'timeSpentCharging', 'stoppedReason', 'remoteStartId'],
+        types: {
+          transactionId: 'string',
+          chargingState: 'string',
+          timeSpentCharging: 'number',
+          stoppedReason: 'string',
+          remoteStartId: 'number'
+        },
+        enums: {
+          chargingState: ['Charging', 'EVConnected', 'SuspendedEV', 'SuspendedEVSE', 'Idle'],
+          stoppedReason: ['DeAuthorized', 'EmergencyStop', 'EnergyLimitReached', 'EVDisconnected', 'GroundFault', 'ImmediateReset', 'Local', 'LocalOutOfCredit', 'MasterPass', 'Other', 'OvercurrentFault', 'PowerLoss', 'PowerQuality', 'Reboot', 'Remote', 'SOCLimitReached', 'StoppedByEV', 'TimeLimitReached', 'Timeout']
+        }
+      },
+      evse: {
+        required: ['id'],
+        optional: ['connectorId'],
+        types: {
+          id: 'number',
+          connectorId: 'number'
+        }
+      }
+    }
+  },
+
+  NotifyReport: {
+    required: ['requestId', 'generatedAt', 'seqNo'],
+    optional: ['reportData', 'tbc'],
+    types: {
+      requestId: 'number',
+      generatedAt: 'string',
+      seqNo: 'number',
+      reportData: 'array',
+      tbc: 'boolean'
+    }
+  },
+
+  GetVariables: {
+    required: ['getVariableData'],
+    optional: [],
+    types: {
+      getVariableData: 'array'
+    }
+  },
+
+  SetVariables: {
+    required: ['setVariableData'],
+    optional: [],
+    types: {
+      setVariableData: 'array'
+    }
+  },
+
+  SignCertificate: {
+    required: ['csr'],
+    optional: ['certificateType'],
+    types: {
+      csr: 'string',
+      certificateType: 'string'
+    },
+    enums: {
+      certificateType: ['ChargingStationCertificate', 'V2GCertificate']
+    }
+  },
+
+  Get15118EVCertificate: {
+    required: ['iso15118SchemaVersion', 'action', 'exiRequest'],
+    optional: [],
+    types: {
+      iso15118SchemaVersion: 'string',
+      action: 'string',
+      exiRequest: 'string'
+    },
+    enums: {
+      action: ['Install', 'Update']
+    }
+  },
+
+  SecurityEventNotification: {
+    required: ['type', 'timestamp'],
+    optional: ['techInfo'],
+    types: {
+      type: 'string',
+      timestamp: 'string',
+      techInfo: 'string'
+    }
+  },
+
+  DataTransfer: {
+    required: ['vendorId'],
+    optional: ['messageId', 'data'],
+    types: {
+      vendorId: 'string',
+      messageId: 'string',
+      data: 'string'
+    }
+  },
+
+  LogStatusNotification: {
+    required: ['status'],
+    optional: ['requestId'],
+    types: {
+      status: 'string',
+      requestId: 'number'
+    },
+    enums: {
+      status: ['BadMessage', 'Idle', 'NotSupportedOperation', 'PermissionDenied', 'Uploaded', 'UploadFailure', 'Uploading', 'AcceptedCanceled']
+    }
+  },
+
+  FirmwareStatusNotification: {
+    required: ['status'],
+    optional: ['requestId'],
+    types: {
+      status: 'string',
+      requestId: 'number'
+    },
+    enums: {
+      status: ['Downloaded', 'DownloadFailed', 'Downloading', 'DownloadScheduled', 'DownloadPaused', 'Idle', 'InstallationFailed', 'Installing', 'Installed', 'InstallRebooting', 'InstallScheduled', 'InstallVerificationFailed', 'InvalidSignature', 'SignatureVerified']
+    }
+  }
+}
+
 // Validation modes
 export const ValidationMode = {
   STRICT: 'strict',   // Enforce full OCPP spec compliance
@@ -127,12 +350,24 @@ export const ValidationMode = {
 }
 
 export class OCPPValidator {
-  constructor(mode = ValidationMode.STRICT) {
+  constructor(mode = ValidationMode.STRICT, protocol = OCPPProtocol.OCPP16) {
     this.mode = mode
+    this.protocol = protocol
   }
 
   setMode(mode) {
     this.mode = mode
+  }
+
+  setProtocol(protocol) {
+    this.protocol = protocol
+  }
+
+  getSchemas() {
+    if (this.protocol === OCPPProtocol.OCPP201 || this.protocol === OCPPProtocol.OCPP21) {
+      return OCPP201_SCHEMAS
+    }
+    return OCPP16_SCHEMAS
   }
 
   /**
@@ -227,11 +462,12 @@ export class OCPPValidator {
     }
 
     // Validate payload against schema if available
-    const schema = OCPP16_SCHEMAS[action]
+    const schemas = this.getSchemas()
+    const schema = schemas[action]
     if (!schema) {
       warnings.push({
         field: 'action',
-        message: `No validation schema found for action: ${action}. Cannot validate payload.`,
+        message: `No validation schema found for action: ${action} (${this.protocol}). Cannot validate payload.`,
         severity: 'warning'
       })
       return
