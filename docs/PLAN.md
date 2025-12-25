@@ -597,10 +597,10 @@ See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
   - [x] 8.11a: Create consistent button component with size variants (sm, md, lg)
   - [x] 8.11b: Consolidate btn-primary, btn-secondary, btn-action styles
   - [x] 8.11c: Standardize icon button styling
-- [ ] **8.12** Standardize badge/status indicators
-  - [ ] 8.12a: Create unified StatusBadge component
-  - [ ] 8.12b: Consistent color scheme for connection states
-  - [ ] 8.12c: Consistent sizing across all badges
+- [x] **8.12** Standardize badge/status indicators
+  - [x] 8.12a: Create unified StatusBadge component
+  - [x] 8.12b: Consistent color scheme for connection states
+  - [x] 8.12c: Consistent sizing across all badges
 - [ ] **8.13** Standardize form controls
   - [ ] 8.13a: Consistent input heights and padding
   - [ ] 8.13b: Unified select dropdown styling
