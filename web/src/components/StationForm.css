@@ -185,16 +185,6 @@ form {
   font-size: 0.875rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  .station-form-container {
-    background: #ffffff;
-  }
-
-  .station-form-container .checkbox-group .checkbox-label {
-    color: #1f2937 !important;
-  }
-}
-
 .checkbox-label:hover {
   background-color: #f3f4f6;
 }
@@ -400,4 +390,161 @@ form {
   .form-actions-right button {
     width: 100%;
   }
+}
+
+/* ==========================================
+   Dark Mode
+   ========================================== */
+
+[data-theme="dark"] .station-form-overlay {
+  background-color: rgba(0, 0, 0, 0.75);
+}
+
+[data-theme="dark"] .station-form-container {
+  background: var(--bg-surface-1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+  color: var(--text-primary) !important;
+  color-scheme: dark;
+}
+
+[data-theme="dark"] .form-header {
+  border-bottom-color: var(--border-default);
+}
+
+[data-theme="dark"] .form-header h2 {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .close-btn {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .close-btn:hover {
+  background-color: var(--bg-surface-2);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .templates-section {
+  background-color: var(--bg-surface-2);
+  border-bottom-color: var(--border-default);
+}
+
+[data-theme="dark"] .templates-section label {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .templates-section select {
+  background: var(--bg-surface-1);
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .form-section h3 {
+  color: var(--text-primary);
+  border-bottom-color: var(--color-primary-500);
+}
+
+[data-theme="dark"] .form-field label {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .form-field input,
+[data-theme="dark"] .form-field select {
+  background: var(--bg-surface-2);
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .form-field input:focus,
+[data-theme="dark"] .form-field select:focus {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+[data-theme="dark"] .form-field input:disabled {
+  background-color: var(--bg-base);
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .checkbox-label {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .checkbox-label:hover {
+  background-color: var(--bg-surface-2);
+}
+
+[data-theme="dark"] .connector-item {
+  background-color: var(--bg-surface-2);
+  border-color: var(--border-default);
+}
+
+[data-theme="dark"] .connector-header {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-small {
+  background-color: var(--color-primary-600);
+}
+
+[data-theme="dark"] .btn-small:hover {
+  background-color: var(--color-primary-500);
+}
+
+[data-theme="dark"] .btn-remove {
+  background-color: var(--color-danger-600);
+}
+
+[data-theme="dark"] .btn-remove:hover {
+  background-color: var(--color-danger-500);
+}
+
+[data-theme="dark"] .tags-input input {
+  background: var(--bg-surface-2);
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .tag {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: var(--color-primary-400);
+}
+
+[data-theme="dark"] .tag button {
+  color: var(--color-primary-400);
+}
+
+[data-theme="dark"] .tag button:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+[data-theme="dark"] .form-actions {
+  border-top-color: var(--border-default);
+}
+
+[data-theme="dark"] .btn-primary {
+  background-color: var(--color-primary-600);
+}
+
+[data-theme="dark"] .btn-primary:hover {
+  background-color: var(--color-primary-500);
+}
+
+[data-theme="dark"] .btn-secondary {
+  background-color: var(--bg-surface-2);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+  background-color: var(--bg-surface-3);
+  border-color: var(--text-muted);
+}
+
+[data-theme="dark"] .btn-danger {
+  background-color: var(--color-danger-600);
+}
+
+[data-theme="dark"] .btn-danger:hover {
+  background-color: var(--color-danger-500);
 }

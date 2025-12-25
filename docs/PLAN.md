@@ -544,10 +544,10 @@ See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
   - [x] 8.2c: Text alignment and color utilities
 
 **Dark Theme Implementation:**
-- [ ] **8.3** Consolidate dark theme across all CSS files
+- [x] **8.3** Consolidate dark theme across all CSS files
   - [x] 8.3a: Create unified dark theme color palette in CSS variables
   - [x] 8.3b: Refactor Messages.css dark mode to use design tokens
-  - [ ] 8.3c: Refactor StationForm.css dark mode (already complete)
+  - [x] 8.3c: Refactor StationForm.css dark mode to use design tokens
   - [x] 8.3d: Refactor MessageCrafter.css dark mode to use design tokens
   - [x] 8.3e: Add dark mode to Stations.css
   - [x] 8.3f: Add dark mode to StationConfig.css
