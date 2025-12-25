@@ -229,11 +229,23 @@
 
   /* ===== LAYOUT ===== */
 
-  --content-max-width: 1600px;
+  /* Desktop-first breakpoints (max-width for smaller screens) */
+  --breakpoint-xs: 480px;   /* Mobile small */
+  --breakpoint-sm: 640px;   /* Mobile */
+  --breakpoint-md: 768px;   /* Tablet portrait */
+  --breakpoint-lg: 1024px;  /* Tablet landscape / small desktop */
+  --breakpoint-xl: 1280px;  /* Desktop (base) */
+  --breakpoint-2xl: 1536px; /* Large desktop */
+  --breakpoint-3xl: 1920px; /* Ultra-wide */
+
+  /* Content max-widths */
+  --content-max-width: 1800px;      /* Ultra-wide default */
   --content-max-width-sm: 640px;
   --content-max-width-md: 768px;
   --content-max-width-lg: 1024px;
   --content-max-width-xl: 1280px;
+  --content-max-width-2xl: 1536px;
+  --content-max-width-3xl: 1800px;
 
   --sidebar-width: 240px;
   --sidebar-collapsed-width: 64px;

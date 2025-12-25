@@ -563,9 +563,9 @@ See `docs/UI_DESIGN_PLAN.md` for detailed specifications.
   - [x] 8.4d: Respect system preference (prefers-color-scheme)
 
 **Desktop-First Layout System:**
-- [ ] **8.5** Update breakpoints to desktop-first approach
-  - [ ] 8.5a: Define desktop breakpoints (1280px base, 1536px large, 1920px ultra-wide)
-  - [ ] 8.5b: Add max-width media queries for tablet/mobile fallback
+- [x] **8.5** Update breakpoints to desktop-first approach
+  - [x] 8.5a: Define desktop breakpoints (1280px base, 1536px large, 1920px ultra-wide)
+  - [x] 8.5b: Add max-width media queries for tablet/mobile fallback
 - [ ] **8.6** Implement compact, information-dense layouts
   - [ ] 8.6a: Reduce default padding/margins for desktop
   - [x] 8.6b: Create compact button variants
