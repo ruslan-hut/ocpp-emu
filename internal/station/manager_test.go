@@ -167,8 +167,9 @@ func TestOnStationConnected(t *testing.T) {
 
 	manager.mu.Lock()
 	manager.stations[config.StationID] = &Station{
-		Config:       config,
-		StateMachine: NewStateMachine(),
+		Config:          config,
+		StateMachine:    NewStateMachine(),
+		pendingRequests: make(map[string]string),
 		RuntimeState: RuntimeState{
 			State:            StateDisconnected,
 			ConnectionStatus: "not_connected",

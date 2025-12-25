@@ -40,7 +40,8 @@ type Station struct {
 	Config         Config
 	StateMachine   *StateMachine
 	RuntimeState   RuntimeState
-	SessionManager *SessionManager // Enhanced session manager for charging
+	SessionManager *SessionManager   // Enhanced session manager for charging
+	DeviceModel    *v201.DeviceModel // OCPP 2.0.1 device model
 	mu             sync.RWMutex
 	lastSync       time.Time
 
@@ -377,36 +378,120 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		}, nil
 	}
 
-	// GetVariables handler
+	// GetVariables handler - uses device model
 	m.v201Handler.OnGetVariables = func(stationID string, req *v201.GetVariablesRequest) (*v201.GetVariablesResponse, error) {
 		m.logger.Info("Handling GetVariables (2.0.1)", "stationId", stationID, "count", len(req.GetVariableData))
 
-		// TODO: Implement device model variable retrieval
-		// For now, return rejected for all
+		// Get station to access device model
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists || station.DeviceModel == nil {
+			// Return rejected for all if station or device model not found
+			results := make([]v201.GetVariableResult, len(req.GetVariableData))
+			for i, data := range req.GetVariableData {
+				results[i] = v201.GetVariableResult{
+					AttributeStatus: v201.GetVariableStatusRejected,
+					Component:       data.Component,
+					Variable:        data.Variable,
+				}
+			}
+			return &v201.GetVariablesResponse{GetVariableResult: results}, nil
+		}
+
+		// Query device model for each requested variable
 		results := make([]v201.GetVariableResult, len(req.GetVariableData))
 		for i, data := range req.GetVariableData {
+			// Determine attribute type (default to Actual)
+			attrType := v201.AttributeActual
+			if data.AttributeType != nil {
+				attrType = *data.AttributeType
+			}
+
+			// Get variable from device model
+			value, status := station.DeviceModel.GetVariable(
+				data.Component.Name,
+				data.Component.Instance,
+				data.Variable.Name,
+				data.Variable.Instance,
+				attrType,
+			)
+
+			attrTypeCopy := attrType
 			results[i] = v201.GetVariableResult{
-				AttributeStatus: v201.GetVariableStatusRejected,
+				AttributeStatus: status,
+				AttributeType:   &attrTypeCopy,
+				AttributeValue:  value,
 				Component:       data.Component,
 				Variable:        data.Variable,
 			}
+
+			m.logger.Debug("GetVariable result",
+				"component", data.Component.Name,
+				"variable", data.Variable.Name,
+				"status", status,
+				"value", value,
+			)
 		}
 		return &v201.GetVariablesResponse{GetVariableResult: results}, nil
 	}
 
-	// SetVariables handler
+	// SetVariables handler - uses device model
 	m.v201Handler.OnSetVariables = func(stationID string, req *v201.SetVariablesRequest) (*v201.SetVariablesResponse, error) {
 		m.logger.Info("Handling SetVariables (2.0.1)", "stationId", stationID, "count", len(req.SetVariableData))
 
-		// TODO: Implement device model variable setting
-		// For now, return rejected for all
+		// Get station to access device model
+		m.mu.RLock()
+		station, exists := m.stations[stationID]
+		m.mu.RUnlock()
+
+		if !exists || station.DeviceModel == nil {
+			// Return rejected for all if station or device model not found
+			results := make([]v201.SetVariableResult, len(req.SetVariableData))
+			for i, data := range req.SetVariableData {
+				results[i] = v201.SetVariableResult{
+					AttributeStatus: v201.SetVariableStatusRejected,
+					Component:       data.Component,
+					Variable:        data.Variable,
+				}
+			}
+			return &v201.SetVariablesResponse{SetVariableResult: results}, nil
+		}
+
+		// Set each variable in device model
 		results := make([]v201.SetVariableResult, len(req.SetVariableData))
 		for i, data := range req.SetVariableData {
+			// Determine attribute type (default to Actual)
+			attrType := v201.AttributeActual
+			if data.AttributeType != nil {
+				attrType = *data.AttributeType
+			}
+
+			// Set variable in device model
+			status := station.DeviceModel.SetVariable(
+				data.Component.Name,
+				data.Component.Instance,
+				data.Variable.Name,
+				data.Variable.Instance,
+				attrType,
+				data.AttributeValue,
+			)
+
+			attrTypeCopy := attrType
 			results[i] = v201.SetVariableResult{
-				AttributeStatus: v201.SetVariableStatusRejected,
+				AttributeStatus: status,
+				AttributeType:   &attrTypeCopy,
 				Component:       data.Component,
 				Variable:        data.Variable,
 			}
+
+			m.logger.Debug("SetVariable result",
+				"component", data.Component.Name,
+				"variable", data.Variable.Name,
+				"status", status,
+				"value", data.AttributeValue,
+			)
 		}
 		return &v201.SetVariablesResponse{SetVariableResult: results}, nil
 	}
@@ -815,11 +900,21 @@ func (m *Manager) LoadStations(ctx context.Context) error {
 		sessionManager.SetTransactionRepository(transactionRepo)
 		sessionManager.SetProtocolVersion(config.ProtocolVersion)
 
-		// Create station instance
+		// Create station instance with device model
+		deviceModel := v201.NewDeviceModel()
+		deviceModel.UpdateStationInfo(config.Vendor, config.Model, config.SerialNumber, config.FirmwareVersion)
+
+		// Add EVSE and Connector components for each connector
+		for _, conn := range config.Connectors {
+			deviceModel.AddEVSEComponent(conn.ID)
+			deviceModel.AddConnectorComponent(conn.ID, 1, conn.Type)
+		}
+
 		station := &Station{
 			Config:           config,
 			StateMachine:     NewStateMachine(),
 			SessionManager:   sessionManager,
+			DeviceModel:      deviceModel,
 			pendingRequests:  make(map[string]string),
 			pendingStartTx:   make(map[string]int),
 			pendingStartTags: make(map[string]string),
@@ -1253,6 +1348,7 @@ func (m *Manager) AddStation(ctx context.Context, config Config) error {
 	station := &Station{
 		Config:           config,
 		StateMachine:     NewStateMachine(),
+		DeviceModel:      v201.NewDeviceModel(),
 		pendingRequests:  make(map[string]string),
 		pendingStartTx:   make(map[string]int),
 		pendingStartTags: make(map[string]string),
@@ -1262,6 +1358,15 @@ func (m *Manager) AddStation(ctx context.Context, config Config) error {
 			State:            StateDisconnected,
 			ConnectionStatus: "not_connected",
 		},
+	}
+
+	// Initialize device model with station info
+	station.DeviceModel.UpdateStationInfo(config.Vendor, config.Model, config.SerialNumber, config.FirmwareVersion)
+
+	// Add EVSE and Connector components for each connector
+	for _, conn := range config.Connectors {
+		station.DeviceModel.AddEVSEComponent(conn.ID)
+		station.DeviceModel.AddConnectorComponent(conn.ID, 1, conn.Type)
 	}
 
 	m.stations[config.StationID] = station

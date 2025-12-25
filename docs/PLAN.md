@@ -450,7 +450,7 @@ ocpp-emu/
   - [x] 4.1d: Enhanced authorization with IdToken
   - [x] 4.1e: Certificate management messages
   - [x] 4.1f: Security event notifications
-- [ ] **4.2** Implement device model system
+- [x] **4.2** Implement device model system
 - [ ] **4.3** Add ISO 15118 certificate handling
 
 **Frontend Updates:**
@@ -1427,8 +1427,19 @@ db.messages.createIndex(
     - Updated handleCallResult for v201 actions
     - Added handleTransactionEventResponse
   - Added StringID field to Transaction struct for UUID-based transaction IDs
-  - Tasks completed: 4.1a, 4.1b, 4.1c, 4.1d, 4.1f
-  - Remaining: 4.1e (certificates), 4.2 (device model), 4.3 (ISO 15118)
+  - Tasks completed: 4.1a-4.1f (all OCPP 2.0.1 core messages)
+  - Added certificate management: SignCertificate, CertificateSigned, InstallCertificate, DeleteCertificate, GetInstalledCertificateIds, Get15118EVCertificate, GetCertificateStatus
+- v1.8: Implemented OCPP 2.0.1 device model system (task 4.2)
+  - Created `internal/ocpp/v201/devicemodel.go` with full hierarchical device model
+    - DeviceModel, ComponentInstance, VariableInstance, VariableAttribute structs
+    - Standard OCPP 2.0.1 components: ChargingStation, SecurityCtrlr, OCPPCommCtrlr, AuthCtrlr, TxCtrlr, SampledDataCtrlr, ClockCtrlr, DeviceDataCtrlr
+    - Variable characteristics and mutability support
+    - GetVariable/SetVariable operations with proper status returns
+    - Dynamic EVSE and Connector component creation
+  - Integrated DeviceModel into Station struct
+  - Updated GetVariables/SetVariables handlers to use device model
+  - Station initialization now configures device model with station info and connectors
+  - Remaining: 4.3 (ISO 15118 certificates), 4.4-4.5 (frontend updates)
 - v1.6: Phase 3 completed
   - Implemented MongoDB aggregation pipelines for analytics (3.8)
     - Message statistics (by action, station, time)
