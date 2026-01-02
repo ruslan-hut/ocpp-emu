@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import Editor from '@monaco-editor/react'
 import { stationsAPI } from '../services/api'
 import TemplateLibrary from '../components/TemplateLibrary'
@@ -385,8 +385,10 @@ function MessageCrafter() {
   const isOcpp21 = protocolVersion === 'ocpp2.1' || protocolVersion === '2.1' || protocolVersion === 'ocpp21'
   const isOcpp201 = protocolVersion === 'ocpp2.0.1' || protocolVersion === '2.0.1' || protocolVersion === 'ocpp201'
 
-  // Get templates based on protocol version
-  const messageTemplates = isOcpp21 ? ocpp21Templates : (isOcpp201 ? ocpp201Templates : ocpp16Templates)
+  // Get templates based on protocol version - memoized to prevent re-renders
+  const messageTemplates = useMemo(() => {
+    return isOcpp21 ? ocpp21Templates : (isOcpp201 ? ocpp201Templates : ocpp16Templates)
+  }, [isOcpp21, isOcpp201])
 
   useEffect(() => {
     fetchStations()
@@ -514,23 +516,12 @@ function MessageCrafter() {
       return
     }
 
-    // Check validation if enabled
-    if (validationEnabled && validationResult) {
-      if (validationResult.errors.length > 0) {
-        setResult({
-          success: false,
-          error: `Cannot send message: ${validationResult.errors.length} validation error${validationResult.errors.length > 1 ? 's' : ''} found`
-        })
-        return
-      }
-
-      if (validationMode === ValidationMode.STRICT && validationResult.warnings.length > 0) {
-        setResult({
-          success: false,
-          error: `Cannot send message in strict mode: ${validationResult.warnings.length} warning${validationResult.warnings.length > 1 ? 's' : ''} found`
-        })
-        return
-      }
+    // Only block on JSON parse errors - validation is informational only
+    try {
+      JSON.parse(payload)
+    } catch (err) {
+      setResult({ success: false, error: `Invalid JSON: ${err.message}` })
+      return
     }
 
     try {
@@ -804,11 +795,12 @@ function MessageCrafter() {
             </pre>
           </div>
 
-          {/* Validation Details (expanded) */}
+          {/* Validation Details (expanded) - informational only */}
           {validationEnabled && validationResult && (validationResult.errors.length > 0 || validationResult.warnings.length > 0) && (
             <div className="validation-panel">
               <div className="validation-panel__header">
-                <span className="validation-panel__title">Validation Issues</span>
+                <span className="validation-panel__title">Validation Hints</span>
+                <span className="validation-panel__hint">(informational)</span>
               </div>
               <div className="validation-panel__content">
                 {validationResult.errors.map((err, i) => (

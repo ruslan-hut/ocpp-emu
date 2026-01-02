@@ -109,6 +109,10 @@
   /* Brand/Header Gradient */
   --gradient-brand: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 
+  /* Terminal Colors (theme-independent) */
+  --terminal-bg: #0a0a0a;
+  --terminal-text: #4ade80;
+
   /* ===== SEMANTIC COLORS ===== */
 
   /* Backgrounds */
