@@ -157,8 +157,8 @@ textarea::placeholder {
   color: var(--text-muted);
 }
 
-/* Remove default button styles */
-button:not(.btn) {
+/* Remove default button styles - only for buttons without btn-* classes */
+button:not([class*="btn"]) {
   border-radius: var(--radius-md);
   border: var(--border-width) solid transparent;
   padding: var(--space-2) var(--space-3);
@@ -167,12 +167,12 @@ button:not(.btn) {
   transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
-button:not(.btn):hover {
+button:not([class*="btn"]):hover {
   background-color: var(--bg-surface-2);
 }
 
-button:not(.btn):focus,
-button:not(.btn):focus-visible {
+button:not([class*="btn"]):focus,
+button:not([class*="btn"]):focus-visible {
   outline: none;
   box-shadow: 0 0 0 var(--ring-width) var(--color-primary-100);
 }

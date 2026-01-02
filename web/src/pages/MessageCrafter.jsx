@@ -539,17 +539,9 @@ function MessageCrafter() {
 
       const message = buildMessage()
 
-      const response = await fetch(`http://localhost:8080/api/stations/${selectedStation}/send-message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ message })
-      })
+      const response = await stationsAPI.sendMessage(selectedStation, message)
 
-      const data = await response.json()
-
-      if (response.ok) {
+      if (response.data.success) {
         setResult({
           success: true,
           message: 'Message sent successfully',
@@ -561,13 +553,13 @@ function MessageCrafter() {
       } else {
         setResult({
           success: false,
-          error: data.error || 'Failed to send message'
+          error: response.data.error || 'Failed to send message'
         })
       }
     } catch (err) {
       setResult({
         success: false,
-        error: err.message || 'Failed to send message'
+        error: err.response?.data?.error || err.message || 'Failed to send message'
       })
     } finally {
       setSending(false)

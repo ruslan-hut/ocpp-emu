@@ -11,6 +11,8 @@ function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const isInitialLoad = useRef(true)
+  const [sortBy, setSortBy] = useState(() => localStorage.getItem('dashboardSortBy') || null)
+  const [sortOrder, setSortOrder] = useState(() => localStorage.getItem('dashboardSortOrder') || 'asc')
 
   useEffect(() => {
     fetchData()
@@ -78,6 +80,43 @@ function Dashboard() {
     }
   }
 
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      // Toggle through: asc -> desc -> none
+      if (sortOrder === 'asc') {
+        setSortOrder('desc')
+        localStorage.setItem('dashboardSortOrder', 'desc')
+      } else {
+        setSortBy(null)
+        setSortOrder('asc')
+        localStorage.removeItem('dashboardSortBy')
+        localStorage.setItem('dashboardSortOrder', 'asc')
+      }
+    } else {
+      setSortBy(field)
+      setSortOrder('asc')
+      localStorage.setItem('dashboardSortBy', field)
+      localStorage.setItem('dashboardSortOrder', 'asc')
+    }
+  }
+
+  const getSortedStations = () => {
+    if (!sortBy) return stations
+
+    return [...stations].sort((a, b) => {
+      let aValue = a[sortBy]
+      let bValue = b[sortBy]
+
+      // Handle case-insensitive string comparison for stationId
+      if (typeof aValue === 'string') aValue = aValue.toLowerCase()
+      if (typeof bValue === 'string') bValue = bValue.toLowerCase()
+
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
+      return 0
+    })
+  }
+
   if (loading) {
     return <div className="loading">Loading dashboard...</div>
   }
@@ -109,7 +148,7 @@ function Dashboard() {
         <div className="stat-widget">
           <div className="stat-widget__icon stat-widget__icon--primary">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
             </svg>
           </div>
           <div className="stat-widget__content">
@@ -124,7 +163,7 @@ function Dashboard() {
         <div className="stat-widget">
           <div className="stat-widget__icon stat-widget__icon--success">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1z"/>
+              <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1z" />
             </svg>
           </div>
           <div className="stat-widget__content">
@@ -139,7 +178,7 @@ function Dashboard() {
         <div className="stat-widget">
           <div className="stat-widget__icon stat-widget__icon--info">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z"/>
+              <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z" />
             </svg>
           </div>
           <div className="stat-widget__content">
@@ -156,7 +195,7 @@ function Dashboard() {
         <div className="stat-widget">
           <div className="stat-widget__icon stat-widget__icon--warning">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+              <path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z" />
             </svg>
           </div>
           <div className="stat-widget__content">
@@ -172,7 +211,7 @@ function Dashboard() {
           <div className="stat-widget stat-widget--alert">
             <div className="stat-widget__icon stat-widget__icon--danger">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
               </svg>
             </div>
             <div className="stat-widget__content">
@@ -189,20 +228,34 @@ function Dashboard() {
         <div className="dashboard-panel">
           <div className="panel-header">
             <h3>Station Overview</h3>
-            <button className="btn-link" onClick={() => navigate('/stations')}>
-              View All
-            </button>
+            <div className="panel-header-actions">
+              <button
+                className="sort-btn"
+                onClick={() => handleSort('stationId')}
+                title="Sort by Station ID"
+              >
+                Sort by ID
+                {sortBy === 'stationId' && (
+                  <span className="sort-indicator">
+                    {sortOrder === 'asc' ? ' ▲' : ' ▼'}
+                  </span>
+                )}
+              </button>
+              <button className="btn-link" onClick={() => navigate('/stations')}>
+                View All
+              </button>
+            </div>
           </div>
           <div className="station-list">
             {stations.length === 0 ? (
               <div className="empty-panel">
                 <p>No stations configured</p>
-                <button className="btn-primary--sm" onClick={() => navigate('/stations')}>
+                <button className="btn btn--sm btn--primary" onClick={() => navigate('/stations')}>
                   Add Station
                 </button>
               </div>
             ) : (
-              stations.slice(0, 8).map((station) => (
+              getSortedStations().slice(0, 8).map((station) => (
                 <div key={station.stationId} className="station-row">
                   <div className="station-row__status">
                     <span className={`status-dot ${getStatusClass(station.runtimeState?.connectionStatus)}`} />

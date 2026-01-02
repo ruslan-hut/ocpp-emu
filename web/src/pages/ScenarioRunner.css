@@ -314,51 +314,22 @@
   gap: var(--space-2);
 }
 
-.btn {
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-lg);
-  border: none;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: var(--color-primary-500);
-  color: white;
+/* Scenario runner button customizations */
+/* Base button styles are defined in components.css */
+/* These add page-specific shadow effects */
+.scenario-runner .btn-primary {
   box-shadow: var(--shadow-sm);
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: var(--color-primary-600);
+.scenario-runner .btn-primary:hover:not(:disabled) {
   box-shadow: var(--shadow-md);
 }
 
-.btn-secondary {
-  background: var(--bg-base);
-  color: var(--text-primary);
-  border: 1px solid var(--border-emphasis);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: var(--bg-surface-2);
-  border-color: var(--color-neutral-400);
-}
-
-.btn-danger {
-  background: var(--color-danger-500);
-  color: white;
+.scenario-runner .btn-danger {
   box-shadow: var(--shadow-sm);
 }
 
-.btn-danger:hover:not(:disabled) {
-  background: var(--color-danger-600);
+.scenario-runner .btn-danger:hover:not(:disabled) {
   box-shadow: var(--shadow-md);
 }
 

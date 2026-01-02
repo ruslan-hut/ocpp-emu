@@ -15,44 +15,26 @@
   justify-content: center;
   align-items: center;
   min-height: 200px;
-  font-size: 1.2em;
-  color: #888;
-}
-
-.error {
-  color: #ff4444;
-  padding: 1rem;
-  margin: 1rem 0;
-  border: 1px solid #ff4444;
-  border-radius: 4px;
-  background-color: rgba(255, 68, 68, 0.1);
-}
-
-.success {
-  color: #44ff44;
-  padding: 1rem;
-  margin: 1rem 0;
-  border: 1px solid #44ff44;
-  border-radius: 4px;
-  background-color: rgba(68, 255, 68, 0.1);
-}
-
-/* ==========================================
-   Dark Mode
-   ========================================== */
-
-[data-theme="dark"] .loading {
+  font-size: var(--text-lg);
   color: var(--text-muted);
 }
 
-[data-theme="dark"] .error {
-  color: var(--color-danger-400);
-  border-color: var(--color-danger-600);
-  background-color: var(--color-danger-900);
+.error {
+  color: var(--color-danger-700);
+  padding: var(--space-4);
+  margin: var(--space-4) 0;
+  border: 1px solid var(--color-danger-500);
+  border-radius: var(--radius-md);
+  background-color: var(--color-danger-100);
 }
 
-[data-theme="dark"] .success {
-  color: var(--color-success-400);
-  border-color: var(--color-success-600);
-  background-color: var(--color-success-900);
+.success {
+  color: var(--color-success-700);
+  padding: var(--space-4);
+  margin: var(--space-4) 0;
+  border: 1px solid var(--color-success-500);
+  border-radius: var(--radius-md);
+  background-color: var(--color-success-100);
 }
+
+/* Dark mode handled automatically by design tokens */

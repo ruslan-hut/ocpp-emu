@@ -6,9 +6,9 @@
 }
 
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-brand);
   color: white;
-  padding: 0.75rem 0;
+  padding: var(--space-3) 0;
   box-shadow: var(--shadow-md);
   position: sticky;
   top: 0;
@@ -141,12 +141,4 @@
   }
 }
 
-/* Dark theme adjustments */
-[data-theme="dark"] .header {
-  background: linear-gradient(135deg, #4c5fd5 0%, #5d3f8a 100%);
-}
-
-[data-theme="dark"] .footer {
-  background-color: var(--bg-surface-1);
-  border-top-color: var(--border-default);
-}
+/* Dark mode handled automatically by design tokens (--gradient-brand switches) */

@@ -52,6 +52,8 @@ export const stationsAPI = {
     api.post(`/api/stations/${id}/charge`, { connectorId, idTag }),
   stopCharging: (id, connectorId, reason) =>
     api.post(`/api/stations/${id}/stop-charge`, { connectorId, reason: reason || 'Local' }),
+  sendMessage: (id, message) =>
+    api.post(`/api/stations/${id}/send-message`, { message }),
 }
 
 // Messages API

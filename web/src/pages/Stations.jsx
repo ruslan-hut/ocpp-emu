@@ -25,6 +25,8 @@ function Stations() {
   const [showConfig, setShowConfig] = useState(false)
   const [configuringStation, setConfiguringStation] = useState(null)
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('stationsViewMode') || 'list')
+  const [sortBy, setSortBy] = useState(() => localStorage.getItem('stationsSortBy') || null)
+  const [sortOrder, setSortOrder] = useState(() => localStorage.getItem('stationsSortOrder') || 'asc')
 
   useEffect(() => {
     fetchStations()
@@ -149,11 +151,10 @@ function Stations() {
     if (!templateName) return
 
     const template = {
+      ...station,
       name: templateName,
       description: `Template based on ${station.name}`,
-      ...station,
       stationId: undefined,
-      name: undefined,
       csmsUrl: undefined,
       enabled: undefined,
       autoStart: undefined,
@@ -237,6 +238,43 @@ function Stations() {
     localStorage.setItem('stationsViewMode', mode)
   }
 
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      // Toggle through: asc -> desc -> none
+      if (sortOrder === 'asc') {
+        setSortOrder('desc')
+        localStorage.setItem('stationsSortOrder', 'desc')
+      } else {
+        setSortBy(null)
+        setSortOrder('asc')
+        localStorage.removeItem('stationsSortBy')
+        localStorage.setItem('stationsSortOrder', 'asc')
+      }
+    } else {
+      setSortBy(field)
+      setSortOrder('asc')
+      localStorage.setItem('stationsSortBy', field)
+      localStorage.setItem('stationsSortOrder', 'asc')
+    }
+  }
+
+  const getSortedStations = () => {
+    if (!sortBy) return stations
+
+    return [...stations].sort((a, b) => {
+      let aValue = a[sortBy]
+      let bValue = b[sortBy]
+
+      // Handle case-insensitive string comparison for stationId
+      if (typeof aValue === 'string') aValue = aValue.toLowerCase()
+      if (typeof bValue === 'string') bValue = bValue.toLowerCase()
+
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
+      return 0
+    })
+  }
+
   const getProtocolClass = (version) => {
     if (version === 'ocpp2.1' || version === '2.1') return 'ocpp21'
     if (version === 'ocpp2.0.1' || version === '2.0.1') return 'ocpp201'
@@ -311,67 +349,84 @@ function Stations() {
     </div>
   )
 
-  const renderTableView = () => (
-    <div className="stations-table-wrapper">
-      <table className="stations-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Station ID</th>
-            <th>Status</th>
-            <th>Protocol</th>
-            <th>Vendor / Model</th>
-            <th>Connectors</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {stations.map((station) => (
-            <tr key={station.stationId}>
-              <td className="cell-name">{station.name}</td>
-              <td className="cell-id">{station.stationId}</td>
-              <td>
-                <span className={`status-badge status-badge--sm ${station.runtimeState?.connectionStatus}`}>
-                  {station.runtimeState?.connectionStatus || 'unknown'}
-                </span>
-              </td>
-              <td>
-                <span className={`protocol-badge ${getProtocolClass(station.protocolVersion)}`}>
-                  {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
-                </span>
-              </td>
-              <td className="cell-vendor">{station.vendor} / {station.model}</td>
-              <td className="cell-connectors">{station.connectors?.length || 0}</td>
-              <td className="cell-actions">
-                {station.runtimeState?.connectionStatus === 'connected' ? (
-                  <button className="btn btn-action btn-action--sm btn-stop" onClick={() => handleStop(station.stationId)}>
-                    Stop
-                  </button>
-                ) : (
-                  <button
-                    className="btn btn-action btn-action--sm btn-start"
-                    onClick={() => handleStart(station.stationId)}
-                    disabled={!station.enabled}
-                  >
-                    Start
-                  </button>
-                )}
-                <button className="btn btn-action btn-action--sm btn-connectors" onClick={() => handleViewConnectors(station.stationId)}>
-                  Connectors
+  const renderTableView = () => {
+    const sortedStations = getSortedStations()
+
+    return (
+      <div className="stations-table-wrapper">
+        <table className="stations-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>
+                <button
+                  className="sort-header-btn"
+                  onClick={() => handleSort('stationId')}
+                  title="Sort by Station ID"
+                >
+                  Station ID
+                  {sortBy === 'stationId' && (
+                    <span className="sort-indicator">
+                      {sortOrder === 'asc' ? ' ▲' : ' ▼'}
+                    </span>
+                  )}
                 </button>
-                <button className="btn btn-action btn-action--sm btn-config" onClick={() => handleConfigureStation(station)}>
-                  Config
-                </button>
-                <button className="btn btn-action btn-action--sm btn-edit" onClick={() => handleEditStation(station)}>
-                  Edit
-                </button>
-              </td>
+              </th>
+              <th>Status</th>
+              <th>Protocol</th>
+              <th>Vendor / Model</th>
+              <th>Connectors</th>
+              <th>Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
+          </thead>
+          <tbody>
+            {sortedStations.map((station) => (
+              <tr key={station.stationId}>
+                <td className="cell-name">{station.name}</td>
+                <td className="cell-id">{station.stationId}</td>
+                <td>
+                  <span className={`status-badge status-badge--sm ${station.runtimeState?.connectionStatus}`}>
+                    {station.runtimeState?.connectionStatus || 'unknown'}
+                  </span>
+                </td>
+                <td>
+                  <span className={`protocol-badge ${getProtocolClass(station.protocolVersion)}`}>
+                    {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
+                  </span>
+                </td>
+                <td className="cell-vendor">{station.vendor} / {station.model}</td>
+                <td className="cell-connectors">{station.connectors?.length || 0}</td>
+                <td className="cell-actions">
+                  {station.runtimeState?.connectionStatus === 'connected' ? (
+                    <button className="btn btn--xs btn-stop" onClick={() => handleStop(station.stationId)}>
+                      Stop
+                    </button>
+                  ) : (
+                    <button
+                      className="btn btn--xs btn-start"
+                      onClick={() => handleStart(station.stationId)}
+                      disabled={!station.enabled}
+                    >
+                      Start
+                    </button>
+                  )}
+                  <button className="btn btn--xs btn-connectors" onClick={() => handleViewConnectors(station.stationId)}>
+                    Connectors
+                  </button>
+                  <button className="btn btn--xs btn-config" onClick={() => handleConfigureStation(station)}>
+                    Config
+                  </button>
+                  <button className="btn btn--xs btn-edit" onClick={() => handleEditStation(station)}>
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
 
   if (loading) {
     return <div className="loading">Loading stations...</div>
@@ -397,9 +452,9 @@ function Stations() {
                 title="List view"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                  <rect x="1" y="2" width="14" height="3" rx="1"/>
-                  <rect x="1" y="7" width="14" height="3" rx="1"/>
-                  <rect x="1" y="12" width="14" height="2" rx="1"/>
+                  <rect x="1" y="2" width="14" height="3" rx="1" />
+                  <rect x="1" y="7" width="14" height="3" rx="1" />
+                  <rect x="1" y="12" width="14" height="2" rx="1" />
                 </svg>
               </button>
               <button
@@ -408,10 +463,10 @@ function Stations() {
                 title="Grid view"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                  <rect x="1" y="1" width="6" height="6" rx="1"/>
-                  <rect x="9" y="1" width="6" height="6" rx="1"/>
-                  <rect x="1" y="9" width="6" height="6" rx="1"/>
-                  <rect x="9" y="9" width="6" height="6" rx="1"/>
+                  <rect x="1" y="1" width="6" height="6" rx="1" />
+                  <rect x="9" y="1" width="6" height="6" rx="1" />
+                  <rect x="1" y="9" width="6" height="6" rx="1" />
+                  <rect x="9" y="9" width="6" height="6" rx="1" />
                 </svg>
               </button>
               <button
@@ -420,24 +475,24 @@ function Stations() {
                 title="Table view"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                  <rect x="1" y="1" width="14" height="2"/>
-                  <rect x="1" y="5" width="5" height="2"/>
-                  <rect x="8" y="5" width="7" height="2"/>
-                  <rect x="1" y="9" width="5" height="2"/>
-                  <rect x="8" y="9" width="7" height="2"/>
-                  <rect x="1" y="13" width="5" height="2"/>
-                  <rect x="8" y="13" width="7" height="2"/>
+                  <rect x="1" y="1" width="14" height="2" />
+                  <rect x="1" y="5" width="5" height="2" />
+                  <rect x="8" y="5" width="7" height="2" />
+                  <rect x="1" y="9" width="5" height="2" />
+                  <rect x="8" y="9" width="7" height="2" />
+                  <rect x="1" y="13" width="5" height="2" />
+                  <rect x="8" y="13" width="7" height="2" />
                 </svg>
               </button>
             </div>
           )}
-          <button className="btn btn-secondary btn-secondary--sm" onClick={() => setShowTemplates(true)}>
+          <button className="btn btn--sm btn--secondary" onClick={() => setShowTemplates(true)}>
             Templates
           </button>
-          <button className="btn btn-secondary btn-secondary--sm" onClick={() => setShowImportExport(true)}>
+          <button className="btn btn--sm btn--secondary" onClick={() => setShowImportExport(true)}>
             Import/Export
           </button>
-          <button className="btn btn-primary btn-primary--sm" onClick={handleCreateStation}>
+          <button className="btn btn--sm btn--primary" onClick={handleCreateStation}>
             + Add Station
           </button>
         </div>
@@ -463,7 +518,7 @@ function Stations() {
         renderTableView()
       ) : (
         <div className={`stations-${viewMode === 'grid' ? 'grid' : 'list'}`}>
-          {stations.map((station) => renderStationCard(station, viewMode === 'list'))}
+          {getSortedStations().map((station) => renderStationCard(station, viewMode === 'list'))}
         </div>
       )}
 
