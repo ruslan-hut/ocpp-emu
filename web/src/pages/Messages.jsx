@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { messagesAPI } from '../services/api'
+import { useAuth } from '../contexts/AuthContext'
 import './Messages.css'
 
 // Use relative WebSocket URL for Docker/production, full URL for development
@@ -7,6 +8,7 @@ const WS_URL = import.meta.env.VITE_WS_URL ||
   (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host
 
 function Messages() {
+  const { isAdmin } = useAuth()
   const [messages, setMessages] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -684,9 +686,11 @@ function Messages() {
               )}
             </div>
 
-            <button className="btn btn--sm btn--danger" onClick={handleClearMessages}>
-              Clear
-            </button>
+            {isAdmin && (
+              <button className="btn btn--sm btn--danger" onClick={handleClearMessages}>
+                Clear
+              </button>
+            )}
           </div>
         </div>
 

@@ -11,6 +11,33 @@ type Config struct {
 	MongoDB     MongoDBConfig     `mapstructure:"mongodb"`
 	CSMS        CSMSConfig        `mapstructure:"csms"`
 	Application ApplicationConfig `mapstructure:"application"`
+	Auth        AuthConfig        `mapstructure:"auth"`
+}
+
+// AuthConfig holds authentication configuration
+type AuthConfig struct {
+	Enabled   bool           `mapstructure:"enabled"`
+	JWTSecret string         `mapstructure:"jwt_secret"`
+	JWTExpiry time.Duration  `mapstructure:"jwt_expiry"`
+	Users     []UserConfig   `mapstructure:"users"`
+	APIKeys   []APIKeyConfig `mapstructure:"api_keys"`
+}
+
+// UserConfig represents a user in configuration
+type UserConfig struct {
+	Username     string `mapstructure:"username"`
+	PasswordHash string `mapstructure:"password_hash"`
+	Role         string `mapstructure:"role"`
+	Enabled      bool   `mapstructure:"enabled"`
+}
+
+// APIKeyConfig represents an API key in configuration
+type APIKeyConfig struct {
+	Name      string `mapstructure:"name"`
+	KeyHash   string `mapstructure:"key_hash"`
+	Role      string `mapstructure:"role"`
+	Enabled   bool   `mapstructure:"enabled"`
+	ExpiresAt string `mapstructure:"expires_at,omitempty"`
 }
 
 // ServerConfig holds HTTP server configuration

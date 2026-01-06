@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { stationsAPI } from '../services/api'
+import { useAuth } from '../contexts/AuthContext'
 import StationForm from '../components/StationForm'
 import StationConfig from '../components/StationConfig'
 import TemplatesManager from '../components/TemplatesManager'
@@ -8,6 +9,7 @@ import ConnectorCard from '../components/ConnectorCard'
 import './Stations.css'
 
 function Stations() {
+  const { isAdmin } = useAuth()
   const [stations, setStations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -486,33 +488,41 @@ function Stations() {
               </button>
             </div>
           )}
-          <button className="btn btn--sm btn--secondary" onClick={() => setShowTemplates(true)}>
-            Templates
-          </button>
-          <button className="btn btn--sm btn--secondary" onClick={() => setShowImportExport(true)}>
-            Import/Export
-          </button>
-          <button className="btn btn--sm btn--primary" onClick={handleCreateStation}>
-            + Add Station
-          </button>
+          {isAdmin && (
+            <button className="btn btn--sm btn--secondary" onClick={() => setShowTemplates(true)}>
+              Templates
+            </button>
+          )}
+          {isAdmin && (
+            <button className="btn btn--sm btn--secondary" onClick={() => setShowImportExport(true)}>
+              Import/Export
+            </button>
+          )}
+          {isAdmin && (
+            <button className="btn btn--sm btn--primary" onClick={handleCreateStation}>
+              + Add Station
+            </button>
+          )}
         </div>
       </div>
 
       {stations.length === 0 ? (
         <div className="empty-state">
           <h3>No stations configured</h3>
-          <p>Get started by creating your first charging station</p>
-          <div className="empty-state-actions">
-            <button className="btn btn-primary" onClick={handleCreateStation}>
-              Create New Station
-            </button>
-            <button className="btn btn-secondary" onClick={() => setShowTemplates(true)}>
-              Use Template
-            </button>
-            <button className="btn btn-secondary" onClick={() => setShowImportExport(true)}>
-              Import Stations
-            </button>
-          </div>
+          <p>{isAdmin ? 'Get started by creating your first charging station' : 'No stations available to view'}</p>
+          {isAdmin && (
+            <div className="empty-state-actions">
+              <button className="btn btn-primary" onClick={handleCreateStation}>
+                Create New Station
+              </button>
+              <button className="btn btn-secondary" onClick={() => setShowTemplates(true)}>
+                Use Template
+              </button>
+              <button className="btn btn-secondary" onClick={() => setShowImportExport(true)}>
+                Import Stations
+              </button>
+            </div>
+          )}
         </div>
       ) : viewMode === 'table' ? (
         renderTableView()
@@ -522,7 +532,7 @@ function Stations() {
         </div>
       )}
 
-      {showForm && (
+      {showForm && isAdmin && (
         <StationForm
           station={editingStation}
           onSubmit={handleFormSubmit}

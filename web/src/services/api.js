@@ -3,6 +3,7 @@ import axios from 'axios'
 // Use relative URL in production/Docker (goes through nginx proxy)
 // Use full URL in development (direct to backend)
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
+const AUTH_STORAGE_KEY = 'ocpp-emu-auth'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -12,9 +13,21 @@ const api = axios.create({
   timeout: 30000, // Increased timeout to 30 seconds
 })
 
-// Request interceptor
+// Request interceptor - add auth token
 api.interceptors.request.use(
   (config) => {
+    // Get token from localStorage
+    try {
+      const stored = localStorage.getItem(AUTH_STORAGE_KEY)
+      if (stored) {
+        const { token } = JSON.parse(stored)
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`
+        }
+      }
+    } catch (e) {
+      // Ignore parse errors
+    }
     return config
   },
   (error) => {
@@ -22,12 +35,20 @@ api.interceptors.request.use(
   }
 )
 
-// Response interceptor
+// Response interceptor - handle 401
 api.interceptors.response.use(
   (response) => {
     return response
   },
   (error) => {
+    // Handle 401 Unauthorized - redirect to login
+    if (error.response?.status === 401) {
+      localStorage.removeItem(AUTH_STORAGE_KEY)
+      // Only redirect if not already on login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login'
+      }
+    }
     console.error('API Error:', error)
     return Promise.reject(error)
   }

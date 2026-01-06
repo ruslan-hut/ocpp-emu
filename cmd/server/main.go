@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ruslanhut/ocpp-emu/internal/api"
+	"github.com/ruslanhut/ocpp-emu/internal/auth"
 	"github.com/ruslanhut/ocpp-emu/internal/config"
 	"github.com/ruslanhut/ocpp-emu/internal/connection"
 	"github.com/ruslanhut/ocpp-emu/internal/logging"
@@ -147,13 +148,23 @@ func main() {
 	// Set up HTTP server
 	mux := http.NewServeMux()
 
+	// Initialize Auth Service
+	authConfig := convertAuthConfig(&cfg.Auth)
+	authService := auth.NewService(authConfig, logger)
+	authHandler := auth.NewHandler(authService, logger)
+	if authService.IsEnabled() {
+		logger.Info("Authentication enabled")
+	} else {
+		logger.Info("Authentication disabled")
+	}
+
 	// CORS middleware
 	corsMiddleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Allow requests from frontend dev server
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
 			w.Header().Set("Access-Control-Max-Age", "3600")
 
 			// Handle preflight requests
@@ -166,7 +177,22 @@ func main() {
 		})
 	}
 
-	// Health check endpoint
+	// Auth middleware that requires authentication
+	requireAuth := func(next http.Handler) http.Handler {
+		return authService.Middleware(next)
+	}
+
+	// Note: For admin-only checks, we check user.Role inline in handlers
+	// to allow viewers to access GET endpoints while restricting write operations
+
+	// Auth endpoints (public)
+	mux.HandleFunc("/api/auth/login", authHandler.HandleLogin)
+	mux.Handle("/api/auth/logout", requireAuth(http.HandlerFunc(authHandler.HandleLogout)))
+	mux.Handle("/api/auth/me", requireAuth(http.HandlerFunc(authHandler.HandleMe)))
+	mux.Handle("/api/auth/refresh", requireAuth(http.HandlerFunc(authHandler.HandleRefresh)))
+	logger.Info("Auth endpoints registered")
+
+	// Health check endpoint (public)
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -194,8 +220,8 @@ func main() {
 		}
 	})
 
-	// Connection status endpoint
-	mux.HandleFunc("/api/connections", func(w http.ResponseWriter, r *http.Request) {
+	// Connection status endpoint (auth protected)
+	mux.Handle("/api/connections", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		stats := connManager.GetAllConnectionStats()
@@ -210,10 +236,10 @@ func main() {
 			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 			return
 		}
-	})
+	})))
 
-	// Message history endpoint
-	mux.HandleFunc("/api/messages", func(w http.ResponseWriter, r *http.Request) {
+	// Message history endpoint (auth protected, DELETE requires admin)
+	mux.Handle("/api/messages", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		if messageLogger == nil {
@@ -237,8 +263,13 @@ func main() {
 			return
 		}
 
-		// Handle DELETE request to clear all messages
+		// Handle DELETE request to clear all messages (admin only)
 		if r.Method == http.MethodDelete {
+			user := auth.GetUserFromContext(r.Context())
+			if user == nil || user.Role != auth.RoleAdmin {
+				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+				return
+			}
 			deletedCount, err := messageLogger.ClearAllMessages(r.Context())
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Failed to clear messages: %v", err), http.StatusInternalServerError)
@@ -316,10 +347,10 @@ func main() {
 			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 			return
 		}
-	})
+	})))
 
-	// Message search endpoint
-	mux.HandleFunc("/api/messages/search", func(w http.ResponseWriter, r *http.Request) {
+	// Message search endpoint (auth protected)
+	mux.Handle("/api/messages/search", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		if messageLogger == nil {
@@ -371,10 +402,10 @@ func main() {
 			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 			return
 		}
-	})
+	})))
 
-	// Message logger stats endpoint
-	mux.HandleFunc("/api/messages/stats", func(w http.ResponseWriter, r *http.Request) {
+	// Message logger stats endpoint (auth protected)
+	mux.Handle("/api/messages/stats", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		if messageLogger == nil {
@@ -412,7 +443,7 @@ func main() {
 			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 			return
 		}
-	})
+	})))
 
 	// Initialize Station API Handler
 	stationHandler := api.NewStationHandler(stationManager, logger)
@@ -422,50 +453,79 @@ func main() {
 	wsHandler := api.NewWebSocketHandler(messageBroadcaster, logger)
 	logger.Info("WebSocket handler initialized")
 
-	// Station CRUD endpoints
-	mux.HandleFunc("/api/stations", func(w http.ResponseWriter, r *http.Request) {
+	// Station CRUD endpoints (auth protected)
+	mux.Handle("/api/stations", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := auth.GetUserFromContext(r.Context())
 		switch r.Method {
 		case http.MethodGet:
 			stationHandler.ListStations(w, r)
 		case http.MethodPost:
+			// Admin only for create
+			if user == nil || user.Role != auth.RoleAdmin {
+				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+				return
+			}
 			stationHandler.CreateStation(w, r)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
-	})
+	})))
 
-	// Station detail endpoints (with path-based routing)
-	mux.HandleFunc("/api/stations/", func(w http.ResponseWriter, r *http.Request) {
-		// Check if path ends with /start or /stop
+	// Station detail endpoints (with path-based routing, auth protected)
+	mux.Handle("/api/stations/", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := auth.GetUserFromContext(r.Context())
+		isAdmin := user != nil && user.Role == auth.RoleAdmin
+
+		// Check if path ends with /start or /stop (admin only)
 		if strings.HasSuffix(r.URL.Path, "/start") {
+			if !isAdmin {
+				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+				return
+			}
 			stationHandler.StartStation(w, r)
 			return
 		}
 		if strings.HasSuffix(r.URL.Path, "/stop") {
+			if !isAdmin {
+				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+				return
+			}
 			stationHandler.StopStation(w, r)
 			return
 		}
 
-		// Check if path ends with /connectors
+		// Check if path ends with /connectors (viewer + admin)
 		if strings.HasSuffix(r.URL.Path, "/connectors") {
 			stationHandler.GetConnectors(w, r)
 			return
 		}
 
-		// Check if path ends with /charge
+		// Check if path ends with /charge (admin only)
 		if strings.HasSuffix(r.URL.Path, "/charge") {
+			if !isAdmin {
+				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+				return
+			}
 			stationHandler.StartCharging(w, r)
 			return
 		}
 
-		// Check if path ends with /stop-charge
+		// Check if path ends with /stop-charge (admin only)
 		if strings.HasSuffix(r.URL.Path, "/stop-charge") {
+			if !isAdmin {
+				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+				return
+			}
 			stationHandler.StopCharging(w, r)
 			return
 		}
 
-		// Check if path ends with /send-message
+		// Check if path ends with /send-message (admin only)
 		if strings.HasSuffix(r.URL.Path, "/send-message") {
+			if !isAdmin {
+				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+				return
+			}
 			stationHandler.SendCustomMessage(w, r)
 			return
 		}
@@ -475,25 +535,33 @@ func main() {
 		case http.MethodGet:
 			stationHandler.GetStation(w, r)
 		case http.MethodPut:
+			if !isAdmin {
+				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+				return
+			}
 			stationHandler.UpdateStation(w, r)
 		case http.MethodDelete:
+			if !isAdmin {
+				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+				return
+			}
 			stationHandler.DeleteStation(w, r)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
-	})
+	})))
 
-	// WebSocket endpoints
-	mux.HandleFunc("/api/ws/messages", wsHandler.HandleMessages)
-	mux.HandleFunc("/api/ws/stats", wsHandler.HandleBroadcasterStats)
+	// WebSocket endpoints (auth protected)
+	mux.Handle("/api/ws/messages", requireAuth(http.HandlerFunc(wsHandler.HandleMessages)))
+	mux.Handle("/api/ws/stats", requireAuth(http.HandlerFunc(wsHandler.HandleBroadcasterStats)))
 	logger.Info("WebSocket endpoints registered")
 
-	// Analytics endpoints
+	// Analytics endpoints (auth protected, viewer + admin)
 	analyticsHandler := api.NewAnalyticsHandler(mongoClient, logger)
-	mux.HandleFunc("/api/analytics/messages", analyticsHandler.GetMessageStats)
-	mux.HandleFunc("/api/analytics/transactions", analyticsHandler.GetTransactionStats)
-	mux.HandleFunc("/api/analytics/errors", analyticsHandler.GetErrorStats)
-	mux.HandleFunc("/api/analytics/dashboard", analyticsHandler.GetDashboardStats)
+	mux.Handle("/api/analytics/messages", requireAuth(http.HandlerFunc(analyticsHandler.GetMessageStats)))
+	mux.Handle("/api/analytics/transactions", requireAuth(http.HandlerFunc(analyticsHandler.GetTransactionStats)))
+	mux.Handle("/api/analytics/errors", requireAuth(http.HandlerFunc(analyticsHandler.GetErrorStats)))
+	mux.Handle("/api/analytics/dashboard", requireAuth(http.HandlerFunc(analyticsHandler.GetDashboardStats)))
 	logger.Info("Analytics endpoints registered")
 
 	// Initialize Scenario Runner
@@ -522,11 +590,38 @@ func main() {
 	// Scenario API Handler
 	scenarioHandler := api.NewScenarioHandler(scenarioRunner, scenarioStorage, logger)
 
-	// Scenario endpoints
-	mux.HandleFunc("/api/scenarios", scenarioHandler.HandleScenarios)
-	mux.HandleFunc("/api/scenarios/", scenarioHandler.HandleScenario)
-	mux.HandleFunc("/api/executions", scenarioHandler.HandleExecutions)
-	mux.HandleFunc("/api/executions/", scenarioHandler.HandleExecutions)
+	// Scenario endpoints (auth protected with role checks)
+	mux.Handle("/api/scenarios", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := auth.GetUserFromContext(r.Context())
+		isAdmin := user != nil && user.Role == auth.RoleAdmin
+		// POST requires admin
+		if r.Method == http.MethodPost && !isAdmin {
+			http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+			return
+		}
+		scenarioHandler.HandleScenarios(w, r)
+	})))
+	mux.Handle("/api/scenarios/", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := auth.GetUserFromContext(r.Context())
+		isAdmin := user != nil && user.Role == auth.RoleAdmin
+		// PUT, DELETE, and execute (POST to /execute) require admin
+		if (r.Method == http.MethodPut || r.Method == http.MethodDelete || r.Method == http.MethodPost) && !isAdmin {
+			http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+			return
+		}
+		scenarioHandler.HandleScenario(w, r)
+	})))
+	mux.Handle("/api/executions", requireAuth(http.HandlerFunc(scenarioHandler.HandleExecutions)))
+	mux.Handle("/api/executions/", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := auth.GetUserFromContext(r.Context())
+		isAdmin := user != nil && user.Role == auth.RoleAdmin
+		// POST (pause/resume/stop) and DELETE require admin
+		if (r.Method == http.MethodPost || r.Method == http.MethodDelete) && !isAdmin {
+			http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+			return
+		}
+		scenarioHandler.HandleExecutions(w, r)
+	})))
 	logger.Info("Scenario endpoints registered")
 
 	// Initialize Change Stream Watcher for real-time updates
@@ -641,6 +736,43 @@ func initLogger() *slog.Logger {
 	slog.SetDefault(logger)
 
 	return logger
+}
+
+// convertAuthConfig converts config.AuthConfig to auth.Config
+func convertAuthConfig(cfg *config.AuthConfig) *auth.Config {
+	authCfg := &auth.Config{
+		Enabled:   cfg.Enabled,
+		JWTSecret: cfg.JWTSecret,
+		JWTExpiry: cfg.JWTExpiry,
+		Users:     make([]auth.User, 0, len(cfg.Users)),
+		APIKeys:   make([]auth.APIKey, 0, len(cfg.APIKeys)),
+	}
+
+	for _, u := range cfg.Users {
+		authCfg.Users = append(authCfg.Users, auth.User{
+			Username:     u.Username,
+			PasswordHash: u.PasswordHash,
+			Role:         auth.Role(u.Role),
+			Enabled:      u.Enabled,
+		})
+	}
+
+	for _, k := range cfg.APIKeys {
+		apiKey := auth.APIKey{
+			Name:    k.Name,
+			KeyHash: k.KeyHash,
+			Role:    auth.Role(k.Role),
+			Enabled: k.Enabled,
+		}
+		if k.ExpiresAt != "" {
+			if t, err := time.Parse(time.RFC3339, k.ExpiresAt); err == nil {
+				apiKey.ExpiresAt = &t
+			}
+		}
+		authCfg.APIKeys = append(authCfg.APIKeys, apiKey)
+	}
+
+	return authCfg
 }
 
 // Note: Configuration structs and loading logic have been moved to internal/config package

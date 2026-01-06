@@ -1,9 +1,11 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import ThemeToggle from './ui/ThemeToggle'
 import './Layout.css'
 
 function Layout({ children }) {
   const location = useLocation()
+  const { user, logout, isAdmin } = useAuth()
 
   const isActive = (path) => {
     return location.pathname === path ? 'active' : ''
@@ -35,6 +37,17 @@ function Layout({ children }) {
             </Link>
           </nav>
           <div className="header-actions">
+            {user && (
+              <div className="user-info">
+                <span className="username">{user.username}</span>
+                <span className={`role-badge ${isAdmin ? 'role-admin' : 'role-viewer'}`}>
+                  {user.role}
+                </span>
+                <button onClick={logout} className="logout-btn">
+                  Logout
+                </button>
+              </div>
+            )}
             <ThemeToggle />
           </div>
         </div>

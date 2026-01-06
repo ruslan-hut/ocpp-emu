@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { scenariosAPI, executionsAPI, stationsAPI } from '../services/api'
+import { useAuth } from '../contexts/AuthContext'
 import './ScenarioRunner.css'
 
 const WS_URL = import.meta.env.VITE_WS_URL ||
   (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host
 
 function ScenarioRunner() {
+  const { isAdmin } = useAuth()
   const [scenarios, setScenarios] = useState([])
   const [executions, setExecutions] = useState([])
   const [stations, setStations] = useState([])
@@ -331,7 +333,7 @@ function ScenarioRunner() {
             </select>
 
             <div className="control-buttons">
-              {!activeExecution ? (
+              {isAdmin && !activeExecution ? (
                 <button
                   className="btn btn-primary"
                   onClick={handleExecute}
@@ -339,7 +341,7 @@ function ScenarioRunner() {
                 >
                   {executing ? 'Starting...' : 'Execute'}
                 </button>
-              ) : (
+              ) : isAdmin && activeExecution ? (
                 <>
                   {activeExecution.status === 'running' && (
                     <button className="btn btn-secondary" onClick={handlePause}>
@@ -355,7 +357,9 @@ function ScenarioRunner() {
                     Stop
                   </button>
                 </>
-              )}
+              ) : !isAdmin ? (
+                <span className="viewer-notice">View only - Admin required to execute</span>
+              ) : null}
             </div>
           </div>
 

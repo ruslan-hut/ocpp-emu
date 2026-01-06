@@ -46,6 +46,41 @@ csms:
     client_key: ""
     insecure_skip_verify: false
 
+auth:
+  # Enable authentication (set to false for development without auth)
+  enabled: false
+
+  # JWT secret key - MUST be changed in production (min 32 characters)
+  # Can be overridden via OCPP_EMU_AUTH_JWT_SECRET environment variable
+  jwt_secret: "change-me-in-production-min-32-characters"
+
+  # JWT token expiry duration
+  jwt_expiry: 24h
+
+  # Users list (config-based user management)
+  # Generate password hashes with: go run cmd/tools/hashpw/main.go "your-password"
+  users:
+    - username: "admin"
+      # Default password: "admin" - CHANGE IN PRODUCTION
+      password_hash: "$2a$10$J/7p6FH/8F6eLiXPYSQ47On1drDrhf13jxojUDwBuRac6XXgE.JRi"
+      role: "admin"
+      enabled: true
+    - username: "viewer"
+      # Default password: "viewer" - CHANGE IN PRODUCTION
+      password_hash: "$2a$10$oIkpenwKDDue5XpA//z2.e5Q1VJA.DwKJsVZUAj4IR6Kdih86iCBC"
+      role: "viewer"
+      enabled: true
+
+  # API keys for programmatic access
+  # Generate key hashes with: go run cmd/tools/genkey/main.go
+  api_keys: []
+    # Example:
+    # - name: "ci-pipeline"
+    #   key_hash: "sha256:..."
+    #   role: "viewer"
+    #   enabled: true
+    #   expires_at: "2025-12-31T23:59:59Z"
+
 application:
   # Maximum number of concurrent stations
   max_stations: 10
