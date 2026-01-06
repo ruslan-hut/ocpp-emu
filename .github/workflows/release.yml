@@ -1,0 +1,303 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION: '1.23'
+  NODE_VERSION: '20'
+
+jobs:
+  build-backend:
+    name: Build Backend
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: ''
+          - goos: linux
+            goarch: arm64
+            suffix: ''
+          - goos: darwin
+            goarch: amd64
+            suffix: ''
+          - goos: darwin
+            goarch: arm64
+            suffix: ''
+          - goos: windows
+            goarch: amd64
+            suffix: '.exe'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p dist
+          go build -ldflags="-s -w -X main.appVersion=${{ steps.version.outputs.version }}" \
+            -o dist/ocpp-emu-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} \
+            ./cmd/server
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocpp-emu-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/ocpp-emu-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}
+
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: web
+        run: npm run build
+
+      - name: Create archive
+        run: |
+          cd web/dist
+          tar -czvf ../../ocpp-emu-web.tar.gz .
+          cd ../..
+          zip -r ocpp-emu-web.zip web/dist
+
+      - name: Upload artifact (tar.gz)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocpp-emu-web-tar
+          path: ocpp-emu-web.tar.gz
+
+      - name: Upload artifact (zip)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocpp-emu-web-zip
+          path: ocpp-emu-web.zip
+
+  build-configs:
+    name: Package Configs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create config package
+        run: |
+          mkdir -p package/configs
+          cp configs/config.yaml package/configs/
+          cp -r testdata package/ 2>/dev/null || true
+          cd package
+          tar -czvf ../ocpp-emu-configs.tar.gz .
+          cd ..
+          zip -r ocpp-emu-configs.zip package
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocpp-emu-configs
+          path: |
+            ocpp-emu-configs.tar.gz
+            ocpp-emu-configs.zip
+
+  build-deploy-scripts:
+    name: Package Deploy Scripts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create deploy package
+        run: |
+          mkdir -p deploy-scripts
+          cp scripts/deploy-ubuntu.sh deploy-scripts/
+          cp scripts/ocpp-emu.service deploy-scripts/
+          cp scripts/nginx-ocpp-emu.conf deploy-scripts/
+          chmod +x deploy-scripts/deploy-ubuntu.sh
+          tar -czvf ocpp-emu-deploy-scripts.tar.gz deploy-scripts
+          zip -r ocpp-emu-deploy-scripts.zip deploy-scripts
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocpp-emu-deploy-scripts
+          path: |
+            ocpp-emu-deploy-scripts.tar.gz
+            ocpp-emu-deploy-scripts.zip
+
+  create-release:
+    name: Create Release
+    needs: [build-backend, build-frontend, build-configs, build-deploy-scripts]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+
+          # Backend binaries
+          cp artifacts/ocpp-emu-linux-amd64/ocpp-emu-linux-amd64 release/
+          cp artifacts/ocpp-emu-linux-arm64/ocpp-emu-linux-arm64 release/
+          cp artifacts/ocpp-emu-darwin-amd64/ocpp-emu-darwin-amd64 release/
+          cp artifacts/ocpp-emu-darwin-arm64/ocpp-emu-darwin-arm64 release/
+          cp artifacts/ocpp-emu-windows-amd64/ocpp-emu-windows-amd64.exe release/
+
+          # Frontend
+          cp artifacts/ocpp-emu-web-tar/ocpp-emu-web.tar.gz release/
+          cp artifacts/ocpp-emu-web-zip/ocpp-emu-web.zip release/
+
+          # Configs
+          cp artifacts/ocpp-emu-configs/ocpp-emu-configs.tar.gz release/
+          cp artifacts/ocpp-emu-configs/ocpp-emu-configs.zip release/
+
+          # Deploy scripts
+          cp artifacts/ocpp-emu-deploy-scripts/ocpp-emu-deploy-scripts.tar.gz release/
+          cp artifacts/ocpp-emu-deploy-scripts/ocpp-emu-deploy-scripts.zip release/
+
+          # Create checksums
+          cd release
+          sha256sum * > checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: OCPP Emulator ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+          generate_release_notes: true
+          files: |
+            release/ocpp-emu-linux-amd64
+            release/ocpp-emu-linux-arm64
+            release/ocpp-emu-darwin-amd64
+            release/ocpp-emu-darwin-arm64
+            release/ocpp-emu-windows-amd64.exe
+            release/ocpp-emu-web.tar.gz
+            release/ocpp-emu-web.zip
+            release/ocpp-emu-configs.tar.gz
+            release/ocpp-emu-configs.zip
+            release/ocpp-emu-deploy-scripts.tar.gz
+            release/ocpp-emu-deploy-scripts.zip
+            release/checksums.txt
+          body: |
+            ## OCPP Charging Station Emulator ${{ steps.version.outputs.version }}
+
+            ### Downloads
+
+            **Backend Server:**
+            - `ocpp-emu-linux-amd64` - Linux x86_64
+            - `ocpp-emu-linux-arm64` - Linux ARM64
+            - `ocpp-emu-darwin-amd64` - macOS Intel
+            - `ocpp-emu-darwin-arm64` - macOS Apple Silicon
+            - `ocpp-emu-windows-amd64.exe` - Windows x86_64
+
+            **Frontend (Static Files):**
+            - `ocpp-emu-web.tar.gz` - Web UI (tar.gz)
+            - `ocpp-emu-web.zip` - Web UI (zip)
+
+            **Configuration:**
+            - `ocpp-emu-configs.tar.gz` - Sample configs and test data
+            - `ocpp-emu-configs.zip` - Sample configs and test data
+
+            **Deployment Scripts:**
+            - `ocpp-emu-deploy-scripts.tar.gz` - Ubuntu deployment scripts
+            - `ocpp-emu-deploy-scripts.zip` - Ubuntu deployment scripts
+
+            ### Quick Start (Manual)
+
+            1. Download the backend binary for your platform
+            2. Download and extract the web UI
+            3. Download and extract the configs
+            4. Start MongoDB: `mongod`
+            5. Run the server: `./ocpp-emu-linux-amd64`
+            6. Serve the web UI with any static file server (nginx, caddy, etc.)
+
+            ### Ubuntu Server Deployment
+
+            ```bash
+            # Download and extract deploy scripts
+            tar -xzf ocpp-emu-deploy-scripts.tar.gz
+            cd deploy-scripts
+
+            # Deploy with automatic download
+            sudo ./deploy-ubuntu.sh --version ${{ steps.version.outputs.version }}
+
+            # Or deploy with local files
+            sudo ./deploy-ubuntu.sh --binary /path/to/ocpp-emu --web /path/to/web/dist
+            ```
+
+            **Deployed locations:**
+            - Binary: `/usr/local/bin/ocpp-emu`
+            - Config: `/etc/conf/ocpp-emu.yml`
+            - Web App: `/var/www/html/ocpp-emu`
+            - Service: `systemctl status ocpp-emu`
+
+            ### Authentication
+
+            Default credentials (change in production):
+            - Admin: `admin` / `admin`
+            - Viewer: `viewer` / `viewer`
+
+            To enable auth, set `auth.enabled: true` in config file

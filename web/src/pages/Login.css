@@ -1,0 +1,119 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-base);
+  padding: var(--space-4);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-emphasis);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+
+.login-header h1 {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.login-header p {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.login-error {
+  background: var(--color-danger-100);
+  color: var(--color-danger-700);
+  border: 1px solid var(--color-danger-500);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.form-group label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.form-group input {
+  height: 40px;
+  padding: 0 var(--space-3);
+  background: var(--bg-base);
+  border: 1px solid var(--border-emphasis);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px var(--color-primary-100);
+}
+
+.form-group input::placeholder {
+  color: var(--text-muted);
+}
+
+.login-button {
+  height: 40px;
+  background: var(--color-primary-500);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  margin-top: var(--space-2);
+}
+
+.login-button:hover:not(:disabled) {
+  background: var(--color-primary-700);
+}
+
+.login-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-footer {
+  margin-top: var(--space-6);
+  text-align: center;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-default);
+}
+
+.login-footer p {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0;
+}

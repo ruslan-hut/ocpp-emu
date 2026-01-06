@@ -1,0 +1,257 @@
+name: Deploy to Ubuntu Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+  push:
+    tags:
+      - 'deploy-*'
+
+env:
+  GO_VERSION: '1.23'
+  NODE_VERSION: '20'
+  BINARY_NAME: 'ocpp-emu'
+  CONFIG_PATH: '/etc/conf/ocpp-emu.yml'
+  WEB_PATH: '/var/www/html/ocpp-emu'
+  SERVICE_NAME: 'ocpp-emu'
+
+jobs:
+  build:
+    name: Build Artifacts
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build backend (linux-amd64)
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: 0
+        run: |
+          go build -ldflags="-s -w -X main.appVersion=${{ steps.version.outputs.version }}" \
+            -o ${{ env.BINARY_NAME }} \
+            ./cmd/server
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build frontend
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-binary
+          path: ${{ env.BINARY_NAME }}
+
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+
+      - name: Upload config artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: config
+          path: configs/config.yaml
+
+      - name: Upload scripts artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scripts
+          path: |
+            scripts/deploy-ubuntu.sh
+            scripts/ocpp-emu.service
+
+  deploy:
+    name: Deploy to Server
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Create deployment package
+        run: |
+          mkdir -p deploy
+          cp artifacts/backend-binary/${{ env.BINARY_NAME }} deploy/
+          cp -r artifacts/web-dist deploy/web
+          cp artifacts/config/config.yaml deploy/
+          cp artifacts/scripts/ocpp-emu.service deploy/
+          chmod +x deploy/${{ env.BINARY_NAME }}
+          tar -czvf deploy.tar.gz deploy
+
+      - name: Copy files to server
+        run: |
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            deploy.tar.gz \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/
+
+      - name: Deploy on server
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'DEPLOY_SCRIPT'
+
+          set -e
+
+          echo "=== Starting deployment ==="
+
+          # Extract deployment package
+          cd /tmp
+          rm -rf deploy
+          tar -xzf deploy.tar.gz
+          cd deploy
+
+          # Stop service if running
+          if systemctl is-active --quiet ${{ env.SERVICE_NAME }} 2>/dev/null; then
+            echo "Stopping existing service..."
+            sudo systemctl stop ${{ env.SERVICE_NAME }}
+          fi
+
+          # Install binary
+          echo "Installing binary..."
+          sudo cp ${{ env.BINARY_NAME }} /usr/local/bin/
+          sudo chmod 755 /usr/local/bin/${{ env.BINARY_NAME }}
+          sudo chown root:root /usr/local/bin/${{ env.BINARY_NAME }}
+
+          # Create service user if not exists
+          if ! id ocpp-emu &>/dev/null; then
+            echo "Creating service user..."
+            sudo useradd --system --no-create-home --shell /bin/false ocpp-emu
+          fi
+
+          # Create directories
+          echo "Creating directories..."
+          sudo mkdir -p /etc/conf
+          sudo mkdir -p ${{ env.WEB_PATH }}
+          sudo mkdir -p /var/log/ocpp-emu
+          sudo chown ocpp-emu:ocpp-emu /var/log/ocpp-emu
+
+          # Install config (only if not exists or forced)
+          if [ ! -f "${{ env.CONFIG_PATH }}" ]; then
+            echo "Installing config..."
+            sudo cp config.yaml ${{ env.CONFIG_PATH }}
+            sudo chmod 640 ${{ env.CONFIG_PATH }}
+            sudo chown root:ocpp-emu ${{ env.CONFIG_PATH }}
+          else
+            echo "Config exists, preserving existing configuration"
+          fi
+
+          # Install web files
+          echo "Installing web files..."
+          sudo rm -rf ${{ env.WEB_PATH }}/*
+          sudo cp -r web/* ${{ env.WEB_PATH }}/
+          sudo chown -R www-data:www-data ${{ env.WEB_PATH }}
+          sudo chmod -R 755 ${{ env.WEB_PATH }}
+
+          # Install systemd service
+          echo "Installing systemd service..."
+          sudo cp ocpp-emu.service /etc/systemd/system/
+          sudo systemctl daemon-reload
+          sudo systemctl enable ${{ env.SERVICE_NAME }}
+
+          # Start service
+          echo "Starting service..."
+          sudo systemctl start ${{ env.SERVICE_NAME }}
+
+          # Verify
+          sleep 2
+          if systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
+            echo "=== Deployment successful ==="
+            sudo systemctl status ${{ env.SERVICE_NAME }} --no-pager
+          else
+            echo "=== Deployment failed ==="
+            sudo journalctl -u ${{ env.SERVICE_NAME }} --no-pager -n 30
+            exit 1
+          fi
+
+          # Cleanup
+          cd /tmp
+          rm -rf deploy deploy.tar.gz
+
+          echo "=== Done ==="
+          DEPLOY_SCRIPT
+
+      - name: Verify deployment
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+
+          echo "Service status:"
+          sudo systemctl status ${{ env.SERVICE_NAME }} --no-pager || true
+
+          echo ""
+          echo "Checking API health..."
+          curl -s http://localhost:8080/api/health || echo "API not responding on localhost:8080"
+
+          echo ""
+          echo "Web files:"
+          ls -la ${{ env.WEB_PATH }}/ | head -10
+          EOF
+
+  notify:
+    name: Notify
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Deployment summary
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "## Deployment Successful" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- **Version:** ${{ needs.build.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Environment:** ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Binary:** /usr/local/bin/${{ env.BINARY_NAME }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Config:** ${{ env.CONFIG_PATH }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Web App:** ${{ env.WEB_PATH }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Deployment Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Check the deploy job logs for details." >> $GITHUB_STEP_SUMMARY
+          fi

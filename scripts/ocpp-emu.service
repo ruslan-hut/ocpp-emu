@@ -1,0 +1,41 @@
+[Unit]
+Description=OCPP Charging Station Emulator
+Documentation=https://github.com/ruslan-hut/ocpp-emu
+After=network.target mongodb.service
+Wants=mongodb.service
+
+[Service]
+Type=simple
+User=ocpp-emu
+Group=ocpp-emu
+WorkingDirectory=/usr/local/bin
+ExecStart=/usr/local/bin/ocpp-emu --config /etc/conf/ocpp-emu.yml
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/var/log/ocpp-emu
+
+# Resource limits
+LimitNOFILE=65535
+LimitNPROC=4096
+
+# Environment
+Environment=GIN_MODE=release
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ocpp-emu
+
+[Install]
+WantedBy=multi-user.target
