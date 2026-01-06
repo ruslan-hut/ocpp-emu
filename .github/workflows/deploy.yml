@@ -115,6 +115,16 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
+      - name: Debug SSH Connection
+        run: |
+          echo "=== SSH Key Info ==="
+          ssh-keygen -l -f ~/.ssh/deploy_key || echo "Invalid key format"
+          echo ""
+          echo "=== Testing SSH Connection ==="
+          ssh -vvv -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o BatchMode=yes \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "echo 'SSH connection successful'" 2>&1 | tail -50
+        continue-on-error: true
+
       - name: Create deployment package
         run: |
           mkdir -p deploy
