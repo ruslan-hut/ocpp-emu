@@ -52,17 +52,17 @@ SKIP_SERVICE=false
 SKIP_WEB=false
 UNINSTALL=false
 
-# Logging functions
+# Logging functions (output to stderr to not interfere with function returns)
 log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "${GREEN}[INFO]${NC} $1" >&2
 }
 
 log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo -e "${YELLOW}[WARN]${NC} $1" >&2
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
 # Parse arguments
