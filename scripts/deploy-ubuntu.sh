@@ -14,10 +14,11 @@
 #   --version VERSION    Version to download (e.g., v1.0.0), or 'local' for local build
 #   --binary PATH        Path to local binary (optional, uses download if not specified)
 #   --web PATH           Path to local web dist directory (optional)
-#   --config PATH        Path to custom config file (optional)
 #   --skip-service       Don't install/restart systemd service
 #   --skip-web           Don't deploy web files
 #   --uninstall          Remove installation
+#
+# Note: Config file must be placed manually at /etc/conf/ocpp-emu.yml
 #
 # Examples:
 #   sudo ./deploy-ubuntu.sh --version v1.0.0
@@ -47,7 +48,6 @@ NC='\033[0m' # No Color
 VERSION=""
 LOCAL_BINARY=""
 LOCAL_WEB=""
-LOCAL_CONFIG=""
 SKIP_SERVICE=false
 SKIP_WEB=false
 UNINSTALL=false
@@ -78,10 +78,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --web)
             LOCAL_WEB="$2"
-            shift 2
-            ;;
-        --config)
-            LOCAL_CONFIG="$2"
             shift 2
             ;;
         --skip-service)
@@ -285,70 +281,16 @@ install_binary() {
     fi
 }
 
-# Install config
-install_config() {
-    local config_path=$1
-
-    if [[ -f ${CONFIG_FILE} ]]; then
-        log_warn "Config file already exists at ${CONFIG_FILE}"
-        log_warn "Creating backup at ${CONFIG_FILE}.bak"
-        cp ${CONFIG_FILE} ${CONFIG_FILE}.bak
+# Check config exists
+check_config() {
+    if [[ ! -f ${CONFIG_FILE} ]]; then
+        log_error "Config file not found at ${CONFIG_FILE}"
+        log_error "Please create the config file manually before starting the service"
+        log_error "Example: sudo cp configs/config.yaml ${CONFIG_FILE}"
+        return 1
     fi
-
-    log_info "Installing config to ${CONFIG_FILE}..."
-
-    if [[ -n "${config_path}" && -f "${config_path}" ]]; then
-        cp "${config_path}" ${CONFIG_FILE}
-    else
-        # Create default config
-        cat > ${CONFIG_FILE} << 'EOF'
-# OCPP Emulator Configuration
-# See documentation for all options
-
-server:
-  host: "0.0.0.0"
-  port: 8080
-
-mongodb:
-  uri: "mongodb://localhost:27017"
-  database: "ocpp_emu"
-
-csms:
-  default_url: "ws://localhost:9000/ocpp"
-  connect_timeout: 30s
-  ping_interval: 30s
-  reconnect_delay: 5s
-  max_reconnect_delay: 5m
-
-logging:
-  level: "info"
-  format: "json"
-
-auth:
-  enabled: true
-  jwt_secret: "change-me-in-production-use-at-least-32-characters"
-  jwt_expiry: 24h
-  users:
-    - username: "admin"
-      # Default password: admin (change in production!)
-      # Generate new hash: go run cmd/tools/hashpw/main.go "your-password"
-      password_hash: "$2a$10$N9qo8uLOickgx2ZMRZoMy.MqrqcBcLZ5HmT1h.CyD3ZL0K3Qb5IKi"
-      role: "admin"
-      enabled: true
-    - username: "viewer"
-      # Default password: viewer
-      password_hash: "$2a$10$XQxBtJXKQZPveuJqNk3Tq.vI6X8Jn5qzJHp8RqKL0K3Qb5IKiViewer"
-      role: "viewer"
-      enabled: true
-  api_keys: []
-EOF
-    fi
-
-    chmod 640 ${CONFIG_FILE}
-    chown root:${SERVICE_USER} ${CONFIG_FILE}
-
-    log_info "Config installed"
-    log_warn "Review and update ${CONFIG_FILE} before starting the service"
+    log_info "Config file found at ${CONFIG_FILE}"
+    return 0
 }
 
 # Install web files
@@ -511,13 +453,6 @@ main() {
     # Install binary
     install_binary "${binary_path}"
 
-    # Install config
-    if [[ ! -f ${CONFIG_FILE} ]] || [[ -n "${LOCAL_CONFIG}" ]]; then
-        install_config "${LOCAL_CONFIG}"
-    else
-        log_info "Keeping existing config at ${CONFIG_FILE}"
-    fi
-
     # Install web files
     if [[ "${SKIP_WEB}" != "true" ]]; then
         local web_path=""
@@ -539,7 +474,14 @@ main() {
     # Install and start service
     if [[ "${SKIP_SERVICE}" != "true" ]]; then
         install_service
-        start_service
+
+        # Check config before starting
+        if check_config; then
+            start_service
+        else
+            log_warn "Service installed but not started - create config file first"
+            log_warn "Then run: sudo systemctl start ${SERVICE_NAME}"
+        fi
     fi
 
     # Print summary
