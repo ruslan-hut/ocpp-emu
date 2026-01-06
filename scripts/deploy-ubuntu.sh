@@ -196,39 +196,71 @@ download_binary() {
     local version=$1
     local arch=$(detect_arch)
     local url="https://github.com/${GITHUB_REPO}/releases/download/${version}/ocpp-emu-linux-${arch}"
+    local output="/tmp/ocpp-emu"
 
     log_info "Downloading binary from ${url}..."
 
+    # Remove old file if exists
+    rm -f "${output}"
+
     if command -v curl &>/dev/null; then
-        curl -fsSL -o /tmp/ocpp-emu "${url}"
+        if ! curl -fsSL -o "${output}" "${url}"; then
+            log_error "Failed to download binary from ${url}"
+            exit 1
+        fi
     elif command -v wget &>/dev/null; then
-        wget -q -O /tmp/ocpp-emu "${url}"
+        if ! wget -q -O "${output}" "${url}"; then
+            log_error "Failed to download binary from ${url}"
+            exit 1
+        fi
     else
         log_error "Neither curl nor wget found"
         exit 1
     fi
 
-    chmod +x /tmp/ocpp-emu
-    echo "/tmp/ocpp-emu"
+    # Verify download
+    if [[ ! -f "${output}" ]]; then
+        log_error "Downloaded file not found at ${output}"
+        exit 1
+    fi
+
+    chmod +x "${output}"
+    echo "${output}"
 }
 
 # Download web files from GitHub releases
 download_web() {
     local version=$1
     local url="https://github.com/${GITHUB_REPO}/releases/download/${version}/ocpp-emu-web.tar.gz"
+    local output="/tmp/ocpp-emu-web.tar.gz"
 
     log_info "Downloading web files from ${url}..."
 
+    # Remove old file if exists
+    rm -f "${output}"
+
     if command -v curl &>/dev/null; then
-        curl -fsSL -o /tmp/ocpp-emu-web.tar.gz "${url}"
+        if ! curl -fsSL -o "${output}" "${url}"; then
+            log_error "Failed to download web files from ${url}"
+            exit 1
+        fi
     elif command -v wget &>/dev/null; then
-        wget -q -O /tmp/ocpp-emu-web.tar.gz "${url}"
+        if ! wget -q -O "${output}" "${url}"; then
+            log_error "Failed to download web files from ${url}"
+            exit 1
+        fi
     else
         log_error "Neither curl nor wget found"
         exit 1
     fi
 
-    echo "/tmp/ocpp-emu-web.tar.gz"
+    # Verify download
+    if [[ ! -f "${output}" ]]; then
+        log_error "Downloaded file not found at ${output}"
+        exit 1
+    fi
+
+    echo "${output}"
 }
 
 # Install binary
