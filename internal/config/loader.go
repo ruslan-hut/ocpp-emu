@@ -4,45 +4,40 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/viper"
+	"github.com/ilyakaznacheev/cleanenv"
 )
 
-// Load loads the configuration from the config file
+// Load loads the configuration from the config file and environment variables
 func Load(configPath string) (*Config, error) {
-	// Set up viper
-	v := viper.New()
-
-	// Set config file path
-	if configPath != "" {
-		v.SetConfigFile(configPath)
-	} else {
-		// Default config locations
-		v.SetConfigName("config")
-		v.SetConfigType("yaml")
-		v.AddConfigPath("./configs")
-		v.AddConfigPath(".")
-	}
-
-	// Read environment variables
-	v.AutomaticEnv()
-	v.SetEnvPrefix("OCPP_EMU")
-
-	// Allow environment variable overrides
-	// e.g., OCPP_EMU_MONGODB_URI will override mongodb.uri
-	v.BindEnv("mongodb.uri", "MONGODB_URI")
-	v.BindEnv("mongodb.database", "MONGODB_DATABASE")
-	v.BindEnv("server.port", "SERVER_PORT")
-	v.BindEnv("server.host", "SERVER_HOST")
-
-	// Read config file
-	if err := v.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
-	}
-
-	// Parse config into struct
 	var cfg Config
-	if err := v.Unmarshal(&cfg); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+
+	// Determine config file path
+	path := configPath
+	if path == "" {
+		// Try default locations
+		defaultPaths := []string{
+			"./configs/config.yaml",
+			"./config.yaml",
+		}
+		for _, p := range defaultPaths {
+			if _, err := os.Stat(p); err == nil {
+				path = p
+				break
+			}
+		}
+	}
+
+	// Load configuration
+	if path != "" {
+		// Load from file with environment variable overrides
+		if err := cleanenv.ReadConfig(path, &cfg); err != nil {
+			return nil, fmt.Errorf("failed to read config file %s: %w", path, err)
+		}
+	} else {
+		// Load from environment variables only (with defaults)
+		if err := cleanenv.ReadEnv(&cfg); err != nil {
+			return nil, fmt.Errorf("failed to read environment config: %w", err)
+		}
 	}
 
 	// Validate configuration
@@ -98,14 +93,4 @@ func validate(cfg *Config) error {
 	}
 
 	return nil
-}
-
-// LoadOrExit loads the configuration and exits on error
-func LoadOrExit(configPath string) *Config {
-	cfg, err := Load(configPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
-		os.Exit(1)
-	}
-	return cfg
 }

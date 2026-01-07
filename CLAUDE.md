@@ -13,6 +13,10 @@ OCPP Charging Station Emulator - A web-based EV charging station emulator suppor
 - **Logging:** Standard library `slog` (structured JSON logging)
 - **WebSocket:** gorilla/websocket for OCPP and real-time message streaming
 
+## User Preferences
+
+- **Do NOT run build checks** - Skip automatic builds, tests, and verification commands after making changes
+
 ## Common Commands
 
 ### Development

@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -28,19 +30,22 @@ const (
 )
 
 func main() {
-	// Initialize logger
-	logger := initLogger()
-	logger.Info("Starting OCPP Emulator",
-		slog.String("version", appVersion),
-		slog.String("app", appName))
+	configPath := flag.String("conf", "", "path to config file")
+	flag.Parse()
 
 	// Load configuration
-	cfg, err := config.Load("")
+	cfg, err := config.Load(*configPath)
 	if err != nil {
-		logger.Error("Failed to load configuration", slog.String("error", err.Error()))
+		log.Printf("Error loading config: %v", err)
 		os.Exit(1)
 	}
-	logger.Info("Configuration loaded successfully")
+
+	// Initialize logger
+	logger := initLogger(cfg)
+	logger.Info("Starting OCPP Emulator",
+		slog.String("version", appVersion),
+		slog.String("conf", fmt.Sprintf("%v", configPath)),
+		slog.String("app", appName))
 
 	// Initialize MongoDB connection
 	ctx := context.Background()
@@ -725,15 +730,35 @@ func main() {
 }
 
 // initLogger initializes the structured logger using slog
-func initLogger() *slog.Logger {
-	opts := &slog.HandlerOptions{
-		Level:     slog.LevelInfo,
-		AddSource: false,
+func initLogger(cfg *config.Config) *slog.Logger {
+	var logger *slog.Logger
+	var logFile *os.File
+	var err error
+
+	if cfg.Logging.Output != "stdout" {
+		logFile, err = os.OpenFile(cfg.Logging.Output, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			log.Fatal("error opening log file: ", err)
+		}
+		log.Printf("env: %s; log file: %s", cfg.Logging.Level, cfg.Logging.Output)
 	}
 
-	handler := slog.NewTextHandler(os.Stdout, opts)
-	logger := slog.New(handler)
-	slog.SetDefault(logger)
+	opts := &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}
+	if cfg.Logging.Level == "info" {
+		opts.Level = slog.LevelInfo
+	}
+
+	if cfg.Logging.Output == "stdout" {
+		logger = slog.New(
+			slog.NewTextHandler(os.Stdout, opts),
+		)
+	} else {
+		logger = slog.New(
+			slog.NewTextHandler(logFile, opts),
+		)
+	}
 
 	return logger
 }
