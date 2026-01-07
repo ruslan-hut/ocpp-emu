@@ -30,7 +30,7 @@ const (
 )
 
 func main() {
-	configPath := flag.String("conf", "", "path to config file")
+	configPath := flag.String("config", "", "path to config file")
 	flag.Parse()
 
 	// Load configuration
