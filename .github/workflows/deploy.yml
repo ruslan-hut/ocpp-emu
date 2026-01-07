@@ -12,15 +12,13 @@ on:
           - production
           - staging
   push:
-    tags:
-      - 'deploy-*'
+    branches:
+      - master
 
 env:
-  GO_VERSION: '1.23'
+  GO_VERSION: '1.24'
   NODE_VERSION: '20'
   BINARY_NAME: 'ocpp-emu'
-  CONFIG_PATH: '/etc/conf/ocpp-emu.yml'
-  WEB_PATH: '/var/www/html/ocpp-emu'
   SERVICE_NAME: 'ocpp-emu'
 
 jobs:
@@ -78,8 +76,6 @@ jobs:
           mkdir -p deploy/web
           cp ${{ env.BINARY_NAME }} deploy/
           cp -r web/dist/* deploy/web/
-          cp configs/config.yaml deploy/
-          cp scripts/ocpp-emu.service deploy/
 
       # Copy files to server
       - name: Copy files to server
@@ -99,11 +95,23 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: BINARY_NAME,CONFIG_PATH,WEB_PATH,SERVICE_NAME
           script: |
             set -e
 
+            BINARY_NAME="ocpp-emu"
+            SERVICE_NAME="ocpp-emu"
+            BINARY_PATH="${{ secrets.BINARY_PATH }}"
+            WEB_PATH="${{ secrets.WEB_PATH }}"
+            API_PORT="${{ secrets.API_PORT }}"
+
+            # Use defaults if secrets not set
+            BINARY_PATH="${BINARY_PATH:-/usr/local/bin/ocpp-emu}"
+            WEB_PATH="${WEB_PATH:-/var/www/html/ocpp-emu}"
+            API_PORT="${API_PORT:-8080}"
+
             echo "=== Starting deployment ==="
+            echo "Binary path: $BINARY_PATH"
+            echo "Web path: $WEB_PATH"
             cd /tmp/ocpp-emu-deploy
 
             # Stop service if running
@@ -112,47 +120,21 @@ jobs:
               sudo systemctl stop $SERVICE_NAME
             fi
 
-            # Install binary
+            # Backup and install binary
             echo "Installing binary..."
-            sudo cp $BINARY_NAME /usr/local/bin/
-            sudo chmod 755 /usr/local/bin/$BINARY_NAME
-            sudo chown root:root /usr/local/bin/$BINARY_NAME
-
-            # Create service user if not exists
-            if ! id ocpp-emu &>/dev/null; then
-              echo "Creating service user..."
-              sudo useradd --system --no-create-home --shell /bin/false ocpp-emu
+            if [ -f "$BINARY_PATH" ]; then
+              sudo cp "$BINARY_PATH" "${BINARY_PATH}.bak"
             fi
+            sudo cp $BINARY_NAME "$BINARY_PATH"
+            sudo chmod 755 "$BINARY_PATH"
 
-            # Create directories
-            echo "Creating directories..."
-            sudo mkdir -p /etc/conf
-            sudo mkdir -p $WEB_PATH
-            sudo mkdir -p /var/log/ocpp-emu
-            sudo chown ocpp-emu:ocpp-emu /var/log/ocpp-emu
-
-            # Install config (only if not exists)
-            if [ ! -f "$CONFIG_PATH" ]; then
-              echo "Installing config..."
-              sudo cp config.yaml $CONFIG_PATH
-              sudo chmod 640 $CONFIG_PATH
-              sudo chown root:ocpp-emu $CONFIG_PATH
-            else
-              echo "Config exists, preserving existing configuration"
-            fi
-
-            # Install web files
+            # Install web files (preserve config, replace static files only)
             echo "Installing web files..."
-            sudo rm -rf $WEB_PATH/*
-            sudo cp -r web/* $WEB_PATH/
-            sudo chown -R www-data:www-data $WEB_PATH
-            sudo chmod -R 755 $WEB_PATH
-
-            # Install systemd service
-            echo "Installing systemd service..."
-            sudo cp ocpp-emu.service /etc/systemd/system/
-            sudo systemctl daemon-reload
-            sudo systemctl enable $SERVICE_NAME
+            sudo mkdir -p "$WEB_PATH"
+            sudo rm -rf "$WEB_PATH"/*
+            sudo cp -r web/* "$WEB_PATH"/
+            sudo chown -R www-data:www-data "$WEB_PATH"
+            sudo chmod -R 755 "$WEB_PATH"
 
             # Start service
             echo "Starting service..."
@@ -162,36 +144,26 @@ jobs:
             cd /tmp
             rm -rf /tmp/ocpp-emu-deploy
 
-            echo "=== Deployment complete ==="
+            # Verify service is running
+            sleep 3
+            if systemctl is-active --quiet $SERVICE_NAME; then
+              echo "=== Service started successfully ==="
+            else
+              echo "=== Service failed to start ==="
+              sudo systemctl status $SERVICE_NAME --no-pager || true
+              exit 1
+            fi
 
-      # Verify deployment
-      - name: Verify deployment
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: SERVICE_NAME,WEB_PATH
-          script: |
-            echo "=== Service Status ==="
-            sudo systemctl status $SERVICE_NAME --no-pager || true
-
-            echo ""
+            # Health check
             echo "=== API Health Check ==="
-            sleep 2
-            curl -s http://localhost:8080/api/health || echo "API not responding"
+            curl -s "http://localhost:${API_PORT}/api/health" || echo "API not responding yet"
 
-            echo ""
-            echo "=== Web Files ==="
-            ls -la $WEB_PATH/ | head -10
+            echo "=== Deployment complete ==="
 
       - name: Deployment summary
         run: |
           echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment:** ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Binary:** /usr/local/bin/${{ env.BINARY_NAME }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Config:** ${{ env.CONFIG_PATH }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Web App:** ${{ env.WEB_PATH }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Service:** systemctl status ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
