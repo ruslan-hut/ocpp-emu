@@ -8,7 +8,7 @@ const WS_URL = import.meta.env.VITE_WS_URL ||
   (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host
 
 function Messages() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, token } = useAuth()
   const [messages, setMessages] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -173,13 +173,16 @@ function Messages() {
         wsRef.current = null
       }
     }
-  }, [liveUpdates, filters.stationId])
+  }, [liveUpdates, filters.stationId, token])
 
   const connectWebSocket = () => {
     try {
       // Build WebSocket URL with filters
       let wsUrl = `${WS_URL}/api/ws/messages`
       const params = new URLSearchParams()
+      if (token) {
+        params.append('token', token)
+      }
       if (filters.stationId) {
         params.append('stationId', filters.stationId)
       }

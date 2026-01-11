@@ -34,6 +34,23 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 			}
 		}
 
+		// Try JWT token from query parameter (for WebSocket connections)
+		if user == nil {
+			tokenParam := r.URL.Query().Get("token")
+			if tokenParam != "" {
+				claims, err := s.ValidateJWT(tokenParam)
+				if err != nil {
+					sendError(w, http.StatusUnauthorized, err.Error())
+					return
+				}
+				user = &AuthenticatedUser{
+					Username: claims.Username,
+					Role:     claims.Role,
+					AuthType: "jwt",
+				}
+			}
+		}
+
 		// Try API key from X-API-Key header
 		if user == nil {
 			apiKey := r.Header.Get("X-API-Key")

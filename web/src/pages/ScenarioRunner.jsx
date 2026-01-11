@@ -7,7 +7,7 @@ const WS_URL = import.meta.env.VITE_WS_URL ||
   (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host
 
 function ScenarioRunner() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, token } = useAuth()
   const [scenarios, setScenarios] = useState([])
   const [executions, setExecutions] = useState([])
   const [stations, setStations] = useState([])
@@ -85,7 +85,10 @@ function ScenarioRunner() {
     if (!activeExecution) return
 
     const stationId = activeExecution.stationId
-    const wsUrl = `${WS_URL}/api/ws/messages?stationId=${encodeURIComponent(stationId)}`
+    const params = new URLSearchParams()
+    if (token) params.append('token', token)
+    params.append('stationId', stationId)
+    const wsUrl = `${WS_URL}/api/ws/messages?${params.toString()}`
 
     const connect = () => {
       wsRef.current = new WebSocket(wsUrl)
@@ -135,7 +138,7 @@ function ScenarioRunner() {
         wsRef.current.close()
       }
     }
-  }, [activeExecution?.executionId, activeExecution?.stationId])
+  }, [activeExecution?.executionId, activeExecution?.stationId, token])
 
   // Poll for execution updates
   useEffect(() => {
