@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
+import { Link } from 'react-router-dom'
 import { stationsAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import StationForm from '../components/StationForm'
-import StationConfig from '../components/StationConfig'
 import TemplatesManager from '../components/TemplatesManager'
 import ImportExport from '../components/ImportExport'
 import ConnectorCard from '../components/ConnectorCard'
@@ -13,20 +12,12 @@ function Stations() {
   const [stations, setStations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [showForm, setShowForm] = useState(false)
-  const [editingStation, setEditingStation] = useState(null)
   const [showTemplates, setShowTemplates] = useState(false)
   const [showImportExport, setShowImportExport] = useState(false)
   const [templates, setTemplates] = useState([])
-  const [showConnectors, setShowConnectors] = useState(false)
-  const [selectedStationId, setSelectedStationId] = useState(null)
-  const [connectors, setConnectors] = useState([])
-  const [connectorsLoading, setConnectorsLoading] = useState(false)
-  const [autoRefresh, setAutoRefresh] = useState(true)
-  const [refreshInterval, setRefreshInterval] = useState(5)
-  const [showConfig, setShowConfig] = useState(false)
-  const [configuringStation, setConfiguringStation] = useState(null)
-  const [viewMode, setViewMode] = useState(() => localStorage.getItem('stationsViewMode') || 'list')
+  const [expandedStations, setExpandedStations] = useState(new Set())
+  const [connectorsMap, setConnectorsMap] = useState({})
+  const [connectorsLoading, setConnectorsLoading] = useState({})
   const [sortBy, setSortBy] = useState(() => localStorage.getItem('stationsSortBy') || null)
   const [sortOrder, setSortOrder] = useState(() => localStorage.getItem('stationsSortOrder') || 'asc')
 
@@ -35,18 +26,18 @@ function Stations() {
     loadTemplates()
   }, [])
 
-  // Auto-refresh connectors
+  // Auto-refresh expanded connectors
   useEffect(() => {
-    if (!showConnectors || !autoRefresh || !selectedStationId) {
-      return
-    }
+    if (expandedStations.size === 0) return
 
     const intervalId = setInterval(() => {
-      handleRefreshConnectors(true) // silent refresh
-    }, refreshInterval * 1000)
+      expandedStations.forEach(stationId => {
+        refreshConnectors(stationId, true)
+      })
+    }, 5000)
 
     return () => clearInterval(intervalId)
-  }, [showConnectors, autoRefresh, refreshInterval, selectedStationId])
+  }, [expandedStations])
 
   const fetchStations = async () => {
     try {
@@ -71,7 +62,8 @@ function Stations() {
     }
   }
 
-  const handleStart = async (stationId) => {
+  const handleStart = async (stationId, e) => {
+    e?.stopPropagation()
     try {
       await stationsAPI.start(stationId)
       fetchStations()
@@ -80,7 +72,8 @@ function Stations() {
     }
   }
 
-  const handleStop = async (stationId) => {
+  const handleStop = async (stationId, e) => {
+    e?.stopPropagation()
     try {
       await stationsAPI.stop(stationId)
       fetchStations()
@@ -89,7 +82,8 @@ function Stations() {
     }
   }
 
-  const handleDelete = async (station) => {
+  const handleDelete = async (station, e) => {
+    e?.stopPropagation()
     const stationId = station.stationId || station
     if (!confirm(`Are you sure you want to delete station ${stationId}?`)) {
       return
@@ -97,152 +91,65 @@ function Stations() {
 
     try {
       await stationsAPI.delete(stationId)
-      setShowForm(false)
-      setEditingStation(null)
       fetchStations()
     } catch (err) {
       alert(`Failed to delete station: ${err.message}`)
     }
   }
 
-  const handleCreateStation = () => {
-    setEditingStation(null)
-    setShowForm(true)
-  }
-
-  const handleEditStation = (station) => {
-    setEditingStation(station)
-    setShowForm(true)
-  }
-
-  const handleFormSubmit = async (formData) => {
-    try {
-      if (editingStation) {
-        await stationsAPI.update(editingStation.stationId, formData)
-      } else {
-        await stationsAPI.create(formData)
-      }
-      setShowForm(false)
-      setEditingStation(null)
-      fetchStations()
-    } catch (err) {
-      alert(`Failed to save station: ${err.response?.data?.error || err.message}`)
-    }
-  }
-
-  const handleFormCancel = () => {
-    setShowForm(false)
-    setEditingStation(null)
-  }
-
   const handleTemplateSelect = (template) => {
-    setEditingStation({
-      ...template,
-      stationId: '',
-      name: `${template.name} (New)`,
-      csmsUrl: '',
-      enabled: true,
-      autoStart: false
-    })
     setShowTemplates(false)
-    setShowForm(true)
+    // Navigate to new station page with template data in state
+    window.location.href = `/stations/new?template=${encodeURIComponent(template.name)}`
   }
 
-  const handleSaveAsTemplate = (station) => {
-    const templateName = prompt('Enter template name:')
-    if (!templateName) return
-
-    const template = {
-      ...station,
-      name: templateName,
-      description: `Template based on ${station.name}`,
-      stationId: undefined,
-      csmsUrl: undefined,
-      enabled: undefined,
-      autoStart: undefined,
-      runtimeState: undefined,
-      createdAt: undefined,
-      updatedAt: undefined,
-      _id: undefined,
-      id: undefined
+  const toggleExpanded = async (stationId) => {
+    const newExpanded = new Set(expandedStations)
+    if (newExpanded.has(stationId)) {
+      newExpanded.delete(stationId)
+    } else {
+      newExpanded.add(stationId)
+      // Load connectors if not already loaded
+      if (!connectorsMap[stationId]) {
+        await loadConnectors(stationId)
+      }
     }
-
-    const existingTemplates = templates || []
-    const newTemplates = [...existingTemplates, template]
-    setTemplates(newTemplates)
-    localStorage.setItem('stationTemplates', JSON.stringify(newTemplates))
-    alert('Template saved successfully!')
+    setExpandedStations(newExpanded)
   }
 
-  const handleViewConnectors = async (stationId) => {
-    setSelectedStationId(stationId)
-    setShowConnectors(true)
-    setConnectorsLoading(true)
+  const loadConnectors = async (stationId) => {
+    setConnectorsLoading(prev => ({ ...prev, [stationId]: true }))
     try {
       const response = await stationsAPI.getConnectors(stationId)
       const sortedConnectors = (response.data.connectors || []).sort((a, b) => a.id - b.id)
-      setConnectors(sortedConnectors)
+      setConnectorsMap(prev => ({ ...prev, [stationId]: sortedConnectors }))
     } catch (err) {
-      alert(`Failed to load connectors: ${err.message}`)
-      setConnectors([])
+      console.error(`Failed to load connectors for ${stationId}:`, err)
+      setConnectorsMap(prev => ({ ...prev, [stationId]: [] }))
     } finally {
-      setConnectorsLoading(false)
+      setConnectorsLoading(prev => ({ ...prev, [stationId]: false }))
     }
   }
 
-  const handleRefreshConnectors = async (silent = false) => {
-    if (!selectedStationId) return
+  const refreshConnectors = async (stationId, silent = false) => {
     if (!silent) {
-      setConnectorsLoading(true)
+      setConnectorsLoading(prev => ({ ...prev, [stationId]: true }))
     }
     try {
-      const response = await stationsAPI.getConnectors(selectedStationId)
+      const response = await stationsAPI.getConnectors(stationId)
       const sortedConnectors = (response.data.connectors || []).sort((a, b) => a.id - b.id)
-      setConnectors(sortedConnectors)
+      setConnectorsMap(prev => ({ ...prev, [stationId]: sortedConnectors }))
     } catch (err) {
-      console.error('Failed to refresh connectors:', err)
+      console.error(`Failed to refresh connectors for ${stationId}:`, err)
     } finally {
       if (!silent) {
-        setConnectorsLoading(false)
+        setConnectorsLoading(prev => ({ ...prev, [stationId]: false }))
       }
     }
-  }
-
-  const handleCloseConnectors = () => {
-    setShowConnectors(false)
-    setSelectedStationId(null)
-    setConnectors([])
-  }
-
-  const handleConfigureStation = (station) => {
-    setConfiguringStation(station)
-    setShowConfig(true)
-  }
-
-  const handleSaveConfig = async (updatedConfig) => {
-    try {
-      await stationsAPI.update(updatedConfig.stationId, updatedConfig)
-      setShowConfig(false)
-      setConfiguringStation(null)
-      fetchStations()
-    } catch (err) {
-      throw new Error(err.response?.data?.error || err.message)
-    }
-  }
-
-  const handleCloseConfig = () => {
-    setShowConfig(false)
-    setConfiguringStation(null)
-  }
-
-  const handleViewModeChange = (mode) => {
-    setViewMode(mode)
-    localStorage.setItem('stationsViewMode', mode)
   }
 
   const handleSort = (field) => {
     if (sortBy === field) {
-      // Toggle through: asc -> desc -> none
       if (sortOrder === 'asc') {
         setSortOrder('desc')
         localStorage.setItem('stationsSortOrder', 'desc')
@@ -267,7 +174,6 @@ function Stations() {
       let aValue = a[sortBy]
       let bValue = b[sortBy]
 
-      // Handle case-insensitive string comparison for stationId
       if (typeof aValue === 'string') aValue = aValue.toLowerCase()
       if (typeof bValue === 'string') bValue = bValue.toLowerCase()
 
@@ -283,160 +189,15 @@ function Stations() {
     return 'ocpp16'
   }
 
-  const renderStationCard = (station, isHorizontal = false) => (
-    <div key={station.stationId} className={`station-card ${isHorizontal ? 'station-card--horizontal' : ''}`}>
-      <div className="station-card__main">
-        <div className="station-header">
-          <div className="station-header__info">
-            <h3>{station.name}</h3>
-            <span className="station-id-inline">{station.stationId}</span>
-          </div>
-          <span className={`status-badge ${station.runtimeState?.connectionStatus}`}>
-            {station.runtimeState?.connectionStatus || 'unknown'}
-          </span>
-        </div>
-
-        <div className="station-info">
-          <div className="station-info__grid">
-            <div className="info-cell">
-              <span className="info-cell__label">Vendor</span>
-              <span className="info-cell__value">{station.vendor}</span>
-            </div>
-            <div className="info-cell">
-              <span className="info-cell__label">Model</span>
-              <span className="info-cell__value">{station.model}</span>
-            </div>
-            <div className="info-cell">
-              <span className="info-cell__label">Protocol</span>
-              <span className={`protocol-badge ${getProtocolClass(station.protocolVersion)}`}>
-                {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
-              </span>
-            </div>
-            <div className="info-cell">
-              <span className="info-cell__label">Connectors</span>
-              <span className="info-cell__value">{station.connectors?.length || 0}</span>
-            </div>
-          </div>
-          <div className="station-url">
-            <span className="info-cell__label">CSMS:</span>
-            <span className="info-cell__value url">{station.csmsUrl || 'Not configured'}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="station-actions">
-        {station.runtimeState?.connectionStatus === 'connected' ? (
-          <button className="btn btn-action btn-stop" onClick={() => handleStop(station.stationId)}>
-            Stop
-          </button>
-        ) : (
-          <button
-            className="btn btn-action btn-start"
-            onClick={() => handleStart(station.stationId)}
-            disabled={!station.enabled}
-          >
-            Start
-          </button>
-        )}
-        <button className="btn btn-action btn-connectors" onClick={() => handleViewConnectors(station.stationId)}>
-          Connectors
-        </button>
-        <button className="btn btn-action btn-config" onClick={() => handleConfigureStation(station)}>
-          Configure
-        </button>
-        <button className="btn btn-action btn-edit" onClick={() => handleEditStation(station)}>
-          Edit
-        </button>
-      </div>
-    </div>
-  )
-
-  const renderTableView = () => {
-    const sortedStations = getSortedStations()
-
-    return (
-      <div className="stations-table-wrapper">
-        <table className="stations-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>
-                <button
-                  className="sort-header-btn"
-                  onClick={() => handleSort('stationId')}
-                  title="Sort by Station ID"
-                >
-                  Station ID
-                  {sortBy === 'stationId' && (
-                    <span className="sort-indicator">
-                      {sortOrder === 'asc' ? ' ▲' : ' ▼'}
-                    </span>
-                  )}
-                </button>
-              </th>
-              <th>Status</th>
-              <th>Protocol</th>
-              <th>Vendor / Model</th>
-              <th>Connectors</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedStations.map((station) => (
-              <tr key={station.stationId}>
-                <td className="cell-name">{station.name}</td>
-                <td className="cell-id">{station.stationId}</td>
-                <td>
-                  <span className={`status-badge status-badge--sm ${station.runtimeState?.connectionStatus}`}>
-                    {station.runtimeState?.connectionStatus || 'unknown'}
-                  </span>
-                </td>
-                <td>
-                  <span className={`protocol-badge ${getProtocolClass(station.protocolVersion)}`}>
-                    {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
-                  </span>
-                </td>
-                <td className="cell-vendor">{station.vendor} / {station.model}</td>
-                <td className="cell-connectors">{station.connectors?.length || 0}</td>
-                <td className="cell-actions">
-                  {station.runtimeState?.connectionStatus === 'connected' ? (
-                    <button className="btn btn--xs btn-stop" onClick={() => handleStop(station.stationId)}>
-                      Stop
-                    </button>
-                  ) : (
-                    <button
-                      className="btn btn--xs btn-start"
-                      onClick={() => handleStart(station.stationId)}
-                      disabled={!station.enabled}
-                    >
-                      Start
-                    </button>
-                  )}
-                  <button className="btn btn--xs btn-connectors" onClick={() => handleViewConnectors(station.stationId)}>
-                    Connectors
-                  </button>
-                  <button className="btn btn--xs btn-config" onClick={() => handleConfigureStation(station)}>
-                    Config
-                  </button>
-                  <button className="btn btn--xs btn-edit" onClick={() => handleEditStation(station)}>
-                    Edit
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )
-  }
-
   if (loading) {
-    return <div className="loading">Loading stations...</div>
+    return <div className="stations"><div className="loading">Loading stations...</div></div>
   }
 
   if (error) {
-    return <div className="error">Error loading stations: {error}</div>
+    return <div className="stations"><div className="error">Error loading stations: {error}</div></div>
   }
+
+  const sortedStations = getSortedStations()
 
   return (
     <div className="stations">
@@ -446,62 +207,18 @@ function Stations() {
           <span className="station-count">{stations.length} station{stations.length !== 1 ? 's' : ''}</span>
         </div>
         <div className="header-actions">
-          {stations.length > 0 && (
-            <div className="view-toggle">
-              <button
-                className={`view-toggle__btn ${viewMode === 'list' ? 'active' : ''}`}
-                onClick={() => handleViewModeChange('list')}
-                title="List view"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                  <rect x="1" y="2" width="14" height="3" rx="1" />
-                  <rect x="1" y="7" width="14" height="3" rx="1" />
-                  <rect x="1" y="12" width="14" height="2" rx="1" />
-                </svg>
-              </button>
-              <button
-                className={`view-toggle__btn ${viewMode === 'grid' ? 'active' : ''}`}
-                onClick={() => handleViewModeChange('grid')}
-                title="Grid view"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                  <rect x="1" y="1" width="6" height="6" rx="1" />
-                  <rect x="9" y="1" width="6" height="6" rx="1" />
-                  <rect x="1" y="9" width="6" height="6" rx="1" />
-                  <rect x="9" y="9" width="6" height="6" rx="1" />
-                </svg>
-              </button>
-              <button
-                className={`view-toggle__btn ${viewMode === 'table' ? 'active' : ''}`}
-                onClick={() => handleViewModeChange('table')}
-                title="Table view"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                  <rect x="1" y="1" width="14" height="2" />
-                  <rect x="1" y="5" width="5" height="2" />
-                  <rect x="8" y="5" width="7" height="2" />
-                  <rect x="1" y="9" width="5" height="2" />
-                  <rect x="8" y="9" width="7" height="2" />
-                  <rect x="1" y="13" width="5" height="2" />
-                  <rect x="8" y="13" width="7" height="2" />
-                </svg>
-              </button>
-            </div>
-          )}
           {isAdmin && (
-            <button className="btn btn--sm btn--secondary" onClick={() => setShowTemplates(true)}>
-              Templates
-            </button>
-          )}
-          {isAdmin && (
-            <button className="btn btn--sm btn--secondary" onClick={() => setShowImportExport(true)}>
-              Import/Export
-            </button>
-          )}
-          {isAdmin && (
-            <button className="btn btn--sm btn--primary" onClick={handleCreateStation}>
-              + Add Station
-            </button>
+            <>
+              <button className="btn btn--sm btn--secondary" onClick={() => setShowTemplates(true)}>
+                Templates
+              </button>
+              <button className="btn btn--sm btn--secondary" onClick={() => setShowImportExport(true)}>
+                Import/Export
+              </button>
+              <Link to="/stations/new" className="btn btn--sm btn--primary">
+                + Add Station
+              </Link>
+            </>
           )}
         </div>
       </div>
@@ -512,9 +229,9 @@ function Stations() {
           <p>{isAdmin ? 'Get started by creating your first charging station' : 'No stations available to view'}</p>
           {isAdmin && (
             <div className="empty-state-actions">
-              <button className="btn btn-primary" onClick={handleCreateStation}>
+              <Link to="/stations/new" className="btn btn-primary">
                 Create New Station
-              </button>
+              </Link>
               <button className="btn btn-secondary" onClick={() => setShowTemplates(true)}>
                 Use Template
               </button>
@@ -524,23 +241,155 @@ function Stations() {
             </div>
           )}
         </div>
-      ) : viewMode === 'table' ? (
-        renderTableView()
       ) : (
-        <div className={`stations-${viewMode === 'grid' ? 'grid' : 'list'}`}>
-          {getSortedStations().map((station) => renderStationCard(station, viewMode === 'list'))}
-        </div>
-      )}
+        <div className="stations-table-wrapper">
+          <table className="stations-table">
+            <thead>
+              <tr>
+                <th className="col-expand"></th>
+                <th className="col-name">Name</th>
+                <th className="col-id">
+                  <button
+                    className="sort-header-btn"
+                    onClick={() => handleSort('stationId')}
+                    title="Sort by Station ID"
+                  >
+                    Station ID
+                    {sortBy === 'stationId' && (
+                      <span className="sort-indicator">
+                        {sortOrder === 'asc' ? ' ▲' : ' ▼'}
+                      </span>
+                    )}
+                  </button>
+                </th>
+                <th className="col-status">Status</th>
+                <th className="col-protocol">Protocol</th>
+                <th className="col-vendor">Vendor / Model</th>
+                <th className="col-connectors">Connectors</th>
+                <th className="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedStations.map((station) => {
+                const isExpanded = expandedStations.has(station.stationId)
+                const stationConnectors = connectorsMap[station.stationId] || []
+                const isLoadingConnectors = connectorsLoading[station.stationId]
+                const isConnected = station.runtimeState?.connectionStatus === 'connected'
 
-      {showForm && isAdmin && (
-        <StationForm
-          station={editingStation}
-          onSubmit={handleFormSubmit}
-          onCancel={handleFormCancel}
-          onDelete={editingStation ? handleDelete : undefined}
-          onSaveAsTemplate={editingStation ? handleSaveAsTemplate : undefined}
-          templates={templates}
-        />
+                return (
+                  <Fragment key={station.stationId}>
+                    <tr
+                      className={`station-row ${isExpanded ? 'expanded' : ''}`}
+                      onClick={() => toggleExpanded(station.stationId)}
+                    >
+                      <td className="cell-expand">
+                        <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                            <path d="M4 2l4 4-4 4" />
+                          </svg>
+                        </span>
+                      </td>
+                      <td className="cell-name">{station.name}</td>
+                      <td className="cell-id">{station.stationId}</td>
+                      <td className="cell-status">
+                        <span className={`status-badge status-badge--sm ${station.runtimeState?.connectionStatus}`}>
+                          {station.runtimeState?.connectionStatus || 'unknown'}
+                        </span>
+                      </td>
+                      <td className="cell-protocol">
+                        <span className={`protocol-badge ${getProtocolClass(station.protocolVersion)}`}>
+                          {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
+                        </span>
+                      </td>
+                      <td className="cell-vendor">{station.vendor} / {station.model}</td>
+                      <td className="cell-connectors">{station.connectors?.length || 0}</td>
+                      <td className="cell-actions">
+                        {isConnected ? (
+                          <button
+                            className="btn btn--xs btn-stop"
+                            onClick={(e) => handleStop(station.stationId, e)}
+                          >
+                            Stop
+                          </button>
+                        ) : (
+                          <button
+                            className="btn btn--xs btn-start"
+                            onClick={(e) => handleStart(station.stationId, e)}
+                            disabled={!station.enabled}
+                          >
+                            Start
+                          </button>
+                        )}
+                        <Link
+                          to={`/stations/${station.stationId}/config`}
+                          className="btn btn--xs btn-config"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Config
+                        </Link>
+                        {isAdmin && (
+                          <Link
+                            to={`/stations/${station.stationId}/edit`}
+                            className="btn btn--xs btn-edit"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Edit
+                          </Link>
+                        )}
+                        {isAdmin && (
+                          <button
+                            className="btn btn--xs btn-delete"
+                            onClick={(e) => handleDelete(station, e)}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr className="connectors-row">
+                        <td colSpan="8">
+                          <div className="connectors-inline">
+                            <div className="connectors-inline__header">
+                              <span className="connectors-inline__title">Connectors</span>
+                              <button
+                                className="btn btn--xs btn--secondary"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  refreshConnectors(station.stationId, false)
+                                }}
+                                disabled={isLoadingConnectors}
+                              >
+                                Refresh
+                              </button>
+                            </div>
+                            {isLoadingConnectors ? (
+                              <div className="connectors-loading">Loading connectors...</div>
+                            ) : stationConnectors.length === 0 ? (
+                              <div className="connectors-empty">No connectors configured</div>
+                            ) : (
+                              <div className="connectors-inline__grid">
+                                {stationConnectors.map((connector) => (
+                                  <ConnectorCard
+                                    key={connector.id}
+                                    stationId={station.stationId}
+                                    connector={connector}
+                                    isStationConnected={isConnected}
+                                    onUpdate={() => refreshConnectors(station.stationId, true)}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {showTemplates && (
@@ -555,84 +404,6 @@ function Stations() {
           stations={stations}
           onClose={() => setShowImportExport(false)}
           onImportComplete={fetchStations}
-        />
-      )}
-
-      {showConnectors && (
-        <div className="modal-overlay" onClick={handleCloseConnectors}>
-          <div className="modal-content connectors-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Connectors - {selectedStationId}</h2>
-              <div className="modal-header-actions">
-                <div className="auto-refresh-controls">
-                  <label className="auto-refresh-toggle">
-                    <input
-                      type="checkbox"
-                      checked={autoRefresh}
-                      onChange={(e) => setAutoRefresh(e.target.checked)}
-                    />
-                    <span>Auto-refresh</span>
-                    {autoRefresh && <span className="refresh-indicator">●</span>}
-                  </label>
-                  {autoRefresh && (
-                    <select
-                      className="refresh-interval-select"
-                      value={refreshInterval}
-                      onChange={(e) => setRefreshInterval(Number(e.target.value))}
-                    >
-                      <option value="3">3s</option>
-                      <option value="5">5s</option>
-                      <option value="10">10s</option>
-                      <option value="30">30s</option>
-                    </select>
-                  )}
-                </div>
-                <button
-                  className="btn-secondary"
-                  onClick={() => handleRefreshConnectors(false)}
-                  disabled={connectorsLoading}
-                >
-                  🔄 Refresh
-                </button>
-                <button className="btn-close" onClick={handleCloseConnectors}>
-                  ✕
-                </button>
-              </div>
-            </div>
-            <div className="modal-body">
-              {connectorsLoading ? (
-                <div className="loading">Loading connectors...</div>
-              ) : connectors.length === 0 ? (
-                <div className="empty-state">
-                  <p>No connectors configured for this station</p>
-                </div>
-              ) : (
-                <div className="connectors-grid">
-                  {connectors.map((connector) => {
-                    const station = stations.find(s => s.stationId === selectedStationId)
-                    const isConnected = station?.runtimeState?.connectionStatus === 'connected'
-                    return (
-                      <ConnectorCard
-                        key={connector.id}
-                        stationId={selectedStationId}
-                        connector={connector}
-                        isStationConnected={isConnected}
-                        onUpdate={() => handleRefreshConnectors(true)}
-                      />
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showConfig && configuringStation && (
-        <StationConfig
-          station={configuringStation}
-          onSave={handleSaveConfig}
-          onClose={handleCloseConfig}
         />
       )}
     </div>

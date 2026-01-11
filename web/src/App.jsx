@@ -4,6 +4,8 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Stations from './pages/Stations'
+import StationEdit from './pages/StationEdit'
+import StationConfigPage from './pages/StationConfigPage'
 import Messages from './pages/Messages'
 import MessageCrafter from './pages/MessageCrafter'
 import ScenarioRunner from './pages/ScenarioRunner'
@@ -23,6 +25,9 @@ function App() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/stations" element={<Stations />} />
+                <Route path="/stations/new" element={<StationEdit />} />
+                <Route path="/stations/:id/edit" element={<StationEdit />} />
+                <Route path="/stations/:id/config" element={<StationConfigPage />} />
                 <Route path="/messages" element={<Messages />} />
                 <Route path="/message-crafter" element={<MessageCrafter />} />
                 <Route path="/scenarios" element={<ScenarioRunner />} />
