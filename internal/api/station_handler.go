@@ -652,7 +652,19 @@ func (h *StationHandler) StartCharging(w http.ResponseWriter, r *http.Request) {
 
 	// Start charging
 	if err := h.manager.StartCharging(r.Context(), stationID, req.ConnectorID, req.IDTag); err != nil {
-		h.sendError(w, http.StatusInternalServerError, err.Error())
+		errMsg := err.Error()
+		// Determine appropriate status code based on error type
+		statusCode := http.StatusInternalServerError
+		if strings.Contains(errMsg, "not found") {
+			statusCode = http.StatusNotFound
+		} else if strings.Contains(errMsg, "not available") || strings.Contains(errMsg, "reserved") {
+			statusCode = http.StatusConflict
+		} else if strings.Contains(errMsg, "not connected") {
+			statusCode = http.StatusServiceUnavailable
+		} else if strings.Contains(errMsg, "authorization") || strings.Contains(errMsg, "rejected") {
+			statusCode = http.StatusForbidden
+		}
+		h.sendError(w, statusCode, errMsg)
 		return
 	}
 
@@ -704,7 +716,17 @@ func (h *StationHandler) StopCharging(w http.ResponseWriter, r *http.Request) {
 
 	// Stop charging
 	if err := h.manager.StopCharging(r.Context(), stationID, req.ConnectorID, req.Reason); err != nil {
-		h.sendError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to stop charging: %v", err))
+		errMsg := err.Error()
+		// Determine appropriate status code based on error type
+		statusCode := http.StatusInternalServerError
+		if strings.Contains(errMsg, "not found") {
+			statusCode = http.StatusNotFound
+		} else if strings.Contains(errMsg, "no active") || strings.Contains(errMsg, "not charging") {
+			statusCode = http.StatusConflict
+		} else if strings.Contains(errMsg, "not connected") {
+			statusCode = http.StatusServiceUnavailable
+		}
+		h.sendError(w, statusCode, fmt.Sprintf("Failed to stop charging: %v", err))
 		return
 	}
 
