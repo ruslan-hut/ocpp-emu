@@ -1,5 +1,5 @@
 .connector-card {
-  background: var(--bg-surface-1);
+  background: var(--bg-base);
   border: 1px solid var(--border-emphasis);
   border-radius: var(--radius-lg);
   padding: var(--space-3);
@@ -32,11 +32,12 @@
 
 .connector-type {
   font-size: var(--text-2xs);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   background: var(--bg-surface-2);
   padding: 2px var(--space-1-5);
   border-radius: var(--radius-sm);
   text-transform: uppercase;
+  border: 1px solid var(--border-default);
 }
 
 /* State Badge */
@@ -112,14 +113,14 @@
 
 .stat-label {
   font-size: var(--text-2xs);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
 .stat-value {
   font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
+  font-weight: var(--font-bold);
   color: var(--text-primary);
 }
 
@@ -186,9 +187,13 @@
 
 /* Dark Mode */
 [data-theme="dark"] .connector-card {
-  background: var(--bg-surface-2);
+  background: var(--bg-surface-1);
+}
+
+[data-theme="dark"] .connector-type {
+  border-color: var(--border-muted);
 }
 
 [data-theme="dark"] .charge-form input {
-  background: var(--bg-surface-1);
+  background: var(--bg-surface-2);
 }
