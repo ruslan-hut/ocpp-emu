@@ -92,9 +92,8 @@ function Stations() {
       newExpanded.delete(stationId)
     } else {
       newExpanded.add(stationId)
-      if (!connectorsMap[stationId]) {
-        await loadConnectors(stationId)
-      }
+      // Always refresh connectors when expanding
+      await loadConnectors(stationId)
     }
     setExpandedStations(newExpanded)
   }
