@@ -154,41 +154,52 @@ function Messages() {
     }
   }, [showExportMenu])
 
-  // WebSocket connection for real-time updates
+  // Use ref to track if we should reconnect (avoids stale closure)
+  const liveUpdatesRef = useRef(liveUpdates)
+  const tokenRef = useRef(token)
+  const stationIdRef = useRef(filters.stationId)
+  const reconnectTimeoutRef = useRef(null)
+
+  // Keep refs in sync with state
   useEffect(() => {
-    if (!liveUpdates) {
-      if (wsRef.current) {
-        wsRef.current.close()
-        wsRef.current = null
-      }
-      setWsConnected(false)
+    liveUpdatesRef.current = liveUpdates
+  }, [liveUpdates])
+
+  useEffect(() => {
+    tokenRef.current = token
+  }, [token])
+
+  useEffect(() => {
+    stationIdRef.current = filters.stationId
+  }, [filters.stationId])
+
+  // Connect WebSocket using refs to avoid stale closures
+  const connectWebSocket = useCallback(() => {
+    // Clear any pending reconnect
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
+    }
+
+    // Close existing connection
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
+
+    if (!liveUpdatesRef.current || !tokenRef.current) {
       return
     }
 
-    connectWebSocket()
-
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close()
-        wsRef.current = null
-      }
-    }
-  }, [liveUpdates, filters.stationId, token])
-
-  const connectWebSocket = () => {
     try {
       // Build WebSocket URL with filters
       let wsUrl = `${WS_URL}/api/ws/messages`
       const params = new URLSearchParams()
-      if (token) {
-        params.append('token', token)
+      params.append('token', tokenRef.current)
+      if (stationIdRef.current) {
+        params.append('stationId', stationIdRef.current)
       }
-      if (filters.stationId) {
-        params.append('stationId', filters.stationId)
-      }
-      if (params.toString()) {
-        wsUrl += `?${params.toString()}`
-      }
+      wsUrl += `?${params.toString()}`
 
       const ws = new WebSocket(wsUrl)
       wsRef.current = ws
@@ -205,7 +216,27 @@ function Messages() {
           if (data.type === 'welcome') {
             console.log('Received welcome message:', data.message)
           } else if (data.type === 'ocpp_message') {
-            handleNewMessage(data.message)
+            // Inline message handling to avoid stale closure
+            const message = data.message
+            const formattedMessage = normalizeMessage(message)
+
+            setMessages((prev) => {
+              const newMessages = [formattedMessage, ...prev]
+              if (newMessages.length > 100) {
+                return newMessages.slice(0, 100)
+              }
+              return newMessages
+            })
+
+            setStats((prev) => {
+              if (!prev) return prev
+              return {
+                ...prev,
+                total: (prev.total || 0) + 1,
+                sent: formattedMessage.direction === 'sent' ? (prev.sent || 0) + 1 : prev.sent,
+                received: formattedMessage.direction === 'received' ? (prev.received || 0) + 1 : prev.received,
+              }
+            })
           }
         } catch (err) {
           console.error('Failed to parse WebSocket message:', err)
@@ -222,9 +253,9 @@ function Messages() {
         setWsConnected(false)
 
         // Attempt to reconnect after 5 seconds if live updates are still enabled
-        if (liveUpdates) {
-          setTimeout(() => {
-            if (liveUpdates) {
+        if (liveUpdatesRef.current) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            if (liveUpdatesRef.current) {
               connectWebSocket()
             }
           }, 5000)
@@ -233,47 +264,36 @@ function Messages() {
     } catch (err) {
       console.error('Failed to create WebSocket:', err)
     }
-  }
+  }, [])
 
-  const handleNewMessage = (message) => {
-    // Convert message entry format to storage format
-    const formattedMessage = normalizeMessage(message)
-
-    // Apply direction filter
-    if (filters.direction !== 'all' && formattedMessage.direction !== filters.direction) {
+  // WebSocket connection for real-time updates
+  useEffect(() => {
+    if (!liveUpdates) {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
+      }
+      if (wsRef.current) {
+        wsRef.current.close()
+        wsRef.current = null
+      }
+      setWsConnected(false)
       return
     }
-    // Apply station filter
-    if (filters.stationId && formattedMessage.stationId !== filters.stationId) {
-      return
+
+    connectWebSocket()
+
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
+      }
+      if (wsRef.current) {
+        wsRef.current.close()
+        wsRef.current = null
+      }
     }
-
-    setMessages((prev) => {
-      // Add new message at the beginning
-      const newMessages = [formattedMessage, ...prev]
-
-      // Limit the number of messages in memory
-      if (newMessages.length > filters.limit) {
-        return newMessages.slice(0, filters.limit)
-      }
-
-      return newMessages
-    })
-
-    // Update stats
-    setStats((prev) => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        total: (prev.total || 0) + 1,
-        sent: formattedMessage.direction === 'sent' ? (prev.sent || 0) + 1 : prev.sent,
-        received: formattedMessage.direction === 'received' ? (prev.received || 0) + 1 : prev.received,
-      }
-    })
-
-    // Auto-scroll to top where new messages appear
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
+  }, [liveUpdates, filters.stationId, token, connectWebSocket])
 
   const fetchMessages = async () => {
     try {
