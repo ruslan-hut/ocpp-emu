@@ -82,21 +82,6 @@ function Stations() {
     }
   }
 
-  const handleDelete = async (station, e) => {
-    e?.stopPropagation()
-    const stationId = station.stationId || station
-    if (!confirm(`Are you sure you want to delete station ${stationId}?`)) {
-      return
-    }
-
-    try {
-      await stationsAPI.delete(stationId)
-      fetchStations()
-    } catch (err) {
-      alert(`Failed to delete station: ${err.message}`)
-    }
-  }
-
   const handleTemplateSelect = (template) => {
     setShowTemplates(false)
     // Navigate to new station page with template data in state
@@ -304,39 +289,33 @@ function Stations() {
                       <td className="cell-vendor">{station.vendor} / {station.model}</td>
                       <td className="cell-connectors">{station.connectors?.length || 0}</td>
                       <td className="cell-actions">
-                        {isConnected ? (
-                          <button
-                            className="btn btn--xs btn-stop"
-                            onClick={(e) => handleStop(station.stationId, e)}
-                          >
-                            Stop
-                          </button>
-                        ) : (
-                          <button
-                            className="btn btn--xs btn-start"
-                            onClick={(e) => handleStart(station.stationId, e)}
-                            disabled={!station.enabled}
-                          >
-                            Start
-                          </button>
-                        )}
-                        {isAdmin && (
-                          <Link
-                            to={`/stations/${station.stationId}/edit`}
-                            className="btn btn--xs btn-edit"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Edit
-                          </Link>
-                        )}
-                        {isAdmin && (
-                          <button
-                            className="btn btn--xs btn-delete"
-                            onClick={(e) => handleDelete(station, e)}
-                          >
-                            Delete
-                          </button>
-                        )}
+                        <div className="actions-wrapper">
+                          {isConnected ? (
+                            <button
+                              className="btn btn--xs btn-stop"
+                              onClick={(e) => handleStop(station.stationId, e)}
+                            >
+                              Stop
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn--xs btn-start"
+                              onClick={(e) => handleStart(station.stationId, e)}
+                              disabled={!station.enabled}
+                            >
+                              Start
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <Link
+                              to={`/stations/${station.stationId}/edit`}
+                              className="btn btn--xs btn-edit"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Edit
+                            </Link>
+                          )}
+                        </div>
                       </td>
                     </tr>
                     {isExpanded && (

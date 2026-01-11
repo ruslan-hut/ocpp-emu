@@ -233,7 +233,11 @@
 }
 
 .stations-table .cell-actions {
-  display: flex;
+  text-align: right;
+}
+
+.stations-table .cell-actions .actions-wrapper {
+  display: inline-flex;
   gap: var(--space-1);
   justify-content: flex-end;
 }
@@ -334,16 +338,6 @@
 
 .stations .btn-edit:hover:not(:disabled) {
   background-color: var(--color-primary-600);
-}
-
-.stations .btn-delete {
-  background-color: var(--color-danger-500);
-  color: white;
-  border-color: transparent;
-}
-
-.stations .btn-delete:hover:not(:disabled) {
-  background-color: var(--color-danger-600);
 }
 
 /* Connectors Row (Expandable) */
