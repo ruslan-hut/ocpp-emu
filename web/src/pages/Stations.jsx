@@ -250,7 +250,7 @@ function Stations() {
                     </div>
 
                     <div className="station-card__field station-card__protocol">
-                      <span className="field-label">Protocol</span>
+                      {/*<span className="field-label">Protocol</span>*/}
                       <span className={`protocol-badge ${getProtocolClass(station.protocolVersion)}`}>
                         {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
                       </span>
