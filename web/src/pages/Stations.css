@@ -103,9 +103,9 @@
 /* Station Card Main Row */
 .station-card__main {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   padding: var(--space-3) var(--space-4);
-  gap: var(--space-4);
+  gap: var(--space-5);
   cursor: pointer;
   transition: background var(--transition-fast);
 }
@@ -117,6 +117,7 @@
 /* Expand Icon */
 .station-card__expand {
   flex-shrink: 0;
+  align-self: center;
 }
 
 .expand-icon {
@@ -134,41 +135,58 @@
   color: var(--color-primary-500);
 }
 
-/* Station Info */
-.station-card__info {
-  flex: 1;
-  min-width: 200px;
-}
-
-.station-card__primary {
+/* Station Fields */
+.station-card__field {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin-bottom: var(--space-1);
+  flex-direction: column;
+  gap: var(--space-0-5);
+  min-width: 0;
 }
 
-.station-name {
-  font-weight: var(--font-semibold);
-  font-size: var(--text-base);
-  color: var(--text-primary);
-}
-
-.station-id {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
+.field-label {
+  font-size: var(--text-2xs);
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
-.station-card__meta {
+.field-value {
   font-size: var(--text-sm);
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Badges */
-.station-card__badges {
-  display: flex;
-  gap: var(--space-2);
+.field-value--mono {
+  font-family: var(--font-mono);
+}
+
+.station-card__name {
+  min-width: 120px;
   flex-shrink: 0;
+}
+
+.station-card__name .field-value {
+  font-weight: var(--font-semibold);
+}
+
+.station-card__id {
+  min-width: 100px;
+  flex-shrink: 1;
+}
+
+.station-card__vendor {
+  flex: 1;
+  min-width: 120px;
+}
+
+.station-card__status,
+.station-card__protocol,
+.station-card__connectors-count {
+  flex-shrink: 0;
+  align-items: center;
 }
 
 .status-badge {
@@ -231,36 +249,13 @@
   border: 1px solid var(--color-ocpp21-border);
 }
 
-/* Connectors Count */
-.station-card__connectors-count {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: var(--space-2) var(--space-3);
-  background: var(--bg-surface-2);
-  border-radius: var(--radius-md);
-  flex-shrink: 0;
-  min-width: 80px;
-}
-
-.connectors-label {
-  font-size: var(--text-2xs);
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.connectors-value {
-  font-size: var(--text-lg);
-  font-weight: var(--font-bold);
-  color: var(--text-primary);
-}
 
 /* Actions */
 .station-card__actions {
   display: flex;
   gap: var(--space-2);
   flex-shrink: 0;
+  align-self: center;
 }
 
 .stations .btn-start {
@@ -359,30 +354,31 @@
 }
 
 /* Responsive Design */
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
+  .station-card__vendor {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
   .station-card__main {
     flex-wrap: wrap;
   }
 
-  .station-card__info {
-    flex: 1 1 auto;
-    min-width: 180px;
+  .station-card__field {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-2);
   }
 
-  .station-card__badges {
-    order: 3;
-    flex-basis: 100%;
-    justify-content: flex-start;
-    padding-left: calc(24px + var(--space-4));
-    margin-top: var(--space-2);
-  }
-
+  .station-card__status,
+  .station-card__protocol,
   .station-card__connectors-count {
-    order: 4;
+    align-items: flex-start;
   }
 
-  .station-card__actions {
-    order: 5;
+  .field-label {
+    display: none;
   }
 }
 
@@ -408,19 +404,6 @@
   .station-card__main {
     padding: var(--space-3);
     gap: var(--space-3);
-  }
-
-  .station-card__info {
-    min-width: 150px;
-  }
-
-  .station-card__primary {
-    flex-direction: column;
-    gap: var(--space-0-5);
-  }
-
-  .station-card__badges {
-    padding-left: calc(24px + var(--space-3));
   }
 
   .connectors-scroll > * {

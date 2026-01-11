@@ -242,28 +242,38 @@ function Stations() {
                     </span>
                   </div>
 
-                  <div className="station-card__info">
-                    <div className="station-card__primary">
-                      <span className="station-name">{station.name}</span>
-                      <span className="station-id">{station.stationId}</span>
-                    </div>
-                    <div className="station-card__meta">
-                      <span className="station-vendor">{station.vendor} / {station.model}</span>
-                    </div>
+                  <div className="station-card__field station-card__name">
+                    <span className="field-label">Name</span>
+                    <span className="field-value">{station.name}</span>
                   </div>
 
-                  <div className="station-card__badges">
+                  <div className="station-card__field station-card__id">
+                    <span className="field-label">Station ID</span>
+                    <span className="field-value field-value--mono">{station.stationId}</span>
+                  </div>
+
+                  <div className="station-card__field station-card__vendor">
+                    <span className="field-label">Vendor / Model</span>
+                    <span className="field-value">{station.vendor} / {station.model}</span>
+                  </div>
+
+                  <div className="station-card__field station-card__status">
+                    <span className="field-label">Status</span>
                     <span className={`status-badge ${station.runtimeState?.connectionStatus}`}>
                       {station.runtimeState?.connectionStatus || 'unknown'}
                     </span>
+                  </div>
+
+                  <div className="station-card__field station-card__protocol">
+                    <span className="field-label">Protocol</span>
                     <span className={`protocol-badge ${getProtocolClass(station.protocolVersion)}`}>
                       {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
                     </span>
                   </div>
 
-                  <div className="station-card__connectors-count">
-                    <span className="connectors-label">Connectors</span>
-                    <span className="connectors-value">{station.connectors?.length || 0}</span>
+                  <div className="station-card__field station-card__connectors-count">
+                    <span className="field-label">Connectors</span>
+                    <span className="field-value">{station.connectors?.length || 0}</span>
                   </div>
 
                   <div className="station-card__actions">
