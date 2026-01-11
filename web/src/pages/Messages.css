@@ -10,7 +10,7 @@
 .messages--desktop {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 60px);
+  height: calc(100vh - 140px);
   max-width: var(--content-max-width);
   margin: 0 auto;
   padding: 0;
@@ -952,7 +952,17 @@
   line-height: 1.5;
 }
 
+@media (max-width: 1024px) {
+  .messages--desktop {
+    height: calc(100vh - 180px);
+  }
+}
+
 @media (max-width: 768px) {
+  .messages--desktop {
+    height: calc(100vh - 200px);
+  }
+
   .message-stats {
     flex-direction: column;
     gap: 1rem;
