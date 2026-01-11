@@ -229,11 +229,21 @@ function Stations() {
       ) : (
         <div className="stations-table-wrapper">
           <table className="stations-table">
+            <colgroup>
+              <col className="col-expand" />
+              <col className="col-name" />
+              <col className="col-id" />
+              <col className="col-status" />
+              <col className="col-protocol" />
+              <col className="col-vendor" />
+              <col className="col-connectors" />
+              <col className="col-actions" />
+            </colgroup>
             <thead>
               <tr>
-                <th className="col-expand"></th>
-                <th className="col-name">Name</th>
-                <th className="col-id">
+                <th></th>
+                <th>Name</th>
+                <th>
                   <button
                     className="sort-header-btn"
                     onClick={() => handleSort('stationId')}
@@ -247,11 +257,11 @@ function Stations() {
                     )}
                   </button>
                 </th>
-                <th className="col-status">Status</th>
-                <th className="col-protocol">Protocol</th>
-                <th className="col-vendor">Vendor / Model</th>
-                <th className="col-connectors">Connectors</th>
-                <th className="col-actions">Actions</th>
+                <th>Status</th>
+                <th>Protocol</th>
+                <th>Vendor / Model</th>
+                <th className="text-center">Connectors</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>

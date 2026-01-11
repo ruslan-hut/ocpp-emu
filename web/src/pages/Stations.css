@@ -91,11 +91,24 @@
   table-layout: fixed;
 }
 
+/* Column widths via colgroup */
+.stations-table col.col-expand { width: 40px; }
+.stations-table col.col-name { width: 15%; }
+.stations-table col.col-id { width: 13%; }
+.stations-table col.col-status { width: 10%; }
+.stations-table col.col-protocol { width: 10%; }
+.stations-table col.col-vendor { width: 20%; }
+.stations-table col.col-connectors { width: 8%; }
+.stations-table col.col-actions { width: auto; }
+
 .stations-table th,
 .stations-table td {
   padding: var(--space-2) var(--space-3);
   text-align: left;
   border-bottom: 1px solid var(--border-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stations-table th {
@@ -105,41 +118,17 @@
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  white-space: nowrap;
 }
 
-/* Column widths */
-.stations-table .col-expand {
-  width: 40px;
-}
-
-.stations-table .col-name {
-  width: 15%;
-}
-
-.stations-table .col-id {
-  width: 12%;
-}
-
-.stations-table .col-status {
-  width: 10%;
-}
-
-.stations-table .col-protocol {
-  width: 10%;
-}
-
-.stations-table .col-vendor {
-  width: 18%;
-}
-
-.stations-table .col-connectors {
-  width: 8%;
+/* Text alignment utilities */
+.stations-table .text-center,
+.stations-table td:nth-child(7) {
   text-align: center;
 }
 
-.stations-table .col-actions {
-  width: auto;
+.stations-table .text-right,
+.stations-table td:nth-child(8) {
+  text-align: right;
 }
 
 /* Sort Header */
@@ -212,40 +201,25 @@
 .stations-table .cell-name {
   font-weight: var(--font-semibold);
   color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .stations-table .cell-id {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .stations-table .cell-vendor {
   color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .stations-table .cell-connectors {
-  text-align: center;
   font-weight: var(--font-medium);
-}
-
-.stations-table .cell-actions {
-  text-align: right;
 }
 
 .stations-table .cell-actions .actions-wrapper {
   display: inline-flex;
   gap: var(--space-1);
-  justify-content: flex-end;
 }
 
 /* Status Badge */
