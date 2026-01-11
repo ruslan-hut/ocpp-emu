@@ -265,6 +265,7 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   padding: var(--space-3);
+  overflow: hidden;
 }
 
 .connector-item__header {
@@ -288,14 +289,20 @@
   gap: var(--space-2);
 }
 
+.connector-item__fields .form-field {
+  min-width: 0;
+}
+
 .connector-item__fields .form-field label {
   font-size: var(--text-2xs);
 }
 
 .connector-item__fields .form-field input,
 .connector-item__fields .form-field select {
+  width: 100%;
   padding: var(--space-1-5) var(--space-2);
   font-size: var(--text-xs);
+  box-sizing: border-box;
 }
 
 /* Tags */
