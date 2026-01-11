@@ -86,20 +86,21 @@
 
 .stations-table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
   font-size: var(--text-sm);
   table-layout: fixed;
 }
 
-/* Column widths via colgroup */
-.stations-table col.col-expand { width: 44px; }
-.stations-table col.col-name { width: 140px; }
-.stations-table col.col-id { width: 140px; }
-.stations-table col.col-status { width: 140px; }
-.stations-table col.col-protocol { width: 100px; }
-.stations-table col.col-vendor { width: 180px; }
-.stations-table col.col-connectors { width: 100px; }
-.stations-table col.col-actions { width: 120px; }
+/* Column widths via colgroup - must total 100% */
+.stations-table col.col-expand { width: 4%; }
+.stations-table col.col-name { width: 14%; }
+.stations-table col.col-id { width: 14%; }
+.stations-table col.col-status { width: 14%; }
+.stations-table col.col-protocol { width: 10%; }
+.stations-table col.col-vendor { width: 18%; }
+.stations-table col.col-connectors { width: 10%; }
+.stations-table col.col-actions { width: 16%; }
 
 .stations-table th,
 .stations-table td {
