@@ -1,5 +1,7 @@
+/* Connector Card - follows design-tokens.css */
+
 .connector-card {
-  background: var(--bg-base);
+  background: var(--bg-surface-1);
   border: 1px solid var(--border-emphasis);
   border-radius: var(--radius-lg);
   padding: var(--space-3);
@@ -47,42 +49,50 @@
   font-size: var(--text-2xs);
   font-weight: var(--font-semibold);
   text-transform: uppercase;
+  border: 1px solid;
 }
 
 .connector-state.success {
   background: var(--color-success-100);
   color: var(--color-success-700);
+  border-color: var(--color-success-500);
 }
 
 .connector-state.charging {
   background: var(--color-warning-100);
   color: var(--color-warning-700);
+  border-color: var(--color-warning-500);
   animation: pulse 2s ease-in-out infinite;
 }
 
 .connector-state.preparing {
   background: var(--color-info-100);
   color: var(--color-info-700);
+  border-color: var(--color-info-500);
 }
 
 .connector-state.finishing {
   background: var(--bg-surface-3);
   color: var(--text-secondary);
+  border-color: var(--border-emphasis);
 }
 
 .connector-state.error {
   background: var(--color-danger-100);
   color: var(--color-danger-700);
+  border-color: var(--color-danger-500);
 }
 
 .connector-state.unavailable {
   background: var(--bg-surface-2);
   color: var(--text-muted);
+  border-color: var(--border-default);
 }
 
 .connector-state.default {
   background: var(--bg-surface-2);
   color: var(--text-secondary);
+  border-color: var(--border-default);
 }
 
 @keyframes pulse {
@@ -105,34 +115,26 @@
   flex-wrap: wrap;
 }
 
-.stat {
+.connector-card__stats .stat {
   display: flex;
   flex-direction: column;
   gap: 1px;
 }
 
-.stat-label {
+.connector-card__stats .stat-label {
   font-size: var(--text-2xs);
-  color: #666;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
-.stat-value {
+.connector-card__stats .stat-value {
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
-  color: #111;
-}
-
-[data-theme="dark"] .stat-label {
-  color: var(--text-secondary);
-}
-
-[data-theme="dark"] .stat-value {
   color: var(--text-primary);
 }
 
-.stat--error .stat-value {
+.connector-card__stats .stat--error .stat-value {
   color: var(--color-danger-500);
 }
 
@@ -160,7 +162,7 @@
 .charge-form input {
   width: 80px;
   padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-emphasis);
   border-radius: var(--radius-md);
   font-size: var(--text-xs);
   background: var(--bg-base);
@@ -170,9 +172,10 @@
 .charge-form input:focus {
   outline: none;
   border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 2px var(--color-primary-100);
 }
 
-/* Button Variants */
+/* Button Variants - use existing btn classes from components.css */
 .connector-card .btn--success {
   background-color: var(--color-success-500);
   color: white;
@@ -191,17 +194,4 @@
 
 .connector-card .btn--danger:hover:not(:disabled) {
   background-color: var(--color-danger-600);
-}
-
-/* Dark Mode */
-[data-theme="dark"] .connector-card {
-  background: var(--bg-surface-1);
-}
-
-[data-theme="dark"] .connector-type {
-  border-color: var(--border-muted);
-}
-
-[data-theme="dark"] .charge-form input {
-  background: var(--bg-surface-2);
 }
