@@ -37,7 +37,7 @@ function ConnectorCard({ stationId, connector, isStationConnected = true, onUpda
       await stationsAPI.startCharging(stationId, connector.id, idTag)
       setShowChargeForm(false)
       if (onUpdate) {
-        setTimeout(onUpdate, 500) // Give time for state to update
+        setTimeout(onUpdate, 500)
       }
     } catch (err) {
       alert(`Failed to start charging: ${err.response?.data?.error || err.message}`)
@@ -64,14 +64,8 @@ function ConnectorCard({ stationId, connector, isStationConnected = true, onUpda
     }
   }
 
-  const formatDateTime = (dateString) => {
-    if (!dateString) return 'N/A'
-    const date = new Date(dateString)
-    return date.toLocaleString()
-  }
-
   const formatDuration = (startTime) => {
-    if (!startTime) return 'N/A'
+    if (!startTime) return '--'
     const start = new Date(startTime)
     const now = new Date()
     const diffMs = now - start
@@ -81,118 +75,106 @@ function ConnectorCard({ stationId, connector, isStationConnected = true, onUpda
     return `${hours}h ${mins}m`
   }
 
+  const hasError = connector.errorCode && connector.errorCode !== 'NoError'
+
   return (
-    <div className="connector-card">
-      <div className="connector-header">
-        <div className="connector-id">
-          <span className="label">Connector {connector.id}</span>
-          <span className="type">{connector.type}</span>
+    <div className={`connector-card ${hasError ? 'has-error' : ''}`}>
+      <div className="connector-card__header">
+        <div className="connector-card__title">
+          <span className="connector-num">#{connector.id}</span>
+          <span className="connector-type">{connector.type}</span>
         </div>
         <span className={`connector-state ${getStateColor(connector.state)}`}>
           {connector.state}
         </span>
       </div>
 
-      <div className="connector-info">
-        <div className="info-item">
-          <span className="label">Max Power:</span>
-          <span className="value">{connector.maxPower} W</span>
-        </div>
-        {connector.errorCode && connector.errorCode !== 'NoError' && (
-          <div className="info-item error">
-            <span className="label">Error:</span>
-            <span className="value">{connector.errorCode}</span>
+      <div className="connector-card__body">
+        <div className="connector-card__stats">
+          <div className="stat">
+            <span className="stat-label">Power</span>
+            <span className="stat-value">{(connector.maxPower / 1000).toFixed(1)} kW</span>
           </div>
-        )}
-      </div>
-
-      {connector.transaction && (
-        <div className="transaction-info">
-          <h4>Active Transaction</h4>
-          <div className="transaction-details">
-            <div className="detail-row">
-              <span className="label">Transaction ID:</span>
-              <span className="value">{connector.transaction.id}</span>
+          {connector.transaction && (
+            <>
+              <div className="stat">
+                <span className="stat-label">Energy</span>
+                <span className="stat-value">
+                  {((connector.transaction.currentMeter - connector.transaction.startMeterValue) / 1000).toFixed(2)} kWh
+                </span>
+              </div>
+              <div className="stat">
+                <span className="stat-label">Duration</span>
+                <span className="stat-value">{formatDuration(connector.transaction.startTime)}</span>
+              </div>
+            </>
+          )}
+          {hasError && (
+            <div className="stat stat--error">
+              <span className="stat-label">Error</span>
+              <span className="stat-value">{connector.errorCode}</span>
             </div>
-            <div className="detail-row">
-              <span className="label">ID Tag:</span>
-              <span className="value">{connector.transaction.idTag}</span>
-            </div>
-            <div className="detail-row">
-              <span className="label">Started:</span>
-              <span className="value">{formatDateTime(connector.transaction.startTime)}</span>
-            </div>
-            <div className="detail-row">
-              <span className="label">Duration:</span>
-              <span className="value">{formatDuration(connector.transaction.startTime)}</span>
-            </div>
-            <div className="detail-row">
-              <span className="label">Energy:</span>
-              <span className="value">
-                {connector.transaction.currentMeter - connector.transaction.startMeterValue} Wh
-              </span>
-            </div>
-          </div>
+          )}
         </div>
-      )}
 
-      {!isStationConnected && (
-        <div className="connection-warning">
-          ⚠️ Station not connected - actions disabled
-        </div>
-      )}
+        <div className="connector-card__actions">
+          {!isStationConnected && (
+            <span className="warn-icon" title="Station not connected">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 1L1 14h14L8 1zm0 3.5l4.5 8h-9L8 4.5zM7.25 7v3h1.5V7h-1.5zm0 4v1.5h1.5V11h-1.5z"/>
+              </svg>
+            </span>
+          )}
 
-      <div className="connector-actions">
-        {connector.state === 'Available' && !showChargeForm && (
-          <button
-            className="btn-action btn-start-charging"
-            onClick={() => setShowChargeForm(true)}
-            disabled={loading || !isStationConnected}
-            title={!isStationConnected ? 'Station not connected' : ''}
-          >
-            ⚡ Start Charging
-          </button>
-        )}
-
-        {connector.state === 'Charging' && (
-          <button
-            className="btn-action btn-stop-charging"
-            onClick={handleStopCharging}
-            disabled={loading || !isStationConnected}
-            title={!isStationConnected ? 'Station not connected' : ''}
-          >
-            ⏹ Stop Charging
-          </button>
-        )}
-
-        {showChargeForm && (
-          <div className="charge-form">
-            <input
-              type="text"
-              placeholder="ID Tag (e.g., USER001)"
-              value={idTag}
-              onChange={(e) => setIdTag(e.target.value)}
-              disabled={loading || !isStationConnected}
-            />
-            <div className="form-actions">
+          {showChargeForm ? (
+            <div className="charge-form">
+              <input
+                type="text"
+                placeholder="ID Tag"
+                value={idTag}
+                onChange={(e) => setIdTag(e.target.value)}
+                disabled={loading || !isStationConnected}
+              />
               <button
-                className="btn-action btn-start"
+                className="btn btn--xs btn--primary"
                 onClick={handleStartCharging}
                 disabled={loading || !isStationConnected}
-                title={!isStationConnected ? 'Station not connected' : ''}
               >
-                {loading ? 'Starting...' : 'Start'}
+                {loading ? '...' : 'Go'}
               </button>
               <button
-                className="btn-action btn-cancel"
+                className="btn btn--xs btn--secondary"
                 onClick={() => setShowChargeForm(false)}
                 disabled={loading}
               >
-                Cancel
+                X
               </button>
             </div>
-          </div>
-        )}
+          ) : (
+            <>
+              {connector.state === 'Available' && (
+                <button
+                  className="btn btn--xs btn--success"
+                  onClick={() => setShowChargeForm(true)}
+                  disabled={loading || !isStationConnected}
+                  title={!isStationConnected ? 'Station not connected' : 'Start charging'}
+                >
+                  Start
+                </button>
+              )}
+              {connector.state === 'Charging' && (
+                <button
+                  className="btn btn--xs btn--danger"
+                  onClick={handleStopCharging}
+                  disabled={loading || !isStationConnected}
+                  title={!isStationConnected ? 'Station not connected' : 'Stop charging'}
+                >
+                  Stop
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

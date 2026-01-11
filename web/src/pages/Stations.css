@@ -341,8 +341,6 @@
 .connectors-scroll > * {
   flex-shrink: 0;
   scroll-snap-align: start;
-  min-width: 280px;
-  max-width: 320px;
 }
 
 .connectors-loading,
@@ -404,10 +402,6 @@
   .station-card__main {
     padding: var(--space-3);
     gap: var(--space-3);
-  }
-
-  .connectors-scroll > * {
-    min-width: 260px;
   }
 
   .empty-state-actions {
