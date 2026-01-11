@@ -88,6 +88,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-sm);
+  table-layout: fixed;
 }
 
 .stations-table th,
@@ -109,36 +110,36 @@
 
 /* Column widths */
 .stations-table .col-expand {
-  width: 36px;
+  width: 40px;
 }
 
 .stations-table .col-name {
-  min-width: 120px;
+  width: 15%;
 }
 
 .stations-table .col-id {
-  min-width: 100px;
+  width: 12%;
 }
 
 .stations-table .col-status {
-  width: 100px;
+  width: 10%;
 }
 
 .stations-table .col-protocol {
-  width: 90px;
+  width: 10%;
 }
 
 .stations-table .col-vendor {
-  min-width: 140px;
+  width: 18%;
 }
 
 .stations-table .col-connectors {
-  width: 80px;
+  width: 8%;
   text-align: center;
 }
 
 .stations-table .col-actions {
-  width: 220px;
+  width: auto;
 }
 
 /* Sort Header */
@@ -211,17 +212,22 @@
 .stations-table .cell-name {
   font-weight: var(--font-semibold);
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stations-table .cell-id {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stations-table .cell-vendor {
   color: var(--text-secondary);
-  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
