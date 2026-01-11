@@ -105,13 +105,19 @@
   display: flex;
   align-items: flex-end;
   padding: var(--space-3) var(--space-4);
-  gap: var(--space-5);
   cursor: pointer;
   transition: background var(--transition-fast);
 }
 
 .station-card__main:hover {
   background: var(--bg-surface-2);
+}
+
+.station-card__data {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-5);
+  flex: 1;
 }
 
 /* Expand Icon */
@@ -256,6 +262,7 @@
   gap: var(--space-2);
   flex-shrink: 0;
   align-self: center;
+  margin-left: auto;
 }
 
 .stations .btn-start {
@@ -359,8 +366,9 @@
 }
 
 @media (max-width: 900px) {
-  .station-card__main {
+  .station-card__data {
     flex-wrap: wrap;
+    gap: var(--space-3);
   }
 
   .station-card__field {
