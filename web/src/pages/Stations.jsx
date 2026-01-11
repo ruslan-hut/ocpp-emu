@@ -320,13 +320,6 @@ function Stations() {
                             Start
                           </button>
                         )}
-                        <Link
-                          to={`/stations/${station.stationId}/config`}
-                          className="btn btn--xs btn-config"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Config
-                        </Link>
                         {isAdmin && (
                           <Link
                             to={`/stations/${station.stationId}/edit`}

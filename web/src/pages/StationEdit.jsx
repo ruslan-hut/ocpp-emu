@@ -23,6 +23,14 @@ const MEASURANDS = [
   'Temperature'
 ]
 
+const TABS = [
+  { id: 'general', label: 'General' },
+  { id: 'connection', label: 'Connection' },
+  { id: 'connectors', label: 'Connectors' },
+  { id: 'simulation', label: 'Simulation' },
+  { id: 'advanced', label: 'Advanced' }
+]
+
 const DEFAULT_FORM_DATA = {
   stationId: '',
   name: '',
@@ -46,7 +54,7 @@ const DEFAULT_FORM_DATA = {
   },
   csmsUrl: '',
   csmsAuth: {
-    type: 'basic',
+    type: 'none',
     username: '',
     password: ''
   },
@@ -68,6 +76,7 @@ function StationEdit() {
   const { isAdmin } = useAuth()
   const isEditing = Boolean(id)
 
+  const [activeTab, setActiveTab] = useState('general')
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA)
   const [loading, setLoading] = useState(isEditing)
   const [saving, setSaving] = useState(false)
@@ -88,7 +97,7 @@ function StationEdit() {
       setFormData({
         ...DEFAULT_FORM_DATA,
         ...station,
-        csmsAuth: station.csmsAuth || { type: 'basic', username: '', password: '' },
+        csmsAuth: station.csmsAuth || { type: 'none', username: '', password: '' },
         simulation: { ...DEFAULT_FORM_DATA.simulation, ...station.simulation },
         meterValuesConfig: { ...DEFAULT_FORM_DATA.meterValuesConfig, ...station.meterValuesConfig }
       })
@@ -242,381 +251,451 @@ function StationEdit() {
           <span className="breadcrumb-separator">/</span>
           <span>{isEditing ? 'Edit' : 'New Station'}</span>
         </nav>
-        <h2>{isEditing ? `Edit: ${formData.name || formData.stationId}` : 'Create New Station'}</h2>
+        <div className="page-header__row">
+          <h2>{isEditing ? `Edit: ${formData.name || formData.stationId}` : 'Create New Station'}</h2>
+        </div>
       </div>
 
       {error && <div className="error-message">{error}</div>}
 
       <form onSubmit={handleSubmit} className="station-edit__form">
-        {/* Basic Information */}
-        <section className="form-section">
-          <h3>Basic Information</h3>
-          <div className="form-grid">
-            <div className="form-field">
-              <label>Station ID *</label>
-              <input
-                type="text"
-                value={formData.stationId}
-                onChange={(e) => handleChange('stationId', e.target.value)}
-                required
-                disabled={isEditing}
-                placeholder="e.g., CP001"
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Station Name *</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleChange('name', e.target.value)}
-                required
-                placeholder="e.g., Main Street Station 1"
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Protocol Version *</label>
-              <select
-                value={formData.protocolVersion}
-                onChange={(e) => handleChange('protocolVersion', e.target.value)}
-                required
-              >
-                {PROTOCOL_VERSIONS.map(v => (
-                  <option key={v} value={v}>{v.toUpperCase()}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-field form-field--inline">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={formData.enabled}
-                  onChange={(e) => handleChange('enabled', e.target.checked)}
-                />
-                Enabled
-              </label>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={formData.autoStart}
-                  onChange={(e) => handleChange('autoStart', e.target.checked)}
-                />
-                Auto Start
-              </label>
-            </div>
-          </div>
-        </section>
-
-        {/* Station Details */}
-        <section className="form-section">
-          <h3>Station Details</h3>
-          <div className="form-grid">
-            <div className="form-field">
-              <label>Vendor *</label>
-              <input
-                type="text"
-                value={formData.vendor}
-                onChange={(e) => handleChange('vendor', e.target.value)}
-                required
-                placeholder="e.g., ABB"
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Model *</label>
-              <input
-                type="text"
-                value={formData.model}
-                onChange={(e) => handleChange('model', e.target.value)}
-                required
-                placeholder="e.g., Terra AC"
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Serial Number</label>
-              <input
-                type="text"
-                value={formData.serialNumber}
-                onChange={(e) => handleChange('serialNumber', e.target.value)}
-                placeholder="e.g., SN123456789"
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Firmware Version</label>
-              <input
-                type="text"
-                value={formData.firmwareVersion}
-                onChange={(e) => handleChange('firmwareVersion', e.target.value)}
-                placeholder="e.g., 1.2.3"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Connectors */}
-        <section className="form-section">
-          <div className="section-header">
-            <h3>Connectors</h3>
-            <button type="button" className="btn btn--sm btn--secondary" onClick={addConnector}>
-              + Add
+        {/* Tabs */}
+        <div className="edit-tabs">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+              {tab.id === 'connectors' && (
+                <span className="tab-badge">{formData.connectors.length}</span>
+              )}
             </button>
-          </div>
+          ))}
+        </div>
 
-          <div className="connectors-grid">
-            {formData.connectors.map((connector, index) => (
-              <div key={index} className="connector-item">
-                <div className="connector-item__header">
-                  <span className="connector-item__title">Connector {connector.id}</span>
-                  {formData.connectors.length > 1 && (
-                    <button
-                      type="button"
-                      className="btn btn--xs btn--ghost btn--danger"
-                      onClick={() => removeConnector(index)}
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-                <div className="connector-item__fields">
+        {/* Tab Content */}
+        <div className="edit-body">
+          {/* General Tab */}
+          {activeTab === 'general' && (
+            <div className="edit-tab">
+              <section className="form-section">
+                <h3>Basic Information</h3>
+                <div className="form-grid">
                   <div className="form-field">
-                    <label>Type</label>
+                    <label>Station ID *</label>
+                    <input
+                      type="text"
+                      value={formData.stationId}
+                      onChange={(e) => handleChange('stationId', e.target.value)}
+                      required
+                      disabled={isEditing}
+                      placeholder="e.g., CP001"
+                    />
+                    {isEditing && <small>Cannot be changed after creation</small>}
+                  </div>
+
+                  <div className="form-field">
+                    <label>Station Name *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => handleChange('name', e.target.value)}
+                      required
+                      placeholder="e.g., Main Street Station"
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label>Protocol Version *</label>
                     <select
-                      value={connector.type}
-                      onChange={(e) => handleConnectorChange(index, 'type', e.target.value)}
+                      value={formData.protocolVersion}
+                      onChange={(e) => handleChange('protocolVersion', e.target.value)}
+                      required
                     >
-                      {CONNECTOR_TYPES.map(t => (
-                        <option key={t} value={t}>{t}</option>
+                      {PROTOCOL_VERSIONS.map(v => (
+                        <option key={v} value={v}>{v.toUpperCase()}</option>
                       ))}
                     </select>
                   </div>
+
+                  <div className="form-field form-field--checkboxes">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.enabled}
+                        onChange={(e) => handleChange('enabled', e.target.checked)}
+                      />
+                      Enabled
+                    </label>
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.autoStart}
+                        onChange={(e) => handleChange('autoStart', e.target.checked)}
+                      />
+                      Auto Start
+                    </label>
+                  </div>
+                </div>
+              </section>
+
+              <section className="form-section">
+                <h3>Device Information</h3>
+                <div className="form-grid">
                   <div className="form-field">
-                    <label>Max Power (W)</label>
+                    <label>Vendor *</label>
                     <input
-                      type="number"
-                      value={connector.maxPower}
-                      onChange={(e) => handleConnectorChange(index, 'maxPower', parseInt(e.target.value))}
-                      min="0"
+                      type="text"
+                      value={formData.vendor}
+                      onChange={(e) => handleChange('vendor', e.target.value)}
+                      required
+                      placeholder="e.g., ABB"
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label>Model *</label>
+                    <input
+                      type="text"
+                      value={formData.model}
+                      onChange={(e) => handleChange('model', e.target.value)}
+                      required
+                      placeholder="e.g., Terra AC"
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label>Serial Number</label>
+                    <input
+                      type="text"
+                      value={formData.serialNumber}
+                      onChange={(e) => handleChange('serialNumber', e.target.value)}
+                      placeholder="e.g., SN123456789"
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label>Firmware Version</label>
+                    <input
+                      type="text"
+                      value={formData.firmwareVersion}
+                      onChange={(e) => handleChange('firmwareVersion', e.target.value)}
+                      placeholder="e.g., 1.2.3"
                     />
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* CSMS Connection */}
-        <section className="form-section">
-          <h3>CSMS Connection</h3>
-          <div className="form-grid">
-            <div className="form-field form-field--wide">
-              <label>CSMS URL *</label>
-              <input
-                type="url"
-                value={formData.csmsUrl}
-                onChange={(e) => handleChange('csmsUrl', e.target.value)}
-                required
-                placeholder="ws://localhost:9000/ocpp"
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Auth Type</label>
-              <select
-                value={formData.csmsAuth?.type || 'basic'}
-                onChange={(e) => handleNestedChange('csmsAuth', 'type', e.target.value)}
-              >
-                <option value="none">None</option>
-                <option value="basic">Basic Auth</option>
-                <option value="bearer">Bearer Token</option>
-              </select>
-            </div>
-
-            {formData.csmsAuth?.type === 'basic' && (
-              <>
-                <div className="form-field">
-                  <label>Username</label>
-                  <input
-                    type="text"
-                    value={formData.csmsAuth.username}
-                    onChange={(e) => handleNestedChange('csmsAuth', 'username', e.target.value)}
-                  />
-                </div>
-                <div className="form-field">
-                  <label>Password</label>
-                  <input
-                    type="password"
-                    value={formData.csmsAuth.password}
-                    onChange={(e) => handleNestedChange('csmsAuth', 'password', e.target.value)}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        </section>
-
-        {/* Supported Profiles */}
-        <section className="form-section">
-          <h3>Supported Profiles</h3>
-          <div className="checkbox-grid">
-            {SUPPORTED_PROFILES.map(profile => (
-              <label key={profile} className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={formData.supportedProfiles?.includes(profile)}
-                  onChange={() => handleProfileToggle(profile)}
-                />
-                {profile}
-              </label>
-            ))}
-          </div>
-        </section>
-
-        {/* Meter Values Configuration */}
-        <section className="form-section">
-          <h3>Meter Values</h3>
-          <div className="form-grid">
-            <div className="form-field">
-              <label>Interval (sec)</label>
-              <input
-                type="number"
-                value={formData.meterValuesConfig.interval}
-                onChange={(e) => handleNestedChange('meterValuesConfig', 'interval', parseInt(e.target.value))}
-                min="1"
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Aligned Interval (sec)</label>
-              <input
-                type="number"
-                value={formData.meterValuesConfig.alignedDataInterval}
-                onChange={(e) => handleNestedChange('meterValuesConfig', 'alignedDataInterval', parseInt(e.target.value))}
-                min="0"
-              />
-            </div>
-          </div>
-
-          <div className="form-field">
-            <label>Measurands</label>
-            <div className="checkbox-grid">
-              {MEASURANDS.map(measurand => (
-                <label key={measurand} className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={formData.meterValuesConfig.measurands?.includes(measurand)}
-                    onChange={() => handleMeasurandToggle(measurand)}
-                  />
-                  {measurand}
-                </label>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Simulation Settings */}
-        <section className="form-section">
-          <h3>Simulation</h3>
-          <div className="form-grid">
-            <div className="form-field">
-              <label>Boot Delay (sec)</label>
-              <input
-                type="number"
-                value={formData.simulation.bootDelay}
-                onChange={(e) => handleNestedChange('simulation', 'bootDelay', parseInt(e.target.value))}
-                min="0"
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Heartbeat (sec)</label>
-              <input
-                type="number"
-                value={formData.simulation.heartbeatInterval}
-                onChange={(e) => handleNestedChange('simulation', 'heartbeatInterval', parseInt(e.target.value))}
-                min="1"
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Default ID Tag</label>
-              <input
-                type="text"
-                value={formData.simulation.defaultIdTag}
-                onChange={(e) => handleNestedChange('simulation', 'defaultIdTag', e.target.value)}
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Energy Rate (W)</label>
-              <input
-                type="number"
-                value={formData.simulation.energyDeliveryRate}
-                onChange={(e) => handleNestedChange('simulation', 'energyDeliveryRate', parseInt(e.target.value))}
-                min="0"
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Meter Variance</label>
-              <input
-                type="number"
-                value={formData.simulation.meterValueVariance}
-                onChange={(e) => handleNestedChange('simulation', 'meterValueVariance', parseFloat(e.target.value))}
-                step="0.01"
-                min="0"
-                max="1"
-              />
-            </div>
-
-            <div className="form-field form-field--inline">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={formData.simulation.statusNotificationOnChange}
-                  onChange={(e) => handleNestedChange('simulation', 'statusNotificationOnChange', e.target.checked)}
-                />
-                Status on Change
-              </label>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={formData.simulation.randomizeMeterValues}
-                  onChange={(e) => handleNestedChange('simulation', 'randomizeMeterValues', e.target.checked)}
-                />
-                Randomize Meters
-              </label>
-            </div>
-          </div>
-        </section>
-
-        {/* Tags */}
-        <section className="form-section">
-          <h3>Tags</h3>
-          <div className="tags-input">
-            <input
-              type="text"
-              value={newTag}
-              onChange={(e) => setNewTag(e.target.value)}
-              placeholder="Add tag..."
-              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-            />
-            <button type="button" className="btn btn--sm btn--secondary" onClick={addTag}>Add</button>
-          </div>
-          {formData.tags?.length > 0 && (
-            <div className="tags-list">
-              {formData.tags.map(tag => (
-                <span key={tag} className="tag">
-                  {tag}
-                  <button type="button" onClick={() => removeTag(tag)}>x</button>
-                </span>
-              ))}
+              </section>
             </div>
           )}
-        </section>
+
+          {/* Connection Tab */}
+          {activeTab === 'connection' && (
+            <div className="edit-tab">
+              <section className="form-section">
+                <h3>CSMS Connection</h3>
+                <div className="form-grid">
+                  <div className="form-field form-field--wide">
+                    <label>CSMS URL *</label>
+                    <input
+                      type="text"
+                      value={formData.csmsUrl}
+                      onChange={(e) => handleChange('csmsUrl', e.target.value)}
+                      required
+                      placeholder="ws://localhost:9000/ocpp"
+                    />
+                    <small>WebSocket URL of the Central System</small>
+                  </div>
+
+                  <div className="form-field">
+                    <label>Authentication Type</label>
+                    <select
+                      value={formData.csmsAuth?.type || 'none'}
+                      onChange={(e) => handleNestedChange('csmsAuth', 'type', e.target.value)}
+                    >
+                      <option value="none">None</option>
+                      <option value="basic">Basic Auth</option>
+                    </select>
+                  </div>
+
+                  {formData.csmsAuth?.type === 'basic' && (
+                    <>
+                      <div className="form-field">
+                        <label>Username</label>
+                        <input
+                          type="text"
+                          value={formData.csmsAuth?.username || ''}
+                          onChange={(e) => handleNestedChange('csmsAuth', 'username', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="form-field">
+                        <label>Password</label>
+                        <input
+                          type="password"
+                          value={formData.csmsAuth?.password || ''}
+                          onChange={(e) => handleNestedChange('csmsAuth', 'password', e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* Connectors Tab */}
+          {activeTab === 'connectors' && (
+            <div className="edit-tab">
+              <section className="form-section">
+                <div className="section-header">
+                  <h3>Connectors</h3>
+                  <button type="button" className="btn btn--sm btn--primary" onClick={addConnector}>
+                    + Add Connector
+                  </button>
+                </div>
+
+                <div className="connectors-grid">
+                  {formData.connectors.map((connector, index) => (
+                    <div key={index} className="connector-item">
+                      <div className="connector-item__header">
+                        <span className="connector-item__title">Connector {connector.id}</span>
+                        {formData.connectors.length > 1 && (
+                          <button
+                            type="button"
+                            className="btn btn--xs btn--ghost btn--danger"
+                            onClick={() => removeConnector(index)}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <div className="connector-item__fields">
+                        <div className="form-field">
+                          <label>Type</label>
+                          <select
+                            value={connector.type}
+                            onChange={(e) => handleConnectorChange(index, 'type', e.target.value)}
+                          >
+                            {CONNECTOR_TYPES.map(t => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-field">
+                          <label>Max Power (W)</label>
+                          <input
+                            type="number"
+                            value={connector.maxPower}
+                            onChange={(e) => handleConnectorChange(index, 'maxPower', parseInt(e.target.value))}
+                            min="0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* Simulation Tab */}
+          {activeTab === 'simulation' && (
+            <div className="edit-tab">
+              <section className="form-section">
+                <h3>Timing</h3>
+                <div className="form-grid">
+                  <div className="form-field">
+                    <label>Boot Delay (sec)</label>
+                    <input
+                      type="number"
+                      value={formData.simulation.bootDelay}
+                      onChange={(e) => handleNestedChange('simulation', 'bootDelay', parseInt(e.target.value))}
+                      min="0"
+                    />
+                    <small>Delay before sending BootNotification</small>
+                  </div>
+
+                  <div className="form-field">
+                    <label>Heartbeat Interval (sec)</label>
+                    <input
+                      type="number"
+                      value={formData.simulation.heartbeatInterval}
+                      onChange={(e) => handleNestedChange('simulation', 'heartbeatInterval', parseInt(e.target.value))}
+                      min="1"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="form-section">
+                <h3>Charging Simulation</h3>
+                <div className="form-grid">
+                  <div className="form-field">
+                    <label>Default ID Tag</label>
+                    <input
+                      type="text"
+                      value={formData.simulation.defaultIdTag}
+                      onChange={(e) => handleNestedChange('simulation', 'defaultIdTag', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label>Energy Rate (W)</label>
+                    <input
+                      type="number"
+                      value={formData.simulation.energyDeliveryRate}
+                      onChange={(e) => handleNestedChange('simulation', 'energyDeliveryRate', parseInt(e.target.value))}
+                      min="0"
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label>Meter Variance (0-1)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.simulation.meterValueVariance}
+                      onChange={(e) => handleNestedChange('simulation', 'meterValueVariance', parseFloat(e.target.value))}
+                      min="0"
+                      max="1"
+                    />
+                  </div>
+
+                  <div className="form-field form-field--checkboxes">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.simulation.randomizeMeterValues}
+                        onChange={(e) => handleNestedChange('simulation', 'randomizeMeterValues', e.target.checked)}
+                      />
+                      Randomize Meters
+                    </label>
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.simulation.statusNotificationOnChange ?? true}
+                        onChange={(e) => handleNestedChange('simulation', 'statusNotificationOnChange', e.target.checked)}
+                      />
+                      Status on Change
+                    </label>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* Advanced Tab */}
+          {activeTab === 'advanced' && (
+            <div className="edit-tab">
+              <section className="form-section">
+                <h3>Meter Values Configuration</h3>
+                <div className="form-grid">
+                  <div className="form-field">
+                    <label>Interval (sec)</label>
+                    <input
+                      type="number"
+                      value={formData.meterValuesConfig.interval}
+                      onChange={(e) => handleNestedChange('meterValuesConfig', 'interval', parseInt(e.target.value))}
+                      min="1"
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label>Aligned Interval (sec)</label>
+                    <input
+                      type="number"
+                      value={formData.meterValuesConfig.alignedDataInterval}
+                      onChange={(e) => handleNestedChange('meterValuesConfig', 'alignedDataInterval', parseInt(e.target.value))}
+                      min="1"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-field form-field--wide">
+                  <label>Measurands</label>
+                  <div className="checkbox-grid">
+                    {MEASURANDS.map(measurand => (
+                      <label key={measurand} className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={formData.meterValuesConfig.measurands?.includes(measurand)}
+                          onChange={() => handleMeasurandToggle(measurand)}
+                        />
+                        {measurand}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              <section className="form-section">
+                <h3>Hardware Identifiers</h3>
+                <div className="form-grid">
+                  <div className="form-field">
+                    <label>ICCID (SIM)</label>
+                    <input
+                      type="text"
+                      value={formData.iccid || ''}
+                      onChange={(e) => handleChange('iccid', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label>IMSI</label>
+                    <input
+                      type="text"
+                      value={formData.imsi || ''}
+                      onChange={(e) => handleChange('imsi', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="form-section">
+                <h3>Supported Profiles</h3>
+                <div className="checkbox-grid">
+                  {SUPPORTED_PROFILES.map(profile => (
+                    <label key={profile} className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.supportedProfiles?.includes(profile)}
+                        onChange={() => handleProfileToggle(profile)}
+                      />
+                      {profile}
+                    </label>
+                  ))}
+                </div>
+              </section>
+
+              <section className="form-section">
+                <h3>Tags</h3>
+                <div className="tags-input">
+                  <input
+                    type="text"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    placeholder="Add tag..."
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                  />
+                  <button type="button" className="btn btn--sm btn--secondary" onClick={addTag}>Add</button>
+                </div>
+                {formData.tags?.length > 0 && (
+                  <div className="tags-list">
+                    {formData.tags.map(tag => (
+                      <span key={tag} className="tag">
+                        {tag}
+                        <button type="button" onClick={() => removeTag(tag)}>x</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
+        </div>
 
         {/* Form Actions */}
         <div className="form-actions">
@@ -637,7 +716,7 @@ function StationEdit() {
               Cancel
             </Link>
             <button type="submit" className="btn btn--primary" disabled={saving}>
-              {saving ? 'Saving...' : (isEditing ? 'Update Station' : 'Create Station')}
+              {saving ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Station')}
             </button>
           </div>
         </div>

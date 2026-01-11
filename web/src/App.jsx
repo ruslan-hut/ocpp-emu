@@ -1,11 +1,10 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Stations from './pages/Stations'
 import StationEdit from './pages/StationEdit'
-import StationConfigPage from './pages/StationConfigPage'
 import Messages from './pages/Messages'
 import MessageCrafter from './pages/MessageCrafter'
 import ScenarioRunner from './pages/ScenarioRunner'
@@ -27,7 +26,7 @@ function App() {
                 <Route path="/stations" element={<Stations />} />
                 <Route path="/stations/new" element={<StationEdit />} />
                 <Route path="/stations/:id/edit" element={<StationEdit />} />
-                <Route path="/stations/:id/config" element={<StationConfigPage />} />
+                <Route path="/stations/:id/config" element={<Navigate to="../edit" replace />} />
                 <Route path="/messages" element={<Messages />} />
                 <Route path="/message-crafter" element={<MessageCrafter />} />
                 <Route path="/scenarios" element={<ScenarioRunner />} />

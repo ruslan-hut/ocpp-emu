@@ -325,17 +325,6 @@
   background-color: var(--color-warning-600);
 }
 
-.stations .btn-config {
-  background-color: var(--color-info-500);
-  color: white;
-  border-color: transparent;
-  text-decoration: none;
-}
-
-.stations .btn-config:hover:not(:disabled) {
-  background-color: var(--color-info-600);
-}
-
 .stations .btn-edit {
   background-color: var(--color-primary-500);
   color: white;
