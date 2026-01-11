@@ -105,6 +105,7 @@
   display: flex;
   align-items: flex-end;
   padding: var(--space-3) var(--space-4);
+  gap: var(--space-4);
   cursor: pointer;
   transition: background var(--transition-fast);
 }
@@ -117,7 +118,6 @@
   display: flex;
   align-items: flex-end;
   gap: var(--space-5);
-  flex: 1;
 }
 
 /* Expand Icon */
@@ -184,7 +184,6 @@
 }
 
 .station-card__vendor {
-  flex: 1;
   min-width: 120px;
 }
 
