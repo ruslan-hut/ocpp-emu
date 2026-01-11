@@ -86,29 +86,15 @@
 
 .stations-table {
   width: 100%;
-  min-width: 900px;
   border-collapse: collapse;
   font-size: var(--text-sm);
-  table-layout: fixed;
 }
-
-/* Column widths via colgroup - must total 100% */
-.stations-table col.col-expand { width: 4%; }
-.stations-table col.col-name { width: 14%; }
-.stations-table col.col-id { width: 14%; }
-.stations-table col.col-status { width: 14%; }
-.stations-table col.col-protocol { width: 10%; }
-.stations-table col.col-vendor { width: 18%; }
-.stations-table col.col-connectors { width: 10%; }
-.stations-table col.col-actions { width: 16%; }
 
 .stations-table th,
 .stations-table td {
   padding: var(--space-2) var(--space-3);
   text-align: left;
   border-bottom: 1px solid var(--border-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

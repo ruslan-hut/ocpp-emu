@@ -229,16 +229,6 @@ function Stations() {
       ) : (
         <div className="stations-table-wrapper">
           <table className="stations-table">
-            <colgroup>
-              <col className="col-expand" />
-              <col className="col-name" />
-              <col className="col-id" />
-              <col className="col-status" />
-              <col className="col-protocol" />
-              <col className="col-vendor" />
-              <col className="col-connectors" />
-              <col className="col-actions" />
-            </colgroup>
             <thead>
               <tr>
                 <th></th>
