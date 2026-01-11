@@ -88,27 +88,23 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-sm);
-  table-layout: fixed;
 }
 
 /* Column widths via colgroup */
 .stations-table col.col-expand { width: 40px; }
-.stations-table col.col-name { width: 15%; }
-.stations-table col.col-id { width: 13%; }
-.stations-table col.col-status { width: 10%; }
-.stations-table col.col-protocol { width: 10%; }
-.stations-table col.col-vendor { width: 20%; }
-.stations-table col.col-connectors { width: 8%; }
-.stations-table col.col-actions { width: auto; }
+.stations-table col.col-name { width: auto; }
+.stations-table col.col-id { width: auto; }
+.stations-table col.col-status { width: 120px; }
+.stations-table col.col-protocol { width: 100px; }
+.stations-table col.col-vendor { width: auto; }
+.stations-table col.col-connectors { width: 100px; }
+.stations-table col.col-actions { width: 120px; }
 
 .stations-table th,
 .stations-table td {
   padding: var(--space-2) var(--space-3);
   text-align: left;
   border-bottom: 1px solid var(--border-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .stations-table th {
@@ -206,7 +202,8 @@
 .stations-table .cell-id {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .stations-table .cell-vendor {
