@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { stationsAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
@@ -26,7 +26,6 @@ function Stations() {
     loadTemplates()
   }, [])
 
-  // Auto-refresh expanded connectors
   useEffect(() => {
     if (expandedStations.size === 0) return
 
@@ -84,7 +83,6 @@ function Stations() {
 
   const handleTemplateSelect = (template) => {
     setShowTemplates(false)
-    // Navigate to new station page with template data in state
     window.location.href = `/stations/new?template=${encodeURIComponent(template.name)}`
   }
 
@@ -94,7 +92,6 @@ function Stations() {
       newExpanded.delete(stationId)
     } else {
       newExpanded.add(stationId)
-      // Load connectors if not already loaded
       if (!connectorsMap[stationId]) {
         await loadConnectors(stationId)
       }
@@ -227,140 +224,114 @@ function Stations() {
           )}
         </div>
       ) : (
-        <div className="stations-table-wrapper">
-          <table className="stations-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th>Name</th>
-                <th>
-                  <button
-                    className="sort-header-btn"
-                    onClick={() => handleSort('stationId')}
-                    title="Sort by Station ID"
-                  >
-                    Station ID
-                    {sortBy === 'stationId' && (
-                      <span className="sort-indicator">
-                        {sortOrder === 'asc' ? ' ▲' : ' ▼'}
-                      </span>
-                    )}
-                  </button>
-                </th>
-                <th>Status</th>
-                <th>Protocol</th>
-                <th>Vendor / Model</th>
-                <th className="text-center">Connectors</th>
-                <th className="text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedStations.map((station) => {
-                const isExpanded = expandedStations.has(station.stationId)
-                const stationConnectors = connectorsMap[station.stationId] || []
-                const isLoadingConnectors = connectorsLoading[station.stationId]
-                const isConnected = station.runtimeState?.connectionStatus === 'connected'
+        <div className="stations-list">
+          {sortedStations.map((station) => {
+            const isExpanded = expandedStations.has(station.stationId)
+            const stationConnectors = connectorsMap[station.stationId] || []
+            const isLoadingConnectors = connectorsLoading[station.stationId]
+            const isConnected = station.runtimeState?.connectionStatus === 'connected'
 
-                return (
-                  <Fragment key={station.stationId}>
-                    <tr
-                      className={`station-row ${isExpanded ? 'expanded' : ''}`}
-                      onClick={() => toggleExpanded(station.stationId)}
-                    >
-                      <td className="cell-expand">
-                        <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-                            <path d="M4 2l4 4-4 4" />
-                          </svg>
-                        </span>
-                      </td>
-                      <td className="cell-name">{station.name}</td>
-                      <td className="cell-id">{station.stationId}</td>
-                      <td className="cell-status">
-                        <span className={`status-badge status-badge--sm ${station.runtimeState?.connectionStatus}`}>
-                          {station.runtimeState?.connectionStatus || 'unknown'}
-                        </span>
-                      </td>
-                      <td className="cell-protocol">
-                        <span className={`protocol-badge ${getProtocolClass(station.protocolVersion)}`}>
-                          {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
-                        </span>
-                      </td>
-                      <td className="cell-vendor">{station.vendor} / {station.model}</td>
-                      <td className="cell-connectors">{station.connectors?.length || 0}</td>
-                      <td className="cell-actions">
-                        <div className="actions-wrapper">
-                          {isConnected ? (
-                            <button
-                              className="btn btn--xs btn-stop"
-                              onClick={(e) => handleStop(station.stationId, e)}
-                            >
-                              Stop
-                            </button>
-                          ) : (
-                            <button
-                              className="btn btn--xs btn-start"
-                              onClick={(e) => handleStart(station.stationId, e)}
-                              disabled={!station.enabled}
-                            >
-                              Start
-                            </button>
-                          )}
-                          {isAdmin && (
-                            <Link
-                              to={`/stations/${station.stationId}/edit`}
-                              className="btn btn--xs btn-edit"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              Edit
-                            </Link>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                    {isExpanded && (
-                      <tr className="connectors-row">
-                        <td colSpan="8">
-                          <div className="connectors-inline">
-                            <div className="connectors-inline__header">
-                              <span className="connectors-inline__title">Connectors</span>
-                              <button
-                                className="btn btn--xs btn--secondary"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  refreshConnectors(station.stationId, false)
-                                }}
-                                disabled={isLoadingConnectors}
-                              >
-                                Refresh
-                              </button>
-                            </div>
-                            {isLoadingConnectors ? (
-                              <div className="connectors-loading">Loading connectors...</div>
-                            ) : stationConnectors.length === 0 ? (
-                              <div className="connectors-empty">No connectors configured</div>
-                            ) : (
-                              <div className="connectors-inline__grid">
-                                {stationConnectors.map((connector) => (
-                                  <ConnectorCard
-                                    key={connector.id}
-                                    stationId={station.stationId}
-                                    connector={connector}
-                                    isStationConnected={isConnected}
-                                    onUpdate={() => refreshConnectors(station.stationId, true)}
-                                  />
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+            return (
+              <div key={station.stationId} className={`station-card ${isExpanded ? 'expanded' : ''}`}>
+                <div className="station-card__main" onClick={() => toggleExpanded(station.stationId)}>
+                  <div className="station-card__expand">
+                    <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                        <path d="M4 2l4 4-4 4" />
+                      </svg>
+                    </span>
+                  </div>
+
+                  <div className="station-card__info">
+                    <div className="station-card__primary">
+                      <span className="station-name">{station.name}</span>
+                      <span className="station-id">{station.stationId}</span>
+                    </div>
+                    <div className="station-card__meta">
+                      <span className="station-vendor">{station.vendor} / {station.model}</span>
+                    </div>
+                  </div>
+
+                  <div className="station-card__badges">
+                    <span className={`status-badge ${station.runtimeState?.connectionStatus}`}>
+                      {station.runtimeState?.connectionStatus || 'unknown'}
+                    </span>
+                    <span className={`protocol-badge ${getProtocolClass(station.protocolVersion)}`}>
+                      {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
+                    </span>
+                  </div>
+
+                  <div className="station-card__connectors-count">
+                    <span className="connectors-label">Connectors</span>
+                    <span className="connectors-value">{station.connectors?.length || 0}</span>
+                  </div>
+
+                  <div className="station-card__actions">
+                    {isConnected ? (
+                      <button
+                        className="btn btn--sm btn-stop"
+                        onClick={(e) => handleStop(station.stationId, e)}
+                      >
+                        Stop
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn--sm btn-start"
+                        onClick={(e) => handleStart(station.stationId, e)}
+                        disabled={!station.enabled}
+                      >
+                        Start
+                      </button>
                     )}
-                  </Fragment>
-                )
-              })}
-            </tbody>
-          </table>
+                    {isAdmin && (
+                      <Link
+                        to={`/stations/${station.stationId}/edit`}
+                        className="btn btn--sm btn-edit"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Edit
+                      </Link>
+                    )}
+                  </div>
+                </div>
+
+                {isExpanded && (
+                  <div className="station-card__connectors">
+                    <div className="connectors-header">
+                      <span className="connectors-title">Connectors</span>
+                      <button
+                        className="btn btn--xs btn--secondary"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          refreshConnectors(station.stationId, false)
+                        }}
+                        disabled={isLoadingConnectors}
+                      >
+                        Refresh
+                      </button>
+                    </div>
+                    {isLoadingConnectors ? (
+                      <div className="connectors-loading">Loading connectors...</div>
+                    ) : stationConnectors.length === 0 ? (
+                      <div className="connectors-empty">No connectors configured</div>
+                    ) : (
+                      <div className="connectors-scroll">
+                        {stationConnectors.map((connector) => (
+                          <ConnectorCard
+                            key={connector.id}
+                            stationId={station.stationId}
+                            connector={connector}
+                            isStationConnected={isConnected}
+                            onUpdate={() => refreshConnectors(station.stationId, true)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
