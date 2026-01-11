@@ -113,7 +113,7 @@
 
 .stat-label {
   font-size: var(--text-2xs);
-  color: var(--text-secondary);
+  color: #666;
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
@@ -121,6 +121,14 @@
 .stat-value {
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
+  color: #111;
+}
+
+[data-theme="dark"] .stat-label {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .stat-value {
   color: var(--text-primary);
 }
 
