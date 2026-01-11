@@ -242,6 +242,20 @@ function Stations() {
                       </span>
                     </div>
 
+                    <div className="station-card__status">
+                      <span
+                        className={`status-dot ${station.runtimeState?.connectionStatus || 'unknown'}`}
+                        title={station.runtimeState?.connectionStatus || 'unknown'}
+                      />
+                    </div>
+
+                    <div className="station-card__field station-card__protocol">
+                      <span className="field-label">Protocol</span>
+                      <span className={`protocol-badge ${getProtocolClass(station.protocolVersion)}`}>
+                        {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
+                      </span>
+                    </div>
+
                     <div className="station-card__field station-card__name">
                       <span className="field-label">Name</span>
                       <span className="field-value">{station.name}</span>
@@ -255,20 +269,6 @@ function Stations() {
                     <div className="station-card__field station-card__vendor">
                       <span className="field-label">Vendor / Model</span>
                       <span className="field-value">{station.vendor} / {station.model}</span>
-                    </div>
-
-                    <div className="station-card__field station-card__status">
-                      <span className="field-label">Status</span>
-                      <span className={`status-badge ${station.runtimeState?.connectionStatus}`}>
-                        {station.runtimeState?.connectionStatus || 'unknown'}
-                      </span>
-                    </div>
-
-                    <div className="station-card__field station-card__protocol">
-                      <span className="field-label">Protocol</span>
-                      <span className={`protocol-badge ${getProtocolClass(station.protocolVersion)}`}>
-                        {station.protocolVersion?.toUpperCase() || 'OCPP1.6'}
-                      </span>
                     </div>
 
                     <div className="station-card__field station-card__connectors-count">

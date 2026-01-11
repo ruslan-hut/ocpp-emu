@@ -187,42 +187,51 @@
   min-width: 120px;
 }
 
-.station-card__status,
 .station-card__protocol,
 .station-card__connectors-count {
   flex-shrink: 0;
   align-items: center;
 }
 
-.status-badge {
-  display: inline-block;
-  padding: var(--space-1) var(--space-3);
+.station-card__status {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Status Dot */
+.status-dot {
+  width: 10px;
+  height: 10px;
   border-radius: var(--radius-full);
-  font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
-  text-transform: uppercase;
-  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.status-badge.connected {
-  background-color: var(--color-success-100);
-  color: var(--color-success-700);
+.status-dot.connected {
+  background-color: var(--color-success-500);
+  box-shadow: 0 0 0 3px var(--color-success-100);
 }
 
-.status-badge.disconnected,
-.status-badge.not_connected {
-  background-color: var(--color-danger-100);
-  color: var(--color-danger-700);
+.status-dot.disconnected,
+.status-dot.not_connected {
+  background-color: var(--color-danger-500);
+  box-shadow: 0 0 0 3px var(--color-danger-100);
 }
 
-.status-badge.connecting {
-  background-color: var(--color-warning-100);
-  color: var(--color-warning-700);
+.status-dot.connecting {
+  background-color: var(--color-warning-500);
+  box-shadow: 0 0 0 3px var(--color-warning-100);
+  animation: pulse-dot 1.5s ease-in-out infinite;
 }
 
-.status-badge.unknown {
-  background-color: var(--bg-surface-2);
-  color: var(--text-secondary);
+.status-dot.unknown {
+  background-color: var(--text-muted);
+  box-shadow: 0 0 0 3px var(--bg-surface-2);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 /* Protocol Badges */
