@@ -163,8 +163,7 @@ func (h *ScenarioHandler) listScenarios(w http.ResponseWriter, r *http.Request) 
 		response[i] = h.scenarioToResponse(s)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, response, h.logger)
 }
 
 // createScenario creates a new scenario
@@ -198,9 +197,7 @@ func (h *ScenarioHandler) createScenario(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(h.scenarioToResponse(s))
+	writeJSON(w, http.StatusCreated, h.scenarioToResponse(s), h.logger)
 }
 
 // getScenario returns a single scenario
@@ -218,8 +215,7 @@ func (h *ScenarioHandler) getScenario(w http.ResponseWriter, r *http.Request, sc
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(h.scenarioToResponse(s))
+	writeJSON(w, http.StatusOK, h.scenarioToResponse(s), h.logger)
 }
 
 // updateScenario updates an existing scenario
@@ -262,8 +258,7 @@ func (h *ScenarioHandler) updateScenario(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(h.scenarioToResponse(existing))
+	writeJSON(w, http.StatusOK, h.scenarioToResponse(existing), h.logger)
 }
 
 // deleteScenario deletes a scenario
@@ -324,9 +319,7 @@ func (h *ScenarioHandler) executeScenario(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(execution)
+	writeJSON(w, http.StatusCreated, execution, h.logger)
 }
 
 // listExecutions returns all executions
@@ -348,8 +341,7 @@ func (h *ScenarioHandler) listExecutions(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(executions)
+	writeJSON(w, http.StatusOK, executions, h.logger)
 }
 
 // getExecution returns a single execution
@@ -365,8 +357,7 @@ func (h *ScenarioHandler) getExecution(w http.ResponseWriter, r *http.Request, e
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(execution)
+	writeJSON(w, http.StatusOK, execution, h.logger)
 }
 
 // pauseExecution pauses a running execution
@@ -387,8 +378,7 @@ func (h *ScenarioHandler) pauseExecution(w http.ResponseWriter, r *http.Request,
 	}
 
 	execution, _ := h.runner.GetExecution(executionID)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(execution)
+	writeJSON(w, http.StatusOK, execution, h.logger)
 }
 
 // resumeExecution resumes a paused execution
@@ -409,8 +399,7 @@ func (h *ScenarioHandler) resumeExecution(w http.ResponseWriter, r *http.Request
 	}
 
 	execution, _ := h.runner.GetExecution(executionID)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(execution)
+	writeJSON(w, http.StatusOK, execution, h.logger)
 }
 
 // stopExecution stops a running or paused execution

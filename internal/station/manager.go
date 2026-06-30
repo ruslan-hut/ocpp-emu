@@ -80,6 +80,21 @@ func (s *Station) GetData() (Config, RuntimeState) {
 	return s.Config, s.RuntimeState
 }
 
+// trackPendingRequest records a sent request's message ID under its action so the
+// matching CSMS response can be correlated when it arrives.
+func (s *Station) trackPendingRequest(messageID, action string) {
+	s.pendingMu.Lock()
+	defer s.pendingMu.Unlock()
+	s.pendingRequests[messageID] = action
+}
+
+// setState advances the state machine and mirrors the new state into RuntimeState.
+// The caller must hold s.mu.
+func (s *Station) setState(state State, reason string) {
+	s.StateMachine.SetState(state, reason)
+	s.RuntimeState.State = state
+}
+
 // ManagerConfig represents the manager configuration
 type ManagerConfig struct {
 	SyncInterval time.Duration // How often to sync state to MongoDB
@@ -135,9 +150,7 @@ func (m *Manager) setupV16HandlerCallbacks() {
 		m.logger.Info("Handling RemoteStartTransaction", "stationId", stationID, "idTag", req.IdTag)
 
 		// Get station
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists {
 			return &v16.RemoteStartTransactionResponse{Status: "Rejected"}, nil
@@ -166,32 +179,19 @@ func (m *Manager) setupV16HandlerCallbacks() {
 		m.logger.Info("Handling RemoteStopTransaction", "stationId", stationID, "transactionId", req.TransactionId)
 
 		// Get station
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists {
 			return &v16.RemoteStopTransactionResponse{Status: "Rejected"}, nil
 		}
 
 		// Find connector with this transaction
-		connectors := station.SessionManager.GetAllConnectors()
-		var targetConnectorID int
-		found := false
-
-		for _, connector := range connectors {
-			tx := connector.GetTransaction()
-			if tx != nil && tx.ID == req.TransactionId {
-				targetConnectorID = connector.ID
-				found = true
-				break
-			}
-		}
-
+		connector, found := m.findConnectorByTransactionID(station, req.TransactionId)
 		if !found {
 			m.logger.Warn("Transaction not found", "transactionId", req.TransactionId)
 			return &v16.RemoteStopTransactionResponse{Status: "Rejected"}, nil
 		}
+		targetConnectorID := connector.ID
 
 		// Stop charging session
 		err := station.SessionManager.StopCharging(targetConnectorID, v16.ReasonRemote)
@@ -232,9 +232,7 @@ func (m *Manager) setupV16HandlerCallbacks() {
 		m.logger.Info("Handling ChangeAvailability", "stationId", stationID, "connectorId", req.ConnectorId, "type", req.Type)
 
 		// Get station
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists {
 			return &v16.ChangeAvailabilityResponse{Status: "Rejected"}, nil
@@ -306,9 +304,7 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		m.logger.Info("Handling RequestStartTransaction (2.0.1)", "stationId", stationID, "idToken", req.IdToken.IdToken)
 
 		// Get station
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists {
 			return &v201.RequestStartTransactionResponse{Status: "Rejected"}, nil
@@ -337,32 +333,19 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		m.logger.Info("Handling RequestStopTransaction (2.0.1)", "stationId", stationID, "transactionId", req.TransactionId)
 
 		// Get station
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists {
 			return &v201.RequestStopTransactionResponse{Status: "Rejected"}, nil
 		}
 
 		// Find connector with this transaction
-		connectors := station.SessionManager.GetAllConnectors()
-		var targetConnectorID int
-		found := false
-
-		for _, connector := range connectors {
-			tx := connector.GetTransaction()
-			if tx != nil && tx.StringID == req.TransactionId {
-				targetConnectorID = connector.ID
-				found = true
-				break
-			}
-		}
-
+		connector, found := m.findConnectorByTransactionStringID(station, req.TransactionId)
 		if !found {
 			m.logger.Warn("Transaction not found", "transactionId", req.TransactionId)
 			return &v201.RequestStopTransactionResponse{Status: "Rejected"}, nil
 		}
+		targetConnectorID := connector.ID
 
 		// Stop charging session
 		err := station.SessionManager.StopCharging(targetConnectorID, v16.ReasonRemote)
@@ -391,9 +374,7 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		m.logger.Info("Handling GetVariables (2.0.1)", "stationId", stationID, "count", len(req.GetVariableData))
 
 		// Get station to access device model
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists || station.DeviceModel == nil {
 			// Return rejected for all if station or device model not found
@@ -450,9 +431,7 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		m.logger.Info("Handling SetVariables (2.0.1)", "stationId", stationID, "count", len(req.SetVariableData))
 
 		// Get station to access device model
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists || station.DeviceModel == nil {
 			// Return rejected for all if station or device model not found
@@ -509,9 +488,7 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		m.logger.Info("Handling ChangeAvailability (2.0.1)", "stationId", stationID, "status", req.OperationalStatus)
 
 		// Get station
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists {
 			return &v201.ChangeAvailabilityResponse{Status: "Rejected"}, nil
@@ -568,9 +545,7 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		m.logger.Info("Handling TriggerMessage (2.0.1)", "stationId", stationID, "requestedMessage", req.RequestedMessage)
 
 		// Get station
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists {
 			return &v201.TriggerMessageResponse{Status: "Rejected"}, nil
@@ -601,9 +576,7 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		m.logger.Info("Handling GetTransactionStatus (2.0.1)", "stationId", stationID, "transactionId", req.TransactionId)
 
 		// Get station
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists {
 			return &v201.GetTransactionStatusResponse{MessagesInQueue: false}, nil
@@ -612,14 +585,7 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		// Check if transaction is ongoing
 		ongoing := false
 		if req.TransactionId != "" {
-			connectors := station.SessionManager.GetAllConnectors()
-			for _, connector := range connectors {
-				tx := connector.GetTransaction()
-				if tx != nil && tx.StringID == req.TransactionId {
-					ongoing = true
-					break
-				}
-			}
+			_, ongoing = m.findConnectorByTransactionStringID(station, req.TransactionId)
 		}
 
 		return &v201.GetTransactionStatusResponse{
@@ -635,9 +601,7 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		m.logger.Info("Handling CertificateSigned (2.0.1)", "stationId", stationID, "certType", req.CertificateType)
 
 		// Get station to access certificate store
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists || station.CertificateStore == nil {
 			return &v201.CertificateSignedResponse{Status: "Rejected"}, nil
@@ -673,9 +637,7 @@ func (m *Manager) setupV201HandlerCallbacks() {
 			"serialNumber", req.CertificateHashData.SerialNumber)
 
 		// Get station to access certificate store
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists || station.CertificateStore == nil {
 			return &v201.DeleteCertificateResponse{Status: "Failed"}, nil
@@ -693,9 +655,7 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		m.logger.Info("Handling GetInstalledCertificateIds (2.0.1)", "stationId", stationID, "types", req.CertificateType)
 
 		// Get station to access certificate store
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists || station.CertificateStore == nil {
 			return &v201.GetInstalledCertificateIdsResponse{
@@ -719,9 +679,7 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		m.logger.Info("Handling InstallCertificate (2.0.1)", "stationId", stationID, "certType", req.CertificateType)
 
 		// Get station to access certificate store
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists || station.CertificateStore == nil {
 			return &v201.InstallCertificateResponse{Status: "Rejected"}, nil
@@ -749,9 +707,7 @@ func (m *Manager) setupV21HandlerCallbacks() {
 		m.logger.Info("Handling CostUpdated (2.1)", "stationId", stationID, "transactionId", req.TransactionId, "totalCost", req.TotalCost)
 
 		// Get station
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists {
 			m.logger.Warn("Station not found for CostUpdated", "stationId", stationID)
@@ -759,18 +715,12 @@ func (m *Manager) setupV21HandlerCallbacks() {
 		}
 
 		// Find the transaction and update cost (for display purposes)
-		connectors := station.SessionManager.GetAllConnectors()
-		for _, connector := range connectors {
-			tx := connector.GetTransaction()
-			if tx != nil && tx.StringID == req.TransactionId {
-				// Store cost for potential display/logging
-				m.logger.Info("Updated transaction cost",
-					"stationId", stationID,
-					"transactionId", req.TransactionId,
-					"cost", req.TotalCost,
-				)
-				break
-			}
+		if _, found := m.findConnectorByTransactionStringID(station, req.TransactionId); found {
+			m.logger.Info("Updated transaction cost",
+				"stationId", stationID,
+				"transactionId", req.TransactionId,
+				"cost", req.TotalCost,
+			)
 		}
 
 		return &v21.CostUpdatedResponse{}, nil
@@ -832,9 +782,7 @@ func (m *Manager) setupV21HandlerCallbacks() {
 		)
 
 		// Get station
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists {
 			return &v21.ReserveNowResponse{Status: v21.ReservationStatusRejected}, nil
@@ -1112,9 +1060,7 @@ func (m *Manager) setupSessionManagerCallbacks(station *Station) {
 		}
 
 		// Track pending request
-		station.pendingMu.Lock()
-		station.pendingRequests[call.UniqueID] = string(v16.ActionAuthorize)
-		station.pendingMu.Unlock()
+		station.trackPendingRequest(call.UniqueID, string(v16.ActionAuthorize))
 
 		// Create response channel and register it
 		respChan := make(chan *v16.AuthorizeResponse, 1)
@@ -1175,9 +1121,7 @@ func (m *Manager) setupSessionManagerCallbacks(station *Station) {
 		}
 
 		// Track pending request
-		station.pendingMu.Lock()
-		station.pendingRequests[call.UniqueID] = string(v16.ActionStartTransaction)
-		station.pendingMu.Unlock()
+		station.trackPendingRequest(call.UniqueID, string(v16.ActionStartTransaction))
 
 		// Track which connector and idTag are starting this transaction
 		station.pendingStartMu.Lock()
@@ -1227,9 +1171,7 @@ func (m *Manager) setupSessionManagerCallbacks(station *Station) {
 		}
 
 		// Track pending request
-		station.pendingMu.Lock()
-		station.pendingRequests[call.UniqueID] = string(v16.ActionStopTransaction)
-		station.pendingMu.Unlock()
+		station.trackPendingRequest(call.UniqueID, string(v16.ActionStopTransaction))
 
 		// Store sent message
 		go m.storeMessage(stationID, "sent", call)
@@ -1361,9 +1303,7 @@ func (m *Manager) ReconcileStationData(ctx context.Context) error {
 	resetCount := 0
 
 	for _, stationID := range stationIDs {
-		m.mu.RLock()
-		station, exists := m.stations[stationID]
-		m.mu.RUnlock()
+		station, exists := m.getStation(stationID)
 
 		if !exists {
 			continue
@@ -1604,8 +1544,7 @@ func (m *Manager) startStation(ctx context.Context, stationID string) error {
 	m.logger.Info("Starting station", "stationId", stationID)
 
 	// Update state while holding lock
-	station.StateMachine.SetState(StateConnecting, "manual start")
-	station.RuntimeState.State = StateConnecting
+	station.setState(StateConnecting, "manual start")
 	station.RuntimeState.ConnectionStatus = "connecting"
 	station.RuntimeState.LastError = ""
 
@@ -1642,8 +1581,7 @@ func (m *Manager) startStation(ctx context.Context, stationID string) error {
 	)
 	if err != nil {
 		station.mu.Lock()
-		station.StateMachine.SetState(StateFaulted, "connection failed")
-		station.RuntimeState.State = StateFaulted
+		station.setState(StateFaulted, "connection failed")
 		station.RuntimeState.LastError = err.Error()
 		station.RuntimeState.ConnectionStatus = "error"
 		station.mu.Unlock()
@@ -1655,9 +1593,7 @@ func (m *Manager) startStation(ctx context.Context, stationID string) error {
 
 // StopStation stops a specific station
 func (m *Manager) StopStation(ctx context.Context, stationID string) error {
-	m.mu.RLock()
-	station, exists := m.stations[stationID]
-	m.mu.RUnlock()
+	station, exists := m.getStation(stationID)
 
 	if !exists {
 		return fmt.Errorf("station not found: %s", stationID)
@@ -1669,8 +1605,7 @@ func (m *Manager) StopStation(ctx context.Context, stationID string) error {
 	m.logger.Info("Stopping station", "stationId", stationID)
 
 	// Update state
-	station.StateMachine.SetState(StateStopping, "manual stop")
-	station.RuntimeState.State = StateStopping
+	station.setState(StateStopping, "manual stop")
 
 	// Disconnect WebSocket
 	if err := m.connManager.DisconnectStation(stationID); err != nil {
@@ -1678,20 +1613,47 @@ func (m *Manager) StopStation(ctx context.Context, stationID string) error {
 	}
 
 	// Update final state
-	station.StateMachine.SetState(StateDisconnected, "stopped")
-	station.RuntimeState.State = StateDisconnected
+	station.setState(StateDisconnected, "stopped")
 	station.RuntimeState.ConnectionStatus = "disconnected"
 	station.RuntimeState.ConnectedAt = nil
 
 	return nil
 }
 
-// GetStation returns a station by ID
-func (m *Manager) GetStation(stationID string) (*Station, error) {
+// getStation returns a station by ID with a presence flag, taking the read
+// lock for the duration of the map lookup only.
+func (m *Manager) getStation(stationID string) (*Station, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-
 	station, exists := m.stations[stationID]
+	return station, exists
+}
+
+// findConnectorByTransactionID returns the connector whose active transaction has
+// the given integer ID (OCPP 1.6).
+func (m *Manager) findConnectorByTransactionID(station *Station, txID int) (*Connector, bool) {
+	for _, c := range station.SessionManager.GetAllConnectors() {
+		if tx := c.GetTransaction(); tx != nil && tx.ID == txID {
+			return c, true
+		}
+	}
+	return nil, false
+}
+
+// findConnectorByTransactionStringID returns the connector whose active transaction
+// has the given string ID (OCPP 2.0.1 / 2.1).
+func (m *Manager) findConnectorByTransactionStringID(station *Station, txID string) (*Connector, bool) {
+	for _, c := range station.SessionManager.GetAllConnectors() {
+		if tx := c.GetTransaction(); tx != nil && tx.StringID == txID {
+			return c, true
+		}
+	}
+	return nil, false
+}
+
+// GetStation returns a station by ID
+func (m *Manager) GetStation(stationID string) (*Station, error) {
+	station, exists := m.getStation(stationID)
 	if !exists {
 		return nil, fmt.Errorf("station not found: %s", stationID)
 	}
@@ -1900,9 +1862,7 @@ func (m *Manager) syncState() {
 
 // OnStationConnected handles station connection events
 func (m *Manager) OnStationConnected(stationID string) {
-	m.mu.RLock()
-	station, exists := m.stations[stationID]
-	m.mu.RUnlock()
+	station, exists := m.getStation(stationID)
 
 	if !exists {
 		m.logger.Warn("Connected station not found in manager", "stationId", stationID)
@@ -1911,8 +1871,7 @@ func (m *Manager) OnStationConnected(stationID string) {
 
 	station.mu.Lock()
 	now := time.Now()
-	station.StateMachine.SetState(StateConnected, "websocket connected")
-	station.RuntimeState.State = StateConnected
+	station.setState(StateConnected, "websocket connected")
 	station.RuntimeState.ConnectionStatus = "connected"
 	station.RuntimeState.ConnectedAt = &now
 	station.RuntimeState.LastError = ""
@@ -1930,9 +1889,7 @@ func (m *Manager) OnStationConnected(stationID string) {
 
 // OnStationDisconnected handles station disconnection events
 func (m *Manager) OnStationDisconnected(stationID string, err error) {
-	m.mu.RLock()
-	station, exists := m.stations[stationID]
-	m.mu.RUnlock()
+	station, exists := m.getStation(stationID)
 
 	if !exists {
 		return
@@ -1944,8 +1901,7 @@ func (m *Manager) OnStationDisconnected(stationID string, err error) {
 	station.mu.Lock()
 	defer station.mu.Unlock()
 
-	station.StateMachine.SetState(StateDisconnected, "websocket disconnected")
-	station.RuntimeState.State = StateDisconnected
+	station.setState(StateDisconnected, "websocket disconnected")
 	station.RuntimeState.ConnectionStatus = "disconnected"
 	station.RuntimeState.ConnectedAt = nil
 
@@ -1989,9 +1945,7 @@ func (m *Manager) handleCall(stationID string, call *ocpp.Call) {
 	go m.storeMessage(stationID, "received", call)
 
 	// Get station to determine protocol version
-	m.mu.RLock()
-	station, exists := m.stations[stationID]
-	m.mu.RUnlock()
+	station, exists := m.getStation(stationID)
 
 	if !exists {
 		m.logger.Error("Station not found", "stationId", stationID)
@@ -2041,9 +1995,7 @@ func (m *Manager) handleCallResult(stationID string, result *ocpp.CallResult) {
 	go m.storeMessage(stationID, "received", result)
 
 	// Get station
-	m.mu.RLock()
-	station, exists := m.stations[stationID]
-	m.mu.RUnlock()
+	station, exists := m.getStation(stationID)
 
 	if !exists {
 		m.logger.Warn("Station not found for CallResult", "stationId", stationID)
@@ -2101,9 +2053,7 @@ func (m *Manager) handleCallError(stationID string, callError *ocpp.CallError) {
 
 // sendBootNotification sends a BootNotification request
 func (m *Manager) sendBootNotification(stationID string) {
-	m.mu.RLock()
-	station, exists := m.stations[stationID]
-	m.mu.RUnlock()
+	station, exists := m.getStation(stationID)
 
 	if !exists {
 		return
@@ -2119,13 +2069,13 @@ func (m *Manager) sendBootNotification(stationID string) {
 	imsi := station.Config.IMSI
 	station.mu.RUnlock()
 
-	var call *ocpp.Call
-	var err error
+	var req interface{}
+	action := string(v16.ActionBootNotification)
 
 	switch protocolVersion {
 	case "ocpp2.0.1", "2.0.1", "ocpp201":
 		// OCPP 2.0.1 BootNotification
-		req := v201.BootNotificationRequest{
+		bootReq := v201.BootNotificationRequest{
 			ChargingStation: v201.ChargingStation{
 				Model:           model,
 				VendorName:      vendor,
@@ -2136,15 +2086,15 @@ func (m *Manager) sendBootNotification(stationID string) {
 		}
 		// Add modem info if available
 		if iccid != "" || imsi != "" {
-			req.ChargingStation.Modem = &v201.Modem{
+			bootReq.ChargingStation.Modem = &v201.Modem{
 				ICCID: iccid,
 				IMSI:  imsi,
 			}
 		}
-		call, err = ocpp.NewCall(string(v201.ActionBootNotification), req)
+		req = bootReq
 	default:
 		// Default to OCPP 1.6
-		req := v16.BootNotificationRequest{
+		req = v16.BootNotificationRequest{
 			ChargePointVendor:       vendor,
 			ChargePointModel:        model,
 			ChargePointSerialNumber: serialNumber,
@@ -2152,34 +2102,14 @@ func (m *Manager) sendBootNotification(stationID string) {
 			Iccid:                   iccid,
 			Imsi:                    imsi,
 		}
-		call, err = ocpp.NewCall(string(v16.ActionBootNotification), req)
 	}
 
+	call, err := m.sendCall(stationID, action, req, station)
 	if err != nil {
-		m.logger.Error("Failed to create BootNotification", "stationId", stationID, "error", err)
-		return
-	}
-
-	// Track pending request
-	station.pendingMu.Lock()
-	station.pendingRequests[call.UniqueID] = string(v16.ActionBootNotification)
-	station.pendingMu.Unlock()
-
-	data, err := call.ToBytes()
-	if err != nil {
-		m.logger.Error("Failed to marshal BootNotification", "stationId", stationID, "error", err)
-		return
-	}
-
-	if err := m.connManager.SendMessage(stationID, data); err != nil {
-		m.logger.Error("Failed to send BootNotification", "stationId", stationID, "error", err)
 		return
 	}
 
 	m.logger.Info("Sent BootNotification", "stationId", stationID, "uniqueId", call.UniqueID, "protocol", protocolVersion)
-
-	// Store sent message
-	go m.storeMessage(stationID, "sent", call)
 }
 
 // sendNotImplementedError sends a NotImplemented error response
@@ -2231,9 +2161,7 @@ func (m *Manager) sendCallResult(stationID, uniqueID string, payload interface{}
 // storeMessage stores a message using the message logger
 func (m *Manager) storeMessage(stationID, direction string, message interface{}) {
 	// Get protocol version from station
-	m.mu.RLock()
-	station, exists := m.stations[stationID]
-	m.mu.RUnlock()
+	station, exists := m.getStation(stationID)
 
 	protocolVersion := "ocpp1.6" // default
 	if exists {
@@ -2875,34 +2803,44 @@ func (m *Manager) stopHeartbeat(station *Station) {
 	}
 }
 
-// sendHeartbeat sends a heartbeat message
-func (m *Manager) sendHeartbeat(stationID string, station *Station) {
-	call, err := ocpp.NewCall(string(v16.ActionHeartbeat), v16.HeartbeatRequest{})
+// sendCall builds an OCPP Call for action with payload req, sends it to the
+// station, and stores it. When station is non-nil the request is registered as
+// pending (so its CSMS response can be correlated) before sending. action is
+// reused as the error-log label. The Call is returned on success.
+func (m *Manager) sendCall(stationID, action string, req interface{}, station *Station) (*ocpp.Call, error) {
+	call, err := ocpp.NewCall(action, req)
 	if err != nil {
-		m.logger.Error("Failed to create Heartbeat", "stationId", stationID, "error", err)
-		return
+		m.logger.Error("Failed to create "+action, "stationId", stationID, "error", err)
+		return nil, err
 	}
 
-	// Track pending request
-	station.pendingMu.Lock()
-	station.pendingRequests[call.UniqueID] = string(v16.ActionHeartbeat)
-	station.pendingMu.Unlock()
+	if station != nil {
+		station.trackPendingRequest(call.UniqueID, action)
+	}
 
 	data, err := call.ToBytes()
 	if err != nil {
-		m.logger.Error("Failed to marshal Heartbeat", "stationId", stationID, "error", err)
-		return
+		m.logger.Error("Failed to marshal "+action, "stationId", stationID, "error", err)
+		return nil, err
 	}
 
 	if err := m.connManager.SendMessage(stationID, data); err != nil {
-		m.logger.Error("Failed to send Heartbeat", "stationID", stationID, "error", err)
+		m.logger.Error("Failed to send "+action, "stationId", stationID, "error", err)
+		return nil, err
+	}
+
+	go m.storeMessage(stationID, "sent", call)
+	return call, nil
+}
+
+// sendHeartbeat sends a heartbeat message
+func (m *Manager) sendHeartbeat(stationID string, station *Station) {
+	call, err := m.sendCall(stationID, string(v16.ActionHeartbeat), v16.HeartbeatRequest{}, station)
+	if err != nil {
 		return
 	}
 
 	m.logger.Debug("Sent Heartbeat", "stationId", stationID, "uniqueId", call.UniqueID)
-
-	// Store sent message
-	go m.storeMessage(stationID, "sent", call)
 }
 
 // sendAllConnectorStatus sends StatusNotification for all connectors
@@ -2931,20 +2869,8 @@ func (m *Manager) sendStatusNotification(stationID string, connectorID int, stat
 	now := v16.DateTime{Time: time.Now()}
 	req.Timestamp = &now
 
-	call, err := ocpp.NewCall(string(v16.ActionStatusNotification), req)
+	call, err := m.sendCall(stationID, string(v16.ActionStatusNotification), req, nil)
 	if err != nil {
-		m.logger.Error("Failed to create StatusNotification", "stationId", stationID, "error", err)
-		return
-	}
-
-	data, err := call.ToBytes()
-	if err != nil {
-		m.logger.Error("Failed to marshal StatusNotification", "stationId", stationID, "error", err)
-		return
-	}
-
-	if err := m.connManager.SendMessage(stationID, data); err != nil {
-		m.logger.Error("Failed to send StatusNotification", "stationId", stationID, "error", err)
 		return
 	}
 
@@ -2954,9 +2880,6 @@ func (m *Manager) sendStatusNotification(stationID string, connectorID int, stat
 		"status", status,
 		"uniqueId", call.UniqueID,
 	)
-
-	// Store sent message
-	go m.storeMessage(stationID, "sent", call)
 }
 
 // sendSignCertificateRequest generates a CSR and sends SignCertificate request to CSMS
@@ -2985,25 +2908,8 @@ func (m *Manager) sendSignCertificateRequest(stationID string, station *Station,
 		CertificateType: certTypeStr,
 	}
 
-	call, err := ocpp.NewCall(string(v201.ActionSignCertificate), req)
+	call, err := m.sendCall(stationID, string(v201.ActionSignCertificate), req, station)
 	if err != nil {
-		m.logger.Error("Failed to create SignCertificate request", "stationId", stationID, "error", err)
-		return
-	}
-
-	// Track pending request
-	station.pendingMu.Lock()
-	station.pendingRequests[call.UniqueID] = string(v201.ActionSignCertificate)
-	station.pendingMu.Unlock()
-
-	data, err := call.ToBytes()
-	if err != nil {
-		m.logger.Error("Failed to marshal SignCertificate", "stationId", stationID, "error", err)
-		return
-	}
-
-	if err := m.connManager.SendMessage(stationID, data); err != nil {
-		m.logger.Error("Failed to send SignCertificate", "stationId", stationID, "error", err)
 		return
 	}
 
@@ -3012,16 +2918,11 @@ func (m *Manager) sendSignCertificateRequest(stationID string, station *Station,
 		"certType", certTypeStr,
 		"uniqueId", call.UniqueID,
 	)
-
-	// Store sent message
-	go m.storeMessage(stationID, "sent", call)
 }
 
 // GetConnectors returns the connectors for a station with their current state
 func (m *Manager) GetConnectors(ctx context.Context, stationID string) ([]map[string]interface{}, error) {
-	m.mu.RLock()
-	station, exists := m.stations[stationID]
-	m.mu.RUnlock()
+	station, exists := m.getStation(stationID)
 
 	if !exists {
 		return nil, fmt.Errorf("station not found: %s", stationID)
@@ -3077,9 +2978,7 @@ func (m *Manager) GetConnectors(ctx context.Context, stationID string) ([]map[st
 
 // StartCharging initiates a charging session on a connector
 func (m *Manager) StartCharging(ctx context.Context, stationID string, connectorID int, idTag string) error {
-	m.mu.RLock()
-	station, exists := m.stations[stationID]
-	m.mu.RUnlock()
+	station, exists := m.getStation(stationID)
 
 	if !exists {
 		return fmt.Errorf("station not found: %s", stationID)
@@ -3126,9 +3025,7 @@ func (m *Manager) StartCharging(ctx context.Context, stationID string, connector
 
 // StopCharging stops a charging session on a connector
 func (m *Manager) StopCharging(ctx context.Context, stationID string, connectorID int, reason string) error {
-	m.mu.RLock()
-	station, exists := m.stations[stationID]
-	m.mu.RUnlock()
+	station, exists := m.getStation(stationID)
 
 	if !exists {
 		return fmt.Errorf("station not found: %s", stationID)
@@ -3189,9 +3086,7 @@ func (m *Manager) StopCharging(ctx context.Context, stationID string, connectorI
 // SendCustomMessage sends a custom OCPP message to the CSMS
 // This allows testing with arbitrary messages crafted by the user
 func (m *Manager) SendCustomMessage(ctx context.Context, stationID string, messageJSON []byte) error {
-	m.mu.RLock()
-	station, exists := m.stations[stationID]
-	m.mu.RUnlock()
+	station, exists := m.getStation(stationID)
 
 	if !exists {
 		return fmt.Errorf("station not found: %s", stationID)

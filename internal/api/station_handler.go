@@ -60,31 +60,17 @@ type ConnectorResponse struct {
 	CurrentTransactionID *int   `json:"currentTransactionId,omitempty"`
 }
 
-// MeterValuesConfigResponse represents meter values config in API response
-type MeterValuesConfigResponse struct {
-	Interval            int      `json:"interval"`
-	Measurands          []string `json:"measurands"`
-	AlignedDataInterval int      `json:"alignedDataInterval"`
-}
+// The request and response config payloads are structurally identical, so the
+// response names are aliases of the request types (single source of truth below).
 
-// CSMSAuthResponse represents CSMS auth config in API response
-type CSMSAuthResponse struct {
-	Type     string `json:"type"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-	Token    string `json:"token,omitempty"`
-}
+// MeterValuesConfigResponse mirrors MeterValuesConfigRequest in API responses.
+type MeterValuesConfigResponse = MeterValuesConfigRequest
 
-// SimulationConfigResponse represents simulation config in API response
-type SimulationConfigResponse struct {
-	BootDelay                  int     `json:"bootDelay"`
-	HeartbeatInterval          int     `json:"heartbeatInterval"`
-	StatusNotificationOnChange bool    `json:"statusNotificationOnChange"`
-	DefaultIDTag               string  `json:"defaultIdTag"`
-	EnergyDeliveryRate         int     `json:"energyDeliveryRate"`
-	RandomizeMeterValues       bool    `json:"randomizeMeterValues"`
-	MeterValueVariance         float64 `json:"meterValueVariance"`
-}
+// CSMSAuthResponse mirrors CSMSAuthRequest in API responses.
+type CSMSAuthResponse = CSMSAuthRequest
+
+// SimulationConfigResponse mirrors SimulationConfigRequest in API responses.
+type SimulationConfigResponse = SimulationConfigRequest
 
 // RuntimeStateResponse represents runtime state in API response
 type RuntimeStateResponse struct {
@@ -569,19 +555,11 @@ func (h *StationHandler) validateCreateRequest(req *CreateStationRequest) error 
 }
 
 func (h *StationHandler) sendJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		h.logger.Error("Failed to encode JSON response", "error", err)
-	}
+	writeJSON(w, status, data, h.logger)
 }
 
 func (h *StationHandler) sendError(w http.ResponseWriter, status int, message string) {
-	h.logger.Warn("API error", "status", status, "message", message)
-	h.sendJSON(w, status, map[string]interface{}{
-		"error":  message,
-		"status": status,
-	})
+	writeError(w, status, message, h.logger)
 }
 
 // GetConnectors returns the connectors for a station

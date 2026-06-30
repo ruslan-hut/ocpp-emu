@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -26,8 +25,6 @@ func NewAnalyticsHandler(db *storage.MongoDBClient, logger *slog.Logger) *Analyt
 
 // GetMessageStats returns aggregated message statistics
 func (h *AnalyticsHandler) GetMessageStats(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -50,16 +47,11 @@ func (h *AnalyticsHandler) GetMessageStats(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(stats); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	writeJSON(w, http.StatusOK, stats, h.logger)
 }
 
 // GetTransactionStats returns aggregated transaction statistics
 func (h *AnalyticsHandler) GetTransactionStats(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -82,16 +74,11 @@ func (h *AnalyticsHandler) GetTransactionStats(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(stats); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	writeJSON(w, http.StatusOK, stats, h.logger)
 }
 
 // GetErrorStats returns error statistics
 func (h *AnalyticsHandler) GetErrorStats(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -114,16 +101,11 @@ func (h *AnalyticsHandler) GetErrorStats(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(stats); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	writeJSON(w, http.StatusOK, stats, h.logger)
 }
 
 // GetDashboardStats returns combined statistics for the dashboard
 func (h *AnalyticsHandler) GetDashboardStats(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -191,10 +173,7 @@ func (h *AnalyticsHandler) GetDashboardStats(w http.ResponseWriter, r *http.Requ
 		"errors":       errorStats,
 	}
 
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	writeJSON(w, http.StatusOK, response, h.logger)
 }
 
 // parseDuration parses a duration string like "24h", "7d", "30d" into a time.Time

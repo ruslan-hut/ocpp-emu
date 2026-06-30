@@ -270,9 +270,7 @@ func main() {
 
 		// Handle DELETE request to clear all messages (admin only)
 		if r.Method == http.MethodDelete {
-			user := auth.GetUserFromContext(r.Context())
-			if user == nil || user.Role != auth.RoleAdmin {
-				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+			if !requireAdmin(w, r) {
 				return
 			}
 			deletedCount, err := messageLogger.ClearAllMessages(r.Context())
@@ -460,14 +458,12 @@ func main() {
 
 	// Station CRUD endpoints (auth protected)
 	mux.Handle("/api/stations", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUserFromContext(r.Context())
 		switch r.Method {
 		case http.MethodGet:
 			stationHandler.ListStations(w, r)
 		case http.MethodPost:
 			// Admin only for create
-			if user == nil || user.Role != auth.RoleAdmin {
-				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+			if !requireAdmin(w, r) {
 				return
 			}
 			stationHandler.CreateStation(w, r)
@@ -478,21 +474,16 @@ func main() {
 
 	// Station detail endpoints (with path-based routing, auth protected)
 	mux.Handle("/api/stations/", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUserFromContext(r.Context())
-		isAdmin := user != nil && user.Role == auth.RoleAdmin
-
 		// Check if path ends with /start or /stop (admin only)
 		if strings.HasSuffix(r.URL.Path, "/start") {
-			if !isAdmin {
-				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+			if !requireAdmin(w, r) {
 				return
 			}
 			stationHandler.StartStation(w, r)
 			return
 		}
 		if strings.HasSuffix(r.URL.Path, "/stop") {
-			if !isAdmin {
-				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+			if !requireAdmin(w, r) {
 				return
 			}
 			stationHandler.StopStation(w, r)
@@ -507,8 +498,7 @@ func main() {
 
 		// Check if path ends with /charge (admin only)
 		if strings.HasSuffix(r.URL.Path, "/charge") {
-			if !isAdmin {
-				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+			if !requireAdmin(w, r) {
 				return
 			}
 			stationHandler.StartCharging(w, r)
@@ -517,8 +507,7 @@ func main() {
 
 		// Check if path ends with /stop-charge (admin only)
 		if strings.HasSuffix(r.URL.Path, "/stop-charge") {
-			if !isAdmin {
-				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+			if !requireAdmin(w, r) {
 				return
 			}
 			stationHandler.StopCharging(w, r)
@@ -527,8 +516,7 @@ func main() {
 
 		// Check if path ends with /send-message (admin only)
 		if strings.HasSuffix(r.URL.Path, "/send-message") {
-			if !isAdmin {
-				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+			if !requireAdmin(w, r) {
 				return
 			}
 			stationHandler.SendCustomMessage(w, r)
@@ -540,14 +528,12 @@ func main() {
 		case http.MethodGet:
 			stationHandler.GetStation(w, r)
 		case http.MethodPut:
-			if !isAdmin {
-				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+			if !requireAdmin(w, r) {
 				return
 			}
 			stationHandler.UpdateStation(w, r)
 		case http.MethodDelete:
-			if !isAdmin {
-				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+			if !requireAdmin(w, r) {
 				return
 			}
 			stationHandler.DeleteStation(w, r)
@@ -597,32 +583,23 @@ func main() {
 
 	// Scenario endpoints (auth protected with role checks)
 	mux.Handle("/api/scenarios", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUserFromContext(r.Context())
-		isAdmin := user != nil && user.Role == auth.RoleAdmin
 		// POST requires admin
-		if r.Method == http.MethodPost && !isAdmin {
-			http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+		if r.Method == http.MethodPost && !requireAdmin(w, r) {
 			return
 		}
 		scenarioHandler.HandleScenarios(w, r)
 	})))
 	mux.Handle("/api/scenarios/", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUserFromContext(r.Context())
-		isAdmin := user != nil && user.Role == auth.RoleAdmin
 		// PUT, DELETE, and execute (POST to /execute) require admin
-		if (r.Method == http.MethodPut || r.Method == http.MethodDelete || r.Method == http.MethodPost) && !isAdmin {
-			http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+		if (r.Method == http.MethodPut || r.Method == http.MethodDelete || r.Method == http.MethodPost) && !requireAdmin(w, r) {
 			return
 		}
 		scenarioHandler.HandleScenario(w, r)
 	})))
 	mux.Handle("/api/executions", requireAuth(http.HandlerFunc(scenarioHandler.HandleExecutions)))
 	mux.Handle("/api/executions/", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUserFromContext(r.Context())
-		isAdmin := user != nil && user.Role == auth.RoleAdmin
 		// POST (pause/resume/stop) and DELETE require admin
-		if (r.Method == http.MethodPost || r.Method == http.MethodDelete) && !isAdmin {
-			http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+		if (r.Method == http.MethodPost || r.Method == http.MethodDelete) && !requireAdmin(w, r) {
 			return
 		}
 		scenarioHandler.HandleExecutions(w, r)
@@ -699,6 +676,16 @@ func main() {
 	}
 
 	logger.Info("Server stopped")
+}
+
+// requireAdmin writes a 403 and returns false when the request is not from an
+// authenticated admin user; otherwise it returns true without writing a response.
+func requireAdmin(w http.ResponseWriter, r *http.Request) bool {
+	if auth.IsAdmin(r.Context()) {
+		return true
+	}
+	http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+	return false
 }
 
 // initLogger initializes the structured logger using slog
