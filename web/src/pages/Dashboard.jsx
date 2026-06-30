@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { healthAPI, stationsAPI, messagesAPI } from '../services/api'
+import { useSort } from '../hooks/useSort'
 import './Dashboard.css'
 
 function Dashboard() {
@@ -11,8 +12,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const isInitialLoad = useRef(true)
-  const [sortBy, setSortBy] = useState(() => localStorage.getItem('dashboardSortBy') || null)
-  const [sortOrder, setSortOrder] = useState(() => localStorage.getItem('dashboardSortOrder') || 'asc')
+  const { sortBy, sortOrder, handleSort, sortedItems: sortedStations } = useSort(stations, 'dashboard')
 
   useEffect(() => {
     fetchData()
@@ -78,43 +78,6 @@ function Dashboard() {
       case 'not_connected': return 'status--disconnected'
       default: return 'status--unknown'
     }
-  }
-
-  const handleSort = (field) => {
-    if (sortBy === field) {
-      // Toggle through: asc -> desc -> none
-      if (sortOrder === 'asc') {
-        setSortOrder('desc')
-        localStorage.setItem('dashboardSortOrder', 'desc')
-      } else {
-        setSortBy(null)
-        setSortOrder('asc')
-        localStorage.removeItem('dashboardSortBy')
-        localStorage.setItem('dashboardSortOrder', 'asc')
-      }
-    } else {
-      setSortBy(field)
-      setSortOrder('asc')
-      localStorage.setItem('dashboardSortBy', field)
-      localStorage.setItem('dashboardSortOrder', 'asc')
-    }
-  }
-
-  const getSortedStations = () => {
-    if (!sortBy) return stations
-
-    return [...stations].sort((a, b) => {
-      let aValue = a[sortBy]
-      let bValue = b[sortBy]
-
-      // Handle case-insensitive string comparison for stationId
-      if (typeof aValue === 'string') aValue = aValue.toLowerCase()
-      if (typeof bValue === 'string') bValue = bValue.toLowerCase()
-
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
-      return 0
-    })
   }
 
   if (loading) {
@@ -255,7 +218,7 @@ function Dashboard() {
                 </button>
               </div>
             ) : (
-              getSortedStations().slice(0, 8).map((station) => (
+              sortedStations.slice(0, 8).map((station) => (
                 <div key={station.stationId} className="station-row">
                   <div className="station-row__status">
                     <span className={`status-dot ${getStatusClass(station.runtimeState?.connectionStatus)}`} />

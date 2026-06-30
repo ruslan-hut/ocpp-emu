@@ -10,9 +10,15 @@ import (
 // Middleware creates authentication middleware that validates JWT or API key
 func (s *Service) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// If auth is disabled, pass through
+		// If auth is disabled, treat the caller as an admin so role-gated
+		// endpoints remain accessible in development.
 		if !s.enabled {
-			next.ServeHTTP(w, r)
+			ctx := context.WithValue(r.Context(), UserContextKey, &AuthenticatedUser{
+				Username: "anonymous",
+				Role:     RoleAdmin,
+				AuthType: "disabled",
+			})
+			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 

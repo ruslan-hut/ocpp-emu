@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import TemplatesManager from '../components/TemplatesManager'
 import ImportExport from '../components/ImportExport'
 import ConnectorCard from '../components/ConnectorCard'
+import { useSort } from '../hooks/useSort'
 import './Stations.css'
 
 function Stations() {
@@ -18,8 +19,7 @@ function Stations() {
   const [expandedStations, setExpandedStations] = useState(new Set())
   const [connectorsMap, setConnectorsMap] = useState({})
   const [connectorsLoading, setConnectorsLoading] = useState({})
-  const [sortBy, setSortBy] = useState(() => localStorage.getItem('stationsSortBy') || null)
-  const [sortOrder, setSortOrder] = useState(() => localStorage.getItem('stationsSortOrder') || 'asc')
+  const { sortBy, sortOrder, handleSort, sortedItems: sortedStations } = useSort(stations, 'stations')
 
   useEffect(() => {
     fetchStations()
@@ -129,41 +129,6 @@ function Stations() {
     }
   }
 
-  const handleSort = (field) => {
-    if (sortBy === field) {
-      if (sortOrder === 'asc') {
-        setSortOrder('desc')
-        localStorage.setItem('stationsSortOrder', 'desc')
-      } else {
-        setSortBy(null)
-        setSortOrder('asc')
-        localStorage.removeItem('stationsSortBy')
-        localStorage.setItem('stationsSortOrder', 'asc')
-      }
-    } else {
-      setSortBy(field)
-      setSortOrder('asc')
-      localStorage.setItem('stationsSortBy', field)
-      localStorage.setItem('stationsSortOrder', 'asc')
-    }
-  }
-
-  const getSortedStations = () => {
-    if (!sortBy) return stations
-
-    return [...stations].sort((a, b) => {
-      let aValue = a[sortBy]
-      let bValue = b[sortBy]
-
-      if (typeof aValue === 'string') aValue = aValue.toLowerCase()
-      if (typeof bValue === 'string') bValue = bValue.toLowerCase()
-
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
-      return 0
-    })
-  }
-
   const getProtocolClass = (version) => {
     if (version === 'ocpp2.1' || version === '2.1') return 'ocpp21'
     if (version === 'ocpp2.0.1' || version === '2.0.1') return 'ocpp201'
@@ -177,8 +142,6 @@ function Stations() {
   if (error) {
     return <div className="stations"><div className="error">Error loading stations: {error}</div></div>
   }
-
-  const sortedStations = getSortedStations()
 
   return (
     <div className="stations">

@@ -85,18 +85,25 @@ type ErrorCount struct {
 	Count    int64  `json:"count" bson:"count"`
 }
 
+// applyStationTimeFilter adds a station_id selector (when stationID is non-empty)
+// and a {tsField: {$gte: since}} selector (when since is non-zero) to filter,
+// returning it for chaining.
+func applyStationTimeFilter(filter bson.M, stationID, tsField string, since time.Time) bson.M {
+	if stationID != "" {
+		filter["station_id"] = stationID
+	}
+	if !since.IsZero() {
+		filter[tsField] = bson.M{"$gte": since}
+	}
+	return filter
+}
+
 // GetMessageStats returns aggregated message statistics
 func (m *MongoDBClient) GetMessageStats(ctx context.Context, stationID string, since time.Time) (*MessageStats, error) {
 	stats := &MessageStats{}
 
 	// Build match stage
-	matchStage := bson.M{}
-	if stationID != "" {
-		matchStage["station_id"] = stationID
-	}
-	if !since.IsZero() {
-		matchStage["timestamp"] = bson.M{"$gte": since}
-	}
+	matchStage := applyStationTimeFilter(bson.M{}, stationID, "timestamp", since)
 
 	// Get total counts by direction and type
 	countPipeline := mongo.Pipeline{}
@@ -254,13 +261,7 @@ func (m *MongoDBClient) GetTransactionStats(ctx context.Context, stationID strin
 	stats := &TransactionStats{}
 
 	// Build match stage
-	matchStage := bson.M{}
-	if stationID != "" {
-		matchStage["station_id"] = stationID
-	}
-	if !since.IsZero() {
-		matchStage["start_timestamp"] = bson.M{"$gte": since}
-	}
+	matchStage := applyStationTimeFilter(bson.M{}, stationID, "start_timestamp", since)
 
 	// Get total counts and averages
 	pipeline := mongo.Pipeline{}
@@ -312,13 +313,7 @@ func (m *MongoDBClient) GetTransactionStats(ctx context.Context, stationID strin
 
 	// Get average session duration for completed transactions
 	durationPipeline := mongo.Pipeline{}
-	durationMatch := bson.M{"status": "completed"}
-	if stationID != "" {
-		durationMatch["station_id"] = stationID
-	}
-	if !since.IsZero() {
-		durationMatch["start_timestamp"] = bson.M{"$gte": since}
-	}
+	durationMatch := applyStationTimeFilter(bson.M{"status": "completed"}, stationID, "start_timestamp", since)
 	durationPipeline = append(durationPipeline,
 		bson.D{{Key: "$match", Value: durationMatch}},
 		bson.D{{Key: "$project", Value: bson.M{
@@ -422,13 +417,7 @@ func (m *MongoDBClient) GetErrorStats(ctx context.Context, stationID string, sin
 	stats := &ErrorStats{}
 
 	// Build match stage for CallError messages
-	matchStage := bson.M{"message_type": "CallError"}
-	if stationID != "" {
-		matchStage["station_id"] = stationID
-	}
-	if !since.IsZero() {
-		matchStage["timestamp"] = bson.M{"$gte": since}
-	}
+	matchStage := applyStationTimeFilter(bson.M{"message_type": "CallError"}, stationID, "timestamp", since)
 
 	// Count errors by error code
 	byCodePipeline := mongo.Pipeline{
@@ -487,13 +476,7 @@ func (m *MongoDBClient) GetErrorStats(ctx context.Context, stationID string, sin
 	}
 
 	// Calculate error rate
-	totalMatch := bson.M{}
-	if stationID != "" {
-		totalMatch["station_id"] = stationID
-	}
-	if !since.IsZero() {
-		totalMatch["timestamp"] = bson.M{"$gte": since}
-	}
+	totalMatch := applyStationTimeFilter(bson.M{}, stationID, "timestamp", since)
 
 	totalMessages, err := m.MessagesCollection.CountDocuments(ctx, totalMatch)
 	if err == nil && totalMessages > 0 {

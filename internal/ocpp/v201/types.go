@@ -2,7 +2,7 @@
 package v201
 
 import (
-	"time"
+	"github.com/ruslanhut/ocpp-emu/internal/ocpp"
 )
 
 // Action represents OCPP 2.0.1 action names
@@ -359,26 +359,8 @@ const (
 
 // ========== Data Types ==========
 
-// DateTime wraps time.Time for OCPP date-time format
-type DateTime struct {
-	time.Time
-}
-
-// MarshalJSON implements custom JSON marshaling
-func (dt DateTime) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + dt.Time.Format(time.RFC3339) + `"`), nil
-}
-
-// UnmarshalJSON implements custom JSON unmarshaling
-func (dt *DateTime) UnmarshalJSON(data []byte) error {
-	str := string(data[1 : len(data)-1])
-	t, err := time.Parse(time.RFC3339, str)
-	if err != nil {
-		return err
-	}
-	dt.Time = t
-	return nil
-}
+// DateTime is the OCPP date-time type, shared across protocol versions.
+type DateTime = ocpp.DateTime
 
 // StatusInfo provides additional status information
 type StatusInfo struct {

@@ -90,49 +90,20 @@ func (h *Handler) HandleCall(stationID string, call *ocpp.Call) (interface{}, er
 
 // ==================== CSMS → CS Request Handlers ====================
 
-// handleRequestStartTransaction handles RequestStartTransaction request
 func (h *Handler) handleRequestStartTransaction(stationID string, call *ocpp.Call) (*RequestStartTransactionResponse, error) {
-	var req RequestStartTransactionRequest
-	if err := json.Unmarshal(call.Payload, &req); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal RequestStartTransaction request: %w", err)
-	}
-
-	if h.OnRequestStartTransaction == nil {
-		return &RequestStartTransactionResponse{Status: "Rejected"}, nil
-	}
-
-	return h.OnRequestStartTransaction(stationID, &req)
+	return ocpp.HandleRequest(stationID, string(ActionRequestStartTransaction), call, h.OnRequestStartTransaction, &RequestStartTransactionResponse{Status: "Rejected"})
 }
 
-// handleRequestStopTransaction handles RequestStopTransaction request
 func (h *Handler) handleRequestStopTransaction(stationID string, call *ocpp.Call) (*RequestStopTransactionResponse, error) {
-	var req RequestStopTransactionRequest
-	if err := json.Unmarshal(call.Payload, &req); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal RequestStopTransaction request: %w", err)
-	}
-
-	if h.OnRequestStopTransaction == nil {
-		return &RequestStopTransactionResponse{Status: "Rejected"}, nil
-	}
-
-	return h.OnRequestStopTransaction(stationID, &req)
+	return ocpp.HandleRequest(stationID, string(ActionRequestStopTransaction), call, h.OnRequestStopTransaction, &RequestStopTransactionResponse{Status: "Rejected"})
 }
 
-// handleReset handles Reset request
 func (h *Handler) handleReset(stationID string, call *ocpp.Call) (*ResetResponse, error) {
-	var req ResetRequest
-	if err := json.Unmarshal(call.Payload, &req); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal Reset request: %w", err)
-	}
-
-	if h.OnReset == nil {
-		return &ResetResponse{Status: ResetStatusRejected}, nil
-	}
-
-	return h.OnReset(stationID, &req)
+	return ocpp.HandleRequest(stationID, string(ActionReset), call, h.OnReset, &ResetResponse{Status: ResetStatusRejected})
 }
 
-// handleGetVariables handles GetVariables request
+// handleGetVariables handles GetVariables request. Its default reply is derived
+// from the request, so it does not use the shared ocpp.HandleRequest helper.
 func (h *Handler) handleGetVariables(stationID string, call *ocpp.Call) (*GetVariablesResponse, error) {
 	var req GetVariablesRequest
 	if err := json.Unmarshal(call.Payload, &req); err != nil {
@@ -155,7 +126,8 @@ func (h *Handler) handleGetVariables(stationID string, call *ocpp.Call) (*GetVar
 	return h.OnGetVariables(stationID, &req)
 }
 
-// handleSetVariables handles SetVariables request
+// handleSetVariables handles SetVariables request. Its default reply is derived
+// from the request, so it does not use the shared ocpp.HandleRequest helper.
 func (h *Handler) handleSetVariables(stationID string, call *ocpp.Call) (*SetVariablesResponse, error) {
 	var req SetVariablesRequest
 	if err := json.Unmarshal(call.Payload, &req); err != nil {
@@ -178,191 +150,58 @@ func (h *Handler) handleSetVariables(stationID string, call *ocpp.Call) (*SetVar
 	return h.OnSetVariables(stationID, &req)
 }
 
-// handleChangeAvailability handles ChangeAvailability request
 func (h *Handler) handleChangeAvailability(stationID string, call *ocpp.Call) (*ChangeAvailabilityResponse, error) {
-	var req ChangeAvailabilityRequest
-	if err := json.Unmarshal(call.Payload, &req); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal ChangeAvailability request: %w", err)
-	}
-
-	if h.OnChangeAvailability == nil {
-		return &ChangeAvailabilityResponse{Status: "Rejected"}, nil
-	}
-
-	return h.OnChangeAvailability(stationID, &req)
+	return ocpp.HandleRequest(stationID, string(ActionChangeAvailability), call, h.OnChangeAvailability, &ChangeAvailabilityResponse{Status: "Rejected"})
 }
 
-// handleUnlockConnector handles UnlockConnector request
 func (h *Handler) handleUnlockConnector(stationID string, call *ocpp.Call) (*UnlockConnectorResponse, error) {
-	var req UnlockConnectorRequest
-	if err := json.Unmarshal(call.Payload, &req); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal UnlockConnector request: %w", err)
-	}
-
-	if h.OnUnlockConnector == nil {
-		return &UnlockConnectorResponse{Status: "UnknownConnector"}, nil
-	}
-
-	return h.OnUnlockConnector(stationID, &req)
+	return ocpp.HandleRequest(stationID, string(ActionUnlockConnector), call, h.OnUnlockConnector, &UnlockConnectorResponse{Status: "UnknownConnector"})
 }
 
-// handleClearCache handles ClearCache request
 func (h *Handler) handleClearCache(stationID string, call *ocpp.Call) (*ClearCacheResponse, error) {
-	var req ClearCacheRequest
-	if err := json.Unmarshal(call.Payload, &req); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal ClearCache request: %w", err)
-	}
-
-	if h.OnClearCache == nil {
-		return &ClearCacheResponse{Status: "Rejected"}, nil
-	}
-
-	return h.OnClearCache(stationID, &req)
+	return ocpp.HandleRequest(stationID, string(ActionClearCache), call, h.OnClearCache, &ClearCacheResponse{Status: "Rejected"})
 }
 
-// handleDataTransfer handles DataTransfer request
 func (h *Handler) handleDataTransfer(stationID string, call *ocpp.Call) (*DataTransferResponse, error) {
-	var req DataTransferRequest
-	if err := json.Unmarshal(call.Payload, &req); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal DataTransfer request: %w", err)
-	}
-
-	if h.OnDataTransfer == nil {
-		return &DataTransferResponse{Status: DataTransferStatusUnknownVendorId}, nil
-	}
-
-	return h.OnDataTransfer(stationID, &req)
+	return ocpp.HandleRequest(stationID, string(ActionDataTransfer), call, h.OnDataTransfer, &DataTransferResponse{Status: DataTransferStatusUnknownVendorId})
 }
 
-// handleTriggerMessage handles TriggerMessage request
 func (h *Handler) handleTriggerMessage(stationID string, call *ocpp.Call) (*TriggerMessageResponse, error) {
-	var req TriggerMessageRequest
-	if err := json.Unmarshal(call.Payload, &req); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal TriggerMessage request: %w", err)
-	}
-
-	if h.OnTriggerMessage == nil {
-		return &TriggerMessageResponse{Status: "NotImplemented"}, nil
-	}
-
-	return h.OnTriggerMessage(stationID, &req)
+	return ocpp.HandleRequest(stationID, string(ActionTriggerMessage), call, h.OnTriggerMessage, &TriggerMessageResponse{Status: "NotImplemented"})
 }
 
-// handleGetTransactionStatus handles GetTransactionStatus request
 func (h *Handler) handleGetTransactionStatus(stationID string, call *ocpp.Call) (*GetTransactionStatusResponse, error) {
-	var req GetTransactionStatusRequest
-	if err := json.Unmarshal(call.Payload, &req); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal GetTransactionStatus request: %w", err)
-	}
-
-	if h.OnGetTransactionStatus == nil {
-		return &GetTransactionStatusResponse{MessagesInQueue: false}, nil
-	}
-
-	return h.OnGetTransactionStatus(stationID, &req)
+	return ocpp.HandleRequest(stationID, string(ActionGetTransactionStatus), call, h.OnGetTransactionStatus, &GetTransactionStatusResponse{MessagesInQueue: false})
 }
 
 // ==================== Certificate Management Handlers (CSMS → CS) ====================
 
-// handleCertificateSigned handles CertificateSigned request
 func (h *Handler) handleCertificateSigned(stationID string, call *ocpp.Call) (*CertificateSignedResponse, error) {
-	var req CertificateSignedRequest
-	if err := json.Unmarshal(call.Payload, &req); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal CertificateSigned request: %w", err)
-	}
-
-	if h.OnCertificateSigned == nil {
-		return &CertificateSignedResponse{Status: "Rejected"}, nil
-	}
-
-	return h.OnCertificateSigned(stationID, &req)
+	return ocpp.HandleRequest(stationID, string(ActionCertificateSigned), call, h.OnCertificateSigned, &CertificateSignedResponse{Status: "Rejected"})
 }
 
-// handleDeleteCertificate handles DeleteCertificate request
 func (h *Handler) handleDeleteCertificate(stationID string, call *ocpp.Call) (*DeleteCertificateResponse, error) {
-	var req DeleteCertificateRequest
-	if err := json.Unmarshal(call.Payload, &req); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal DeleteCertificate request: %w", err)
-	}
-
-	if h.OnDeleteCertificate == nil {
-		return &DeleteCertificateResponse{Status: "NotFound"}, nil
-	}
-
-	return h.OnDeleteCertificate(stationID, &req)
+	return ocpp.HandleRequest(stationID, string(ActionDeleteCertificate), call, h.OnDeleteCertificate, &DeleteCertificateResponse{Status: "NotFound"})
 }
 
-// handleGetInstalledCertificateIds handles GetInstalledCertificateIds request
 func (h *Handler) handleGetInstalledCertificateIds(stationID string, call *ocpp.Call) (*GetInstalledCertificateIdsResponse, error) {
-	var req GetInstalledCertificateIdsRequest
-	if err := json.Unmarshal(call.Payload, &req); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal GetInstalledCertificateIds request: %w", err)
-	}
-
-	if h.OnGetInstalledCertificateIds == nil {
-		return &GetInstalledCertificateIdsResponse{Status: "NotFound"}, nil
-	}
-
-	return h.OnGetInstalledCertificateIds(stationID, &req)
+	return ocpp.HandleRequest(stationID, string(ActionGetInstalledCertificateIds), call, h.OnGetInstalledCertificateIds, &GetInstalledCertificateIdsResponse{Status: "NotFound"})
 }
 
-// handleInstallCertificate handles InstallCertificate request
 func (h *Handler) handleInstallCertificate(stationID string, call *ocpp.Call) (*InstallCertificateResponse, error) {
-	var req InstallCertificateRequest
-	if err := json.Unmarshal(call.Payload, &req); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal InstallCertificate request: %w", err)
-	}
-
-	if h.OnInstallCertificate == nil {
-		return &InstallCertificateResponse{Status: "Rejected"}, nil
-	}
-
-	return h.OnInstallCertificate(stationID, &req)
+	return ocpp.HandleRequest(stationID, string(ActionInstallCertificate), call, h.OnInstallCertificate, &InstallCertificateResponse{Status: "Rejected"})
 }
 
 // ==================== Outgoing Messages (Charging Station → CSMS) ====================
 
 // SendBootNotification sends a BootNotification request
 func (h *Handler) SendBootNotification(stationID string, req *BootNotificationRequest) (*ocpp.Call, error) {
-	call, err := ocpp.NewCall(string(ActionBootNotification), req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create BootNotification call: %w", err)
-	}
-
-	data, err := call.ToBytes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal BootNotification: %w", err)
-	}
-
-	if h.SendMessage != nil {
-		if err := h.SendMessage(stationID, data); err != nil {
-			return nil, fmt.Errorf("failed to send BootNotification: %w", err)
-		}
-	}
-
-	return call, nil
+	return ocpp.SendCall(h.SendMessage, stationID, string(ActionBootNotification), req)
 }
 
 // SendHeartbeat sends a Heartbeat request
 func (h *Handler) SendHeartbeat(stationID string) (*ocpp.Call, error) {
-	req := HeartbeatRequest{}
-	call, err := ocpp.NewCall(string(ActionHeartbeat), req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Heartbeat call: %w", err)
-	}
-
-	data, err := call.ToBytes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal Heartbeat: %w", err)
-	}
-
-	if h.SendMessage != nil {
-		if err := h.SendMessage(stationID, data); err != nil {
-			return nil, fmt.Errorf("failed to send Heartbeat: %w", err)
-		}
-	}
-
-	return call, nil
+	return ocpp.SendCall(h.SendMessage, stationID, string(ActionHeartbeat), HeartbeatRequest{})
 }
 
 // SendStatusNotification sends a StatusNotification request
@@ -372,44 +211,12 @@ func (h *Handler) SendStatusNotification(stationID string, req *StatusNotificati
 		req.Timestamp = DateTime{Time: time.Now()}
 	}
 
-	call, err := ocpp.NewCall(string(ActionStatusNotification), req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create StatusNotification call: %w", err)
-	}
-
-	data, err := call.ToBytes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal StatusNotification: %w", err)
-	}
-
-	if h.SendMessage != nil {
-		if err := h.SendMessage(stationID, data); err != nil {
-			return nil, fmt.Errorf("failed to send StatusNotification: %w", err)
-		}
-	}
-
-	return call, nil
+	return ocpp.SendCall(h.SendMessage, stationID, string(ActionStatusNotification), req)
 }
 
 // SendAuthorize sends an Authorize request
 func (h *Handler) SendAuthorize(stationID string, req *AuthorizeRequest) (*ocpp.Call, error) {
-	call, err := ocpp.NewCall(string(ActionAuthorize), req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Authorize call: %w", err)
-	}
-
-	data, err := call.ToBytes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal Authorize: %w", err)
-	}
-
-	if h.SendMessage != nil {
-		if err := h.SendMessage(stationID, data); err != nil {
-			return nil, fmt.Errorf("failed to send Authorize: %w", err)
-		}
-	}
-
-	return call, nil
+	return ocpp.SendCall(h.SendMessage, stationID, string(ActionAuthorize), req)
 }
 
 // SendTransactionEvent sends a TransactionEvent request (replaces Start/StopTransaction from OCPP 1.6)
@@ -419,44 +226,12 @@ func (h *Handler) SendTransactionEvent(stationID string, req *TransactionEventRe
 		req.Timestamp = DateTime{Time: time.Now()}
 	}
 
-	call, err := ocpp.NewCall(string(ActionTransactionEvent), req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create TransactionEvent call: %w", err)
-	}
-
-	data, err := call.ToBytes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal TransactionEvent: %w", err)
-	}
-
-	if h.SendMessage != nil {
-		if err := h.SendMessage(stationID, data); err != nil {
-			return nil, fmt.Errorf("failed to send TransactionEvent: %w", err)
-		}
-	}
-
-	return call, nil
+	return ocpp.SendCall(h.SendMessage, stationID, string(ActionTransactionEvent), req)
 }
 
 // SendMeterValues sends a MeterValues request
 func (h *Handler) SendMeterValues(stationID string, req *MeterValuesRequest) (*ocpp.Call, error) {
-	call, err := ocpp.NewCall(string(ActionMeterValues), req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create MeterValues call: %w", err)
-	}
-
-	data, err := call.ToBytes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal MeterValues: %w", err)
-	}
-
-	if h.SendMessage != nil {
-		if err := h.SendMessage(stationID, data); err != nil {
-			return nil, fmt.Errorf("failed to send MeterValues: %w", err)
-		}
-	}
-
-	return call, nil
+	return ocpp.SendCall(h.SendMessage, stationID, string(ActionMeterValues), req)
 }
 
 // SendSecurityEventNotification sends a SecurityEventNotification request
@@ -466,23 +241,7 @@ func (h *Handler) SendSecurityEventNotification(stationID string, req *SecurityE
 		req.Timestamp = DateTime{Time: time.Now()}
 	}
 
-	call, err := ocpp.NewCall(string(ActionSecurityEventNotification), req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create SecurityEventNotification call: %w", err)
-	}
-
-	data, err := call.ToBytes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal SecurityEventNotification: %w", err)
-	}
-
-	if h.SendMessage != nil {
-		if err := h.SendMessage(stationID, data); err != nil {
-			return nil, fmt.Errorf("failed to send SecurityEventNotification: %w", err)
-		}
-	}
-
-	return call, nil
+	return ocpp.SendCall(h.SendMessage, stationID, string(ActionSecurityEventNotification), req)
 }
 
 // SendNotifyEvent sends a NotifyEvent request
@@ -492,109 +251,29 @@ func (h *Handler) SendNotifyEvent(stationID string, req *NotifyEventRequest) (*o
 		req.GeneratedAt = DateTime{Time: time.Now()}
 	}
 
-	call, err := ocpp.NewCall(string(ActionNotifyEvent), req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create NotifyEvent call: %w", err)
-	}
-
-	data, err := call.ToBytes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal NotifyEvent: %w", err)
-	}
-
-	if h.SendMessage != nil {
-		if err := h.SendMessage(stationID, data); err != nil {
-			return nil, fmt.Errorf("failed to send NotifyEvent: %w", err)
-		}
-	}
-
-	return call, nil
+	return ocpp.SendCall(h.SendMessage, stationID, string(ActionNotifyEvent), req)
 }
 
 // SendDataTransfer sends a DataTransfer request
 func (h *Handler) SendDataTransfer(stationID string, req *DataTransferRequest) (*ocpp.Call, error) {
-	call, err := ocpp.NewCall(string(ActionDataTransfer), req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create DataTransfer call: %w", err)
-	}
-
-	data, err := call.ToBytes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal DataTransfer: %w", err)
-	}
-
-	if h.SendMessage != nil {
-		if err := h.SendMessage(stationID, data); err != nil {
-			return nil, fmt.Errorf("failed to send DataTransfer: %w", err)
-		}
-	}
-
-	return call, nil
+	return ocpp.SendCall(h.SendMessage, stationID, string(ActionDataTransfer), req)
 }
 
 // ==================== Certificate Management Outgoing (CS → CSMS) ====================
 
 // SendSignCertificate sends a SignCertificate request
 func (h *Handler) SendSignCertificate(stationID string, req *SignCertificateRequest) (*ocpp.Call, error) {
-	call, err := ocpp.NewCall(string(ActionSignCertificate), req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create SignCertificate call: %w", err)
-	}
-
-	data, err := call.ToBytes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal SignCertificate: %w", err)
-	}
-
-	if h.SendMessage != nil {
-		if err := h.SendMessage(stationID, data); err != nil {
-			return nil, fmt.Errorf("failed to send SignCertificate: %w", err)
-		}
-	}
-
-	return call, nil
+	return ocpp.SendCall(h.SendMessage, stationID, string(ActionSignCertificate), req)
 }
 
 // SendGet15118EVCertificate sends a Get15118EVCertificate request
 func (h *Handler) SendGet15118EVCertificate(stationID string, req *Get15118EVCertificateRequest) (*ocpp.Call, error) {
-	call, err := ocpp.NewCall(string(ActionGet15118EVCertificate), req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Get15118EVCertificate call: %w", err)
-	}
-
-	data, err := call.ToBytes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal Get15118EVCertificate: %w", err)
-	}
-
-	if h.SendMessage != nil {
-		if err := h.SendMessage(stationID, data); err != nil {
-			return nil, fmt.Errorf("failed to send Get15118EVCertificate: %w", err)
-		}
-	}
-
-	return call, nil
+	return ocpp.SendCall(h.SendMessage, stationID, string(ActionGet15118EVCertificate), req)
 }
 
 // SendGetCertificateStatus sends a GetCertificateStatus request
 func (h *Handler) SendGetCertificateStatus(stationID string, req *GetCertificateStatusRequest) (*ocpp.Call, error) {
-	call, err := ocpp.NewCall(string(ActionGetCertificateStatus), req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create GetCertificateStatus call: %w", err)
-	}
-
-	data, err := call.ToBytes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal GetCertificateStatus: %w", err)
-	}
-
-	if h.SendMessage != nil {
-		if err := h.SendMessage(stationID, data); err != nil {
-			return nil, fmt.Errorf("failed to send GetCertificateStatus: %w", err)
-		}
-	}
-
-	return call, nil
+	return ocpp.SendCall(h.SendMessage, stationID, string(ActionGetCertificateStatus), req)
 }
 
 // ==================== Response Handlers ====================
@@ -603,92 +282,33 @@ func (h *Handler) SendGetCertificateStatus(stationID string, req *GetCertificate
 func (h *Handler) HandleCallResult(stationID string, result *ocpp.CallResult, originalAction Action) (interface{}, error) {
 	h.logger.Debug("Handling OCPP 2.0.1 CallResult", "stationId", stationID, "action", originalAction)
 
+	action := string(originalAction)
 	switch originalAction {
 	case ActionBootNotification:
-		var resp BootNotificationResponse
-		if err := json.Unmarshal(result.Payload, &resp); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal BootNotification response: %w", err)
-		}
-		return &resp, nil
-
+		return ocpp.UnmarshalResult[BootNotificationResponse](result, action)
 	case ActionHeartbeat:
-		var resp HeartbeatResponse
-		if err := json.Unmarshal(result.Payload, &resp); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal Heartbeat response: %w", err)
-		}
-		return &resp, nil
-
+		return ocpp.UnmarshalResult[HeartbeatResponse](result, action)
 	case ActionStatusNotification:
-		var resp StatusNotificationResponse
-		if err := json.Unmarshal(result.Payload, &resp); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal StatusNotification response: %w", err)
-		}
-		return &resp, nil
-
+		return ocpp.UnmarshalResult[StatusNotificationResponse](result, action)
 	case ActionAuthorize:
-		var resp AuthorizeResponse
-		if err := json.Unmarshal(result.Payload, &resp); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal Authorize response: %w", err)
-		}
-		return &resp, nil
-
+		return ocpp.UnmarshalResult[AuthorizeResponse](result, action)
 	case ActionTransactionEvent:
-		var resp TransactionEventResponse
-		if err := json.Unmarshal(result.Payload, &resp); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal TransactionEvent response: %w", err)
-		}
-		return &resp, nil
-
+		return ocpp.UnmarshalResult[TransactionEventResponse](result, action)
 	case ActionMeterValues:
-		var resp MeterValuesResponse
-		if err := json.Unmarshal(result.Payload, &resp); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal MeterValues response: %w", err)
-		}
-		return &resp, nil
-
+		return ocpp.UnmarshalResult[MeterValuesResponse](result, action)
 	case ActionSecurityEventNotification:
-		var resp SecurityEventNotificationResponse
-		if err := json.Unmarshal(result.Payload, &resp); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal SecurityEventNotification response: %w", err)
-		}
-		return &resp, nil
-
+		return ocpp.UnmarshalResult[SecurityEventNotificationResponse](result, action)
 	case ActionNotifyEvent:
-		var resp NotifyEventResponse
-		if err := json.Unmarshal(result.Payload, &resp); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal NotifyEvent response: %w", err)
-		}
-		return &resp, nil
-
+		return ocpp.UnmarshalResult[NotifyEventResponse](result, action)
 	case ActionDataTransfer:
-		var resp DataTransferResponse
-		if err := json.Unmarshal(result.Payload, &resp); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal DataTransfer response: %w", err)
-		}
-		return &resp, nil
-
+		return ocpp.UnmarshalResult[DataTransferResponse](result, action)
 	// Certificate management responses
 	case ActionSignCertificate:
-		var resp SignCertificateResponse
-		if err := json.Unmarshal(result.Payload, &resp); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal SignCertificate response: %w", err)
-		}
-		return &resp, nil
-
+		return ocpp.UnmarshalResult[SignCertificateResponse](result, action)
 	case ActionGet15118EVCertificate:
-		var resp Get15118EVCertificateResponse
-		if err := json.Unmarshal(result.Payload, &resp); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal Get15118EVCertificate response: %w", err)
-		}
-		return &resp, nil
-
+		return ocpp.UnmarshalResult[Get15118EVCertificateResponse](result, action)
 	case ActionGetCertificateStatus:
-		var resp GetCertificateStatusResponse
-		if err := json.Unmarshal(result.Payload, &resp); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal GetCertificateStatus response: %w", err)
-		}
-		return &resp, nil
-
+		return ocpp.UnmarshalResult[GetCertificateStatusResponse](result, action)
 	default:
 		return nil, fmt.Errorf("unknown action for CallResult: %s", originalAction)
 	}

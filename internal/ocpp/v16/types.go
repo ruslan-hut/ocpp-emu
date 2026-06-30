@@ -1,7 +1,7 @@
 package v16
 
 import (
-	"time"
+	"github.com/ruslanhut/ocpp-emu/internal/ocpp"
 )
 
 // Action represents OCPP 1.6 action names
@@ -194,29 +194,8 @@ const (
 	ReasonDeAuthorized   Reason = "DeAuthorized"
 )
 
-// DateTime is a custom type for OCPP date-time format
-type DateTime struct {
-	time.Time
-}
-
-// MarshalJSON implements custom JSON marshaling for DateTime
-func (dt DateTime) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + dt.Time.Format(time.RFC3339) + `"`), nil
-}
-
-// UnmarshalJSON implements custom JSON unmarshaling for DateTime
-func (dt *DateTime) UnmarshalJSON(data []byte) error {
-	// Remove quotes
-	str := string(data[1 : len(data)-1])
-
-	t, err := time.Parse(time.RFC3339, str)
-	if err != nil {
-		return err
-	}
-
-	dt.Time = t
-	return nil
-}
+// DateTime is the OCPP date-time type, shared across protocol versions.
+type DateTime = ocpp.DateTime
 
 // IdTagInfo contains information about an ID tag
 type IdTagInfo struct {

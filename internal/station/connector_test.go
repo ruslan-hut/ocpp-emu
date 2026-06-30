@@ -364,30 +364,29 @@ func TestConnector_IsFaulted(t *testing.T) {
 func TestConnector_StateChangeCallback(t *testing.T) {
 	connector := NewConnector(1, "Type2", 22000)
 
-	var callbackCalled bool
-	var oldState, newState ConnectorState
+	type stateChange struct {
+		old, new ConnectorState
+	}
+	// Buffered so the callback goroutine never blocks; the channel handoff
+	// synchronizes the values back to this goroutine without a sleep.
+	changes := make(chan stateChange, 1)
 
 	connector.onStateChange = func(connectorID int, old, new ConnectorState) {
-		callbackCalled = true
-		oldState = old
-		newState = new
+		changes <- stateChange{old: old, new: new}
 	}
 
 	connector.SetState(ConnectorStatePreparing, v16.ChargePointErrorNoError, "")
 
-	// Give callback time to execute (it runs in goroutine)
-	time.Sleep(10 * time.Millisecond)
-
-	if !callbackCalled {
+	select {
+	case c := <-changes:
+		if c.old != ConnectorStateAvailable {
+			t.Errorf("Expected old state Available, got %s", c.old)
+		}
+		if c.new != ConnectorStatePreparing {
+			t.Errorf("Expected new state Preparing, got %s", c.new)
+		}
+	case <-time.After(time.Second):
 		t.Error("Expected state change callback to be called")
-	}
-
-	if oldState != ConnectorStateAvailable {
-		t.Errorf("Expected old state Available, got %s", oldState)
-	}
-
-	if newState != ConnectorStatePreparing {
-		t.Errorf("Expected new state Preparing, got %s", newState)
 	}
 }
 
