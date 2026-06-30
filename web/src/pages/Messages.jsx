@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { messagesAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { highlightJSON, formatPayload } from '../utils/jsonFormatter'
-import { formatTimestamp, formatTimestampCompact } from '../utils/dateFormatter'
 import { exportMessagesToJSON, exportMessagesToCSV } from '../utils/exportUtils'
+import MessageList from '../components/MessageList'
+import MessageDetail from '../components/MessageDetail'
 import './Messages.css'
 
 // Use relative WebSocket URL for Docker/production, full URL for development
@@ -592,42 +592,14 @@ function Messages() {
           className="messages-list-panel"
           style={{ width: `${splitPosition}%` }}
         >
-          {filteredMessages.length === 0 ? (
-            <div className="empty-state empty-state--compact">
-              <p>{messages.length === 0 ? 'No messages found' : 'No messages match filters'}</p>
-              {messages.length > 0 && hasActiveFilters() && (
-                <button className="btn-link" onClick={handleClearFilters}>
-                  Clear filters
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="messages-list messages-list--compact">
-              {filteredMessages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`message-row ${message.direction} ${selectedMessage?.index === index ? 'selected' : ''}`}
-                  onClick={() => handleMessageSelect(message, index)}
-                >
-                  <span className={`direction-indicator ${message.direction}`}>
-                    {message.direction === 'sent' ? '→' : '←'}
-                  </span>
-                  <span className="message-row__time">
-                    {formatTimestampCompact(message.timestamp)}
-                  </span>
-                  <span className={`message-row__type message-row__type--${message.messageType?.toLowerCase()}`}>
-                    {message.messageType === 'CallResult' ? 'Result' : message.messageType === 'CallError' ? 'Error' : message.messageType}
-                  </span>
-                  <span className="message-row__action">
-                    {message.action || '-'}
-                  </span>
-                  <span className="message-row__station">
-                    {message.stationId}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+          <MessageList
+            messages={messages}
+            filteredMessages={filteredMessages}
+            selectedIndex={selectedMessage?.index}
+            onSelect={handleMessageSelect}
+            hasActiveFilters={hasActiveFilters()}
+            onClearFilters={handleClearFilters}
+          />
         </div>
 
         {/* Resize Handle */}
@@ -643,84 +615,7 @@ function Messages() {
           className="messages-detail-panel"
           style={{ width: `${100 - splitPosition}%` }}
         >
-          {selectedMessage ? (
-            <div className="message-detail">
-              <div className="message-detail__header">
-                <div className="message-detail__title">
-                  <span className={`direction-badge direction-badge--lg ${selectedMessage.direction}`}>
-                    {selectedMessage.direction}
-                  </span>
-                  <span className="message-detail__action">{selectedMessage.action || 'N/A'}</span>
-                  <span className={`message-type-badge message-type-badge--${selectedMessage.messageType?.toLowerCase()}`}>
-                    {selectedMessage.messageType}
-                  </span>
-                </div>
-                <button className="btn-close-detail" onClick={() => setSelectedMessage(null)}>
-                  ×
-                </button>
-              </div>
-
-              <div className="message-detail__meta">
-                <div className="meta-row">
-                  <span className="meta-label">Timestamp</span>
-                  <span className="meta-value">{formatTimestamp(selectedMessage.timestamp)}</span>
-                </div>
-                <div className="meta-row">
-                  <span className="meta-label">Station ID</span>
-                  <span className="meta-value meta-value--mono">{selectedMessage.stationId}</span>
-                </div>
-                <div className="meta-row">
-                  <span className="meta-label">Message ID</span>
-                  <span className="meta-value meta-value--mono">{selectedMessage.messageId || 'N/A'}</span>
-                </div>
-                {selectedMessage.correlationId && (
-                  <div className="meta-row">
-                    <span className="meta-label">Correlation ID</span>
-                    <span className="meta-value meta-value--mono">{selectedMessage.correlationId}</span>
-                  </div>
-                )}
-                <div className="meta-row">
-                  <span className="meta-label">Protocol</span>
-                  <span className="meta-value">{selectedMessage.protocolVersion || 'OCPP 1.6'}</span>
-                </div>
-                {selectedMessage.errorCode && (
-                  <div className="meta-row meta-row--error">
-                    <span className="meta-label">Error Code</span>
-                    <span className="meta-value meta-value--error">{selectedMessage.errorCode}</span>
-                  </div>
-                )}
-                {selectedMessage.errorDescription && (
-                  <div className="meta-row meta-row--error">
-                    <span className="meta-label">Error Description</span>
-                    <span className="meta-value meta-value--error">{selectedMessage.errorDescription}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="message-detail__payload">
-                <div className="payload-header">
-                  <span className="payload-title">Payload</span>
-                  <button
-                    className="btn-copy"
-                    onClick={() => {
-                      navigator.clipboard.writeText(formatPayload(selectedMessage.payload))
-                    }}
-                  >
-                    Copy
-                  </button>
-                </div>
-                <pre
-                    className="payload-content payload-content--highlighted"
-                    dangerouslySetInnerHTML={{ __html: highlightJSON(selectedMessage.payload) }}
-                  />
-              </div>
-            </div>
-          ) : (
-            <div className="message-detail__empty">
-              <div className="empty-detail-icon">📋</div>
-              <p>Select a message to view details</p>
-            </div>
-          )}
+          <MessageDetail message={selectedMessage} onClose={() => setSelectedMessage(null)} />
         </div>
       </div>
     </div>
