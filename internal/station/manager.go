@@ -369,6 +369,127 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		}, nil
 	}
 
+	// Device model (variable) handlers
+	m.setupV201DeviceModelCallbacks()
+
+	// ChangeAvailability handler
+	m.v201Handler.OnChangeAvailability = func(stationID string, req *v201.ChangeAvailabilityRequest) (*v201.ChangeAvailabilityResponse, error) {
+		m.logger.Info("Handling ChangeAvailability (2.0.1)", "stationId", stationID, "status", req.OperationalStatus)
+
+		// Get station
+		station, exists := m.getStation(stationID)
+
+		if !exists {
+			return &v201.ChangeAvailabilityResponse{Status: "Rejected"}, nil
+		}
+
+		// Determine which connector to change (0 means all)
+		connectorID := 0
+		if req.EVSE != nil {
+			connectorID = req.EVSE.ID
+		}
+
+		// Map OCPP 2.0.1 status to 1.6 availability type
+		availType := "Operative"
+		if req.OperationalStatus == "Inoperative" {
+			availType = "Inoperative"
+		}
+
+		// Change availability
+		err := station.SessionManager.ChangeAvailability(connectorID, availType)
+		if err != nil {
+			m.logger.Warn("Cannot change availability immediately", "error", err)
+			return &v201.ChangeAvailabilityResponse{Status: "Scheduled"}, nil
+		}
+
+		return &v201.ChangeAvailabilityResponse{Status: "Accepted"}, nil
+	}
+
+	// UnlockConnector handler
+	m.v201Handler.OnUnlockConnector = func(stationID string, req *v201.UnlockConnectorRequest) (*v201.UnlockConnectorResponse, error) {
+		m.logger.Info("Handling UnlockConnector (2.0.1)", "stationId", stationID, "evseId", req.EvseId, "connectorId", req.ConnectorId)
+
+		// TODO: Implement actual unlock logic
+		return &v201.UnlockConnectorResponse{Status: "UnknownConnector"}, nil
+	}
+
+	// ClearCache handler
+	m.v201Handler.OnClearCache = func(stationID string, req *v201.ClearCacheRequest) (*v201.ClearCacheResponse, error) {
+		m.logger.Info("Handling ClearCache (2.0.1)", "stationId", stationID)
+
+		// TODO: Implement actual cache clear logic
+		return &v201.ClearCacheResponse{Status: "Accepted"}, nil
+	}
+
+	// DataTransfer handler
+	m.v201Handler.OnDataTransfer = func(stationID string, req *v201.DataTransferRequest) (*v201.DataTransferResponse, error) {
+		m.logger.Info("Handling DataTransfer (2.0.1)", "stationId", stationID, "vendorId", req.VendorId, "messageId", req.MessageId)
+
+		// TODO: Implement actual data transfer logic
+		return &v201.DataTransferResponse{Status: v201.DataTransferStatusUnknownVendorId}, nil
+	}
+
+	// TriggerMessage handler
+	m.v201Handler.OnTriggerMessage = func(stationID string, req *v201.TriggerMessageRequest) (*v201.TriggerMessageResponse, error) {
+		m.logger.Info("Handling TriggerMessage (2.0.1)", "stationId", stationID, "requestedMessage", req.RequestedMessage)
+
+		// Get station
+		station, exists := m.getStation(stationID)
+
+		if !exists {
+			return &v201.TriggerMessageResponse{Status: "Rejected"}, nil
+		}
+
+		// Handle different trigger types
+		switch req.RequestedMessage {
+		case "BootNotification":
+			go m.sendBootNotification(stationID)
+			return &v201.TriggerMessageResponse{Status: "Accepted"}, nil
+		case "Heartbeat":
+			go m.sendHeartbeat(stationID, station)
+			return &v201.TriggerMessageResponse{Status: "Accepted"}, nil
+		case "StatusNotification":
+			go m.sendAllConnectorStatus(stationID, station)
+			return &v201.TriggerMessageResponse{Status: "Accepted"}, nil
+		case "SignCertificate":
+			// Generate and send SignCertificate request for charging station certificate
+			go m.sendSignCertificateRequest(stationID, station, v201.CertificateUseChargingStationCertificate)
+			return &v201.TriggerMessageResponse{Status: "Accepted"}, nil
+		default:
+			return &v201.TriggerMessageResponse{Status: "NotImplemented"}, nil
+		}
+	}
+
+	// GetTransactionStatus handler
+	m.v201Handler.OnGetTransactionStatus = func(stationID string, req *v201.GetTransactionStatusRequest) (*v201.GetTransactionStatusResponse, error) {
+		m.logger.Info("Handling GetTransactionStatus (2.0.1)", "stationId", stationID, "transactionId", req.TransactionId)
+
+		// Get station
+		station, exists := m.getStation(stationID)
+
+		if !exists {
+			return &v201.GetTransactionStatusResponse{MessagesInQueue: false}, nil
+		}
+
+		// Check if transaction is ongoing
+		ongoing := false
+		if req.TransactionId != "" {
+			_, ongoing = m.findConnectorByTransactionStringID(station, req.TransactionId)
+		}
+
+		return &v201.GetTransactionStatusResponse{
+			OngoingIndicator: &ongoing,
+			MessagesInQueue:  false,
+		}, nil
+	}
+
+	// Certificate management handlers
+	m.setupV201CertificateCallbacks()
+}
+
+// setupV201DeviceModelCallbacks wires the OCPP 2.0.1 GetVariables/SetVariables
+// handlers, which read and write the station's device model.
+func (m *Manager) setupV201DeviceModelCallbacks() {
 	// GetVariables handler - uses device model
 	m.v201Handler.OnGetVariables = func(stationID string, req *v201.GetVariablesRequest) (*v201.GetVariablesResponse, error) {
 		m.logger.Info("Handling GetVariables (2.0.1)", "stationId", stationID, "count", len(req.GetVariableData))
@@ -482,120 +603,11 @@ func (m *Manager) setupV201HandlerCallbacks() {
 		}
 		return &v201.SetVariablesResponse{SetVariableResult: results}, nil
 	}
+}
 
-	// ChangeAvailability handler
-	m.v201Handler.OnChangeAvailability = func(stationID string, req *v201.ChangeAvailabilityRequest) (*v201.ChangeAvailabilityResponse, error) {
-		m.logger.Info("Handling ChangeAvailability (2.0.1)", "stationId", stationID, "status", req.OperationalStatus)
-
-		// Get station
-		station, exists := m.getStation(stationID)
-
-		if !exists {
-			return &v201.ChangeAvailabilityResponse{Status: "Rejected"}, nil
-		}
-
-		// Determine which connector to change (0 means all)
-		connectorID := 0
-		if req.EVSE != nil {
-			connectorID = req.EVSE.ID
-		}
-
-		// Map OCPP 2.0.1 status to 1.6 availability type
-		availType := "Operative"
-		if req.OperationalStatus == "Inoperative" {
-			availType = "Inoperative"
-		}
-
-		// Change availability
-		err := station.SessionManager.ChangeAvailability(connectorID, availType)
-		if err != nil {
-			m.logger.Warn("Cannot change availability immediately", "error", err)
-			return &v201.ChangeAvailabilityResponse{Status: "Scheduled"}, nil
-		}
-
-		return &v201.ChangeAvailabilityResponse{Status: "Accepted"}, nil
-	}
-
-	// UnlockConnector handler
-	m.v201Handler.OnUnlockConnector = func(stationID string, req *v201.UnlockConnectorRequest) (*v201.UnlockConnectorResponse, error) {
-		m.logger.Info("Handling UnlockConnector (2.0.1)", "stationId", stationID, "evseId", req.EvseId, "connectorId", req.ConnectorId)
-
-		// TODO: Implement actual unlock logic
-		return &v201.UnlockConnectorResponse{Status: "UnknownConnector"}, nil
-	}
-
-	// ClearCache handler
-	m.v201Handler.OnClearCache = func(stationID string, req *v201.ClearCacheRequest) (*v201.ClearCacheResponse, error) {
-		m.logger.Info("Handling ClearCache (2.0.1)", "stationId", stationID)
-
-		// TODO: Implement actual cache clear logic
-		return &v201.ClearCacheResponse{Status: "Accepted"}, nil
-	}
-
-	// DataTransfer handler
-	m.v201Handler.OnDataTransfer = func(stationID string, req *v201.DataTransferRequest) (*v201.DataTransferResponse, error) {
-		m.logger.Info("Handling DataTransfer (2.0.1)", "stationId", stationID, "vendorId", req.VendorId, "messageId", req.MessageId)
-
-		// TODO: Implement actual data transfer logic
-		return &v201.DataTransferResponse{Status: v201.DataTransferStatusUnknownVendorId}, nil
-	}
-
-	// TriggerMessage handler
-	m.v201Handler.OnTriggerMessage = func(stationID string, req *v201.TriggerMessageRequest) (*v201.TriggerMessageResponse, error) {
-		m.logger.Info("Handling TriggerMessage (2.0.1)", "stationId", stationID, "requestedMessage", req.RequestedMessage)
-
-		// Get station
-		station, exists := m.getStation(stationID)
-
-		if !exists {
-			return &v201.TriggerMessageResponse{Status: "Rejected"}, nil
-		}
-
-		// Handle different trigger types
-		switch req.RequestedMessage {
-		case "BootNotification":
-			go m.sendBootNotification(stationID)
-			return &v201.TriggerMessageResponse{Status: "Accepted"}, nil
-		case "Heartbeat":
-			go m.sendHeartbeat(stationID, station)
-			return &v201.TriggerMessageResponse{Status: "Accepted"}, nil
-		case "StatusNotification":
-			go m.sendAllConnectorStatus(stationID, station)
-			return &v201.TriggerMessageResponse{Status: "Accepted"}, nil
-		case "SignCertificate":
-			// Generate and send SignCertificate request for charging station certificate
-			go m.sendSignCertificateRequest(stationID, station, v201.CertificateUseChargingStationCertificate)
-			return &v201.TriggerMessageResponse{Status: "Accepted"}, nil
-		default:
-			return &v201.TriggerMessageResponse{Status: "NotImplemented"}, nil
-		}
-	}
-
-	// GetTransactionStatus handler
-	m.v201Handler.OnGetTransactionStatus = func(stationID string, req *v201.GetTransactionStatusRequest) (*v201.GetTransactionStatusResponse, error) {
-		m.logger.Info("Handling GetTransactionStatus (2.0.1)", "stationId", stationID, "transactionId", req.TransactionId)
-
-		// Get station
-		station, exists := m.getStation(stationID)
-
-		if !exists {
-			return &v201.GetTransactionStatusResponse{MessagesInQueue: false}, nil
-		}
-
-		// Check if transaction is ongoing
-		ongoing := false
-		if req.TransactionId != "" {
-			_, ongoing = m.findConnectorByTransactionStringID(station, req.TransactionId)
-		}
-
-		return &v201.GetTransactionStatusResponse{
-			OngoingIndicator: &ongoing,
-			MessagesInQueue:  false,
-		}, nil
-	}
-
-	// ==================== Certificate Management Handlers ====================
-
+// setupV201CertificateCallbacks wires the OCPP 2.0.1 (ISO 15118) certificate
+// management handlers against the station's certificate store.
+func (m *Manager) setupV201CertificateCallbacks() {
 	// CertificateSigned handler - CSMS sends signed certificate after CSR
 	m.v201Handler.OnCertificateSigned = func(stationID string, req *v201.CertificateSignedRequest) (*v201.CertificateSignedResponse, error) {
 		m.logger.Info("Handling CertificateSigned (2.0.1)", "stationId", stationID, "certType", req.CertificateType)
