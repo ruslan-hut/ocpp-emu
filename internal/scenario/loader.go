@@ -45,6 +45,7 @@ func (l *Loader) LoadBuiltinScenarios(ctx context.Context, scenarioDir string) e
 
 	// Walk through directory and load JSON files
 	loaded := 0
+	updated := 0
 	skipped := 0
 
 	err = filepath.WalkDir(scenarioDir, func(path string, d fs.DirEntry, err error) error {
@@ -72,14 +73,36 @@ func (l *Loader) LoadBuiltinScenarios(ctx context.Context, scenarioDir string) e
 			return nil // Continue with other files
 		}
 
-		// Check if scenario already exists
+		// Re-sync if the scenario already exists: the file is the source of truth
+		// for built-ins, so updates to the JSON propagate on startup.
 		existing, _ := l.storage.GetScenario(ctx, scenario.ScenarioID)
 		if existing != nil {
-			l.logger.Debug("Scenario already exists, skipping",
+			if !existing.IsBuiltin {
+				l.logger.Debug("Scenario exists and is not builtin, skipping",
+					"scenario_id", scenario.ScenarioID,
+					"name", scenario.Name,
+				)
+				skipped++
+				return nil
+			}
+
+			// Preserve identity and creation time so existing executions stay valid.
+			scenario.ID = existing.ID
+			scenario.CreatedAt = existing.CreatedAt
+
+			if err := l.storage.UpdateScenario(ctx, scenario); err != nil {
+				l.logger.Error("Failed to update builtin scenario",
+					"scenario_id", scenario.ScenarioID,
+					"error", err,
+				)
+				return nil
+			}
+
+			l.logger.Info("Updated builtin scenario",
 				"scenario_id", scenario.ScenarioID,
 				"name", scenario.Name,
 			)
-			skipped++
+			updated++
 			return nil
 		}
 
@@ -107,6 +130,7 @@ func (l *Loader) LoadBuiltinScenarios(ctx context.Context, scenarioDir string) e
 
 	l.logger.Info("Finished loading builtin scenarios",
 		"loaded", loaded,
+		"updated", updated,
 		"skipped", skipped,
 	)
 

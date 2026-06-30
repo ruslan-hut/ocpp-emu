@@ -59,9 +59,20 @@ type activeExecution struct {
 	isPaused  bool
 	mu        sync.RWMutex
 
-	// Message capturing
-	messageCh  chan logging.MessageEntry
+	// Message capturing. Messages are buffered (not consumed from a channel) so
+	// wait_for_message steps can match by criteria regardless of arrival order;
+	// async message logging means messages may be observed out of logical order.
+	messages   []*capturedEntry
+	messagesMu sync.Mutex
+	msgSignal  chan struct{}
 	listenerID string
+}
+
+// capturedEntry is a logged message captured for an execution, with a flag marking
+// whether a wait_for_message step has already matched (consumed) it.
+type capturedEntry struct {
+	entry    logging.MessageEntry
+	consumed bool
 }
 
 // NewRunner creates a new scenario runner.
@@ -119,18 +130,23 @@ func (r *Runner) StartScenario(ctx context.Context, scenarioID, stationID string
 		cancel:    execCancel,
 		pauseCh:   make(chan struct{}),
 		resumeCh:  make(chan struct{}),
-		messageCh: make(chan logging.MessageEntry, 100),
+		msgSignal: make(chan struct{}, 1),
 	}
 
-	// Register message listener
+	// Register message listener: buffer matching messages and signal waiters.
 	if r.msgListener != nil {
 		active.listenerID = r.msgListener.AddListener(func(entry logging.MessageEntry) {
-			if entry.StationID == stationID {
-				select {
-				case active.messageCh <- entry:
-				default:
-					// Buffer full, drop message
-				}
+			if entry.StationID != stationID {
+				return
+			}
+			active.messagesMu.Lock()
+			active.messages = append(active.messages, &capturedEntry{entry: entry})
+			active.messagesMu.Unlock()
+
+			// Wake any waiting step (coalesced; the waiter re-scans the buffer).
+			select {
+			case active.msgSignal <- struct{}{}:
+			default:
 			}
 		})
 	}
@@ -226,15 +242,17 @@ func (r *Runner) ResumeExecution(executionID string) error {
 	return nil
 }
 
-// StopExecution stops/cancels a running or paused execution.
+// StopExecution stops/cancels a running or paused execution. Stopping an execution
+// that has already finished (and is no longer active) is a no-op, not an error.
 func (r *Runner) StopExecution(executionID string) error {
-	r.mu.Lock()
+	r.mu.RLock()
 	active, exists := r.executions[executionID]
+	r.mu.RUnlock()
+
 	if !exists {
-		r.mu.Unlock()
-		return fmt.Errorf("execution not found: %s", executionID)
+		r.logger.Debug("Stop requested for inactive execution", "execution_id", executionID)
+		return nil
 	}
-	r.mu.Unlock()
 
 	// Cancel execution context
 	active.cancel()
@@ -456,34 +474,58 @@ func (r *Runner) executeWaitForMessage(ctx context.Context, active *activeExecut
 		"action", action,
 	)
 
-	// Listen for matching message
+	// Scan the captured-message buffer for the first unconsumed match, then wait
+	// for new messages. Matching by criteria (not channel order) makes this robust
+	// to out-of-order logging and avoids discarding messages a later step needs.
 	for {
+		if msg, ok := r.matchCapturedMessage(active, direction, action, step.Validate); ok {
+			return &CapturedMessage{
+				Direction:   msg.Direction,
+				MessageType: getMessageTypeInt(msg.MessageType),
+				MessageID:   msg.MessageID,
+				Action:      msg.Action,
+				Payload:     msg.Payload,
+				Timestamp:   msg.Timestamp,
+			}, nil
+		}
+
 		select {
 		case <-ctx.Done():
 			return nil, fmt.Errorf("timeout waiting for message: %s %s", direction, action)
-
-		case msg := <-active.messageCh:
-			// Check if message matches
-			if (direction == "" || msg.Direction == direction) &&
-				(action == "" || msg.Action == action) {
-				// Validate message if needed
-				if step.Validate != nil {
-					if err := r.validateMessage(msg, step.Validate); err != nil {
-						continue // Message doesn't match validation, keep waiting
-					}
-				}
-
-				return &CapturedMessage{
-					Direction:   msg.Direction,
-					MessageType: getMessageTypeInt(msg.MessageType),
-					MessageID:   msg.MessageID,
-					Action:      msg.Action,
-					Payload:     msg.Payload,
-					Timestamp:   msg.Timestamp,
-				}, nil
-			}
+		case <-active.msgSignal:
+			// New message(s) arrived; re-scan.
 		}
 	}
+}
+
+// matchCapturedMessage returns the first unconsumed captured message matching the
+// given direction/action (empty means any) and optional validation, marking it
+// consumed so each message satisfies at most one wait_for_message step.
+func (r *Runner) matchCapturedMessage(active *activeExecution, direction, action string, validate map[string]interface{}) (logging.MessageEntry, bool) {
+	active.messagesMu.Lock()
+	defer active.messagesMu.Unlock()
+
+	for _, cm := range active.messages {
+		if cm.consumed {
+			continue
+		}
+		msg := cm.entry
+		if direction != "" && msg.Direction != direction {
+			continue
+		}
+		if action != "" && msg.Action != action {
+			continue
+		}
+		if validate != nil {
+			if err := r.validateMessage(msg, validate); err != nil {
+				continue // Matched direction/action but failed validation; keep scanning.
+			}
+		}
+		cm.consumed = true
+		return msg, true
+	}
+
+	return logging.MessageEntry{}, false
 }
 
 // executeWaitForState waits for a station/connector state.
@@ -529,8 +571,8 @@ func (r *Runner) executeWaitForState(ctx context.Context, active *activeExecutio
 				}
 				for _, c := range connectors {
 					if cid, ok := c["id"].(int); ok && cid == connectorID {
-						if status, ok := c["status"].(string); ok {
-							currentState = status
+						if state, ok := c["state"].(string); ok {
+							currentState = state
 						}
 					}
 				}
@@ -609,8 +651,8 @@ func (r *Runner) executeWaitCondition(ctx context.Context, active *activeExecuti
 				if err == nil {
 					for _, c := range connectors {
 						if cid, ok := c["id"].(int); ok && cid == connectorID {
-							if status, ok := c["status"].(string); ok {
-								met = status == "Available"
+							if state, ok := c["state"].(string); ok {
+								met = state == "Available"
 							}
 						}
 					}
@@ -621,8 +663,8 @@ func (r *Runner) executeWaitCondition(ctx context.Context, active *activeExecuti
 				if err == nil {
 					for _, c := range connectors {
 						if cid, ok := c["id"].(int); ok && cid == connectorID {
-							if status, ok := c["status"].(string); ok {
-								met = status == "Charging"
+							if state, ok := c["state"].(string); ok {
+								met = state == "Charging"
 							}
 						}
 					}
@@ -633,7 +675,7 @@ func (r *Runner) executeWaitCondition(ctx context.Context, active *activeExecuti
 				if err == nil {
 					for _, c := range connectors {
 						if cid, ok := c["id"].(int); ok && cid == connectorID {
-							if txID, ok := c["currentTransactionId"]; ok && txID != nil {
+							if _, ok := c["transaction"]; ok {
 								met = true
 							}
 						}

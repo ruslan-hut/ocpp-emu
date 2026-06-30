@@ -1,11 +1,33 @@
 {
   "scenarioId": "connector-availability",
   "name": "Connector Availability Check",
-  "description": "Verify connector status notifications are sent correctly",
-  "version": "1.0",
+  "description": "Restart the station and verify the boot and connector status notifications are sent correctly",
+  "version": "1.1",
   "isBuiltin": true,
   "tags": ["connector", "status", "basic"],
   "steps": [
+    {
+      "type": "api_call",
+      "description": "Stop the station for a clean boot",
+      "params": {
+        "action": "stop_station"
+      }
+    },
+    {
+      "type": "wait_condition",
+      "description": "Wait for station to disconnect",
+      "timeout": 10000,
+      "params": {
+        "condition": "station_disconnected"
+      }
+    },
+    {
+      "type": "api_call",
+      "description": "Start the station",
+      "params": {
+        "action": "start_station"
+      }
+    },
     {
       "type": "wait_condition",
       "description": "Wait for station to connect",
@@ -16,11 +38,23 @@
     },
     {
       "type": "wait_for_message",
+      "description": "Wait for BootNotification request",
+      "timeout": 10000,
+      "params": {
+        "direction": "sent",
+        "action": "BootNotification"
+      }
+    },
+    {
+      "type": "wait_for_message",
       "description": "Wait for BootNotification acceptance",
       "timeout": 10000,
       "params": {
         "direction": "received",
         "action": "BootNotification"
+      },
+      "validate": {
+        "status": "Accepted"
       }
     },
     {

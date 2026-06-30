@@ -2003,24 +2003,29 @@ func (m *Manager) handleCall(stationID string, call *ocpp.Call) {
 func (m *Manager) handleCallResult(stationID string, result *ocpp.CallResult) {
 	m.logger.Info("Received CallResult", "stationId", stationID, "uniqueId", result.UniqueID)
 
-	// Store message in MongoDB
-	go m.storeMessage(stationID, "received", result)
-
 	// Get station
 	station, exists := m.getStation(stationID)
+
+	// Get and remove pending request so the response can be correlated to the
+	// originating request's action (the wire format carries no action for responses).
+	var action string
+	var hasPending bool
+	if exists {
+		station.pendingMu.Lock()
+		action, hasPending = station.pendingRequests[result.UniqueID]
+		if hasPending {
+			delete(station.pendingRequests, result.UniqueID)
+		}
+		station.pendingMu.Unlock()
+	}
+
+	// Store message in MongoDB / stream to listeners with the correlated action
+	go m.storeMessageWithAction(stationID, "received", result, action)
 
 	if !exists {
 		m.logger.Warn("Station not found for CallResult", "stationId", stationID)
 		return
 	}
-
-	// Get and remove pending request
-	station.pendingMu.Lock()
-	action, hasPending := station.pendingRequests[result.UniqueID]
-	if hasPending {
-		delete(station.pendingRequests, result.UniqueID)
-	}
-	station.pendingMu.Unlock()
 
 	if !hasPending {
 		m.logger.Debug("No pending request for CallResult", "stationId", stationID, "uniqueId", result.UniqueID)
@@ -2059,8 +2064,20 @@ func (m *Manager) handleCallError(stationID string, callError *ocpp.CallError) {
 		"errorDesc", callError.ErrorDesc,
 	)
 
-	// Store message in MongoDB
-	go m.storeMessage(stationID, "received", callError)
+	// Correlate the error to its originating request's action and release the
+	// pending entry so it does not leak.
+	var action string
+	if station, exists := m.getStation(stationID); exists {
+		station.pendingMu.Lock()
+		if a, ok := station.pendingRequests[callError.UniqueID]; ok {
+			action = a
+			delete(station.pendingRequests, callError.UniqueID)
+		}
+		station.pendingMu.Unlock()
+	}
+
+	// Store message in MongoDB / stream to listeners with the correlated action
+	go m.storeMessageWithAction(stationID, "received", callError, action)
 }
 
 // sendBootNotification sends a BootNotification request
@@ -2172,6 +2189,12 @@ func (m *Manager) sendCallResult(stationID, uniqueID string, payload interface{}
 
 // storeMessage stores a message using the message logger
 func (m *Manager) storeMessage(stationID, direction string, message interface{}) {
+	m.storeMessageWithAction(stationID, direction, message, "")
+}
+
+// storeMessageWithAction stores a message, attaching action for response messages
+// (CallResult/CallError) that carry no action on the wire.
+func (m *Manager) storeMessageWithAction(stationID, direction string, message interface{}, action string) {
 	// Get protocol version from station
 	station, exists := m.getStation(stationID)
 
@@ -2184,7 +2207,7 @@ func (m *Manager) storeMessage(stationID, direction string, message interface{})
 
 	// Log message using message logger
 	if m.messageLogger != nil {
-		if err := m.messageLogger.LogMessage(stationID, direction, message, protocolVersion); err != nil {
+		if err := m.messageLogger.LogMessageWithAction(stationID, direction, message, protocolVersion, action); err != nil {
 			m.logger.Error("Failed to log message",
 				"stationId", stationID,
 				"direction", direction,

@@ -2,10 +2,32 @@
   "scenarioId": "happy-path-charging",
   "name": "Happy Path Charging Session",
   "description": "Complete charging session from boot to transaction end",
-  "version": "1.0",
+  "version": "1.1",
   "isBuiltin": true,
   "tags": ["charging", "happy-path", "basic"],
   "steps": [
+    {
+      "type": "api_call",
+      "description": "Stop the station for a clean boot",
+      "params": {
+        "action": "stop_station"
+      }
+    },
+    {
+      "type": "wait_condition",
+      "description": "Wait for station to disconnect",
+      "timeout": 10000,
+      "params": {
+        "condition": "station_disconnected"
+      }
+    },
+    {
+      "type": "api_call",
+      "description": "Start the station",
+      "params": {
+        "action": "start_station"
+      }
+    },
     {
       "type": "wait_condition",
       "description": "Wait for station to connect",

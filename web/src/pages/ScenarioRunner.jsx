@@ -209,12 +209,20 @@ function ScenarioRunner() {
     if (!activeExecution) return
     try {
       await executionsAPI.stop(activeExecution.executionId)
-      setActiveExecution(null)
-      loadData()
     } catch (err) {
       console.error('Failed to stop:', err)
-      setError('Failed to stop execution')
+    } finally {
+      setActiveExecution(null)
+      setLiveMessages([])
+      loadData()
     }
+  }
+
+  // Clear a finished execution to return to the idle state (no API call needed).
+  const handleReset = () => {
+    setActiveExecution(null)
+    setLiveMessages([])
+    setError(null)
   }
 
   const getStepStatusIcon = (status) => {
@@ -257,6 +265,11 @@ function ScenarioRunner() {
       </div>
     )
   }
+
+  // finished executions can only be cleared/re-run; in-progress ones are controlled.
+  const isTerminal = activeExecution &&
+    ['completed', 'failed', 'cancelled'].includes(activeExecution.status)
+  const isActive = activeExecution && !isTerminal
 
   return (
     <div className="scenario-runner">
@@ -325,7 +338,7 @@ function ScenarioRunner() {
             <select
               value={selectedStation}
               onChange={(e) => setSelectedStation(e.target.value)}
-              disabled={activeExecution}
+              disabled={isActive}
             >
               <option value="">Select Station</option>
               {stations.map(station => (
@@ -336,15 +349,9 @@ function ScenarioRunner() {
             </select>
 
             <div className="control-buttons">
-              {isAdmin && !activeExecution ? (
-                <button
-                  className="btn btn-primary"
-                  onClick={handleExecute}
-                  disabled={!selectedScenario || !selectedStation || executing}
-                >
-                  {executing ? 'Starting...' : 'Execute'}
-                </button>
-              ) : isAdmin && activeExecution ? (
+              {!isAdmin ? (
+                <span className="viewer-notice">View only - Admin required to execute</span>
+              ) : isActive ? (
                 <>
                   {activeExecution.status === 'running' && (
                     <button className="btn btn-secondary" onClick={handlePause}>
@@ -360,9 +367,22 @@ function ScenarioRunner() {
                     Stop
                   </button>
                 </>
-              ) : !isAdmin ? (
-                <span className="viewer-notice">View only - Admin required to execute</span>
-              ) : null}
+              ) : (
+                <>
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleExecute}
+                    disabled={!selectedScenario || !selectedStation || executing}
+                  >
+                    {executing ? 'Starting...' : isTerminal ? 'Run Again' : 'Execute'}
+                  </button>
+                  {isTerminal && (
+                    <button className="btn btn-secondary" onClick={handleReset}>
+                      Clear
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </div>
 

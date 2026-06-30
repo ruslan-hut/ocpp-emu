@@ -49,20 +49,21 @@ type LoggerConfig struct {
 	LogLevel        string        // Minimum log level
 }
 
-// MessageEntry represents a message to be logged
+// MessageEntry represents a message to be logged. JSON tags use camelCase so the
+// entry streams to the frontend with the same field names as storage.Message.
 type MessageEntry struct {
-	StationID       string
-	Direction       string // "sent" or "received"
-	MessageType     string // "Call", "CallResult", "CallError"
-	Action          string
-	MessageID       string
-	ProtocolVersion string
-	Payload         interface{}
-	RawMessage      []byte
-	Timestamp       time.Time
-	CorrelationID   string
-	ErrorCode       string
-	ErrorDesc       string
+	StationID       string      `json:"stationId"`
+	Direction       string      `json:"direction"`   // "sent" or "received"
+	MessageType     string      `json:"messageType"` // "Call", "CallResult", "CallError"
+	Action          string      `json:"action"`
+	MessageID       string      `json:"messageId"`
+	ProtocolVersion string      `json:"protocolVersion"`
+	Payload         interface{} `json:"payload"`
+	RawMessage      []byte      `json:"-"`
+	Timestamp       time.Time   `json:"timestamp"`
+	CorrelationID   string      `json:"correlationId"`
+	ErrorCode       string      `json:"errorCode"`
+	ErrorDesc       string      `json:"errorDescription"`
 }
 
 // LoggerStats tracks message logging statistics
@@ -140,13 +141,15 @@ func (ml *MessageLogger) RemoveListener(id string) {
 	ml.logger.Debug("Removed message listener", "id", id)
 }
 
-// notifyListeners sends a message entry to all registered listeners
+// notifyListeners sends a message entry to all registered listeners. Delivery is
+// synchronous so listeners (e.g. scenario execution) observe messages in order;
+// listeners must not block (the scenario listener uses a non-blocking channel send).
 func (ml *MessageLogger) notifyListeners(entry MessageEntry) {
 	ml.listenersMu.RLock()
 	defer ml.listenersMu.RUnlock()
 
 	for _, listener := range ml.listeners {
-		go listener(entry)
+		listener(entry)
 	}
 }
 
@@ -277,7 +280,23 @@ func (ml *MessageLogger) LogMessage(
 	message interface{},
 	protocolVersion string,
 ) error {
+	return ml.LogMessageWithAction(stationID, direction, message, protocolVersion, "")
+}
+
+// LogMessageWithAction logs an OCPP message, attaching action when the message
+// carries none on the wire (CallResult/CallError responses), so response messages
+// can be correlated to their originating request's action.
+func (ml *MessageLogger) LogMessageWithAction(
+	stationID string,
+	direction string,
+	message interface{},
+	protocolVersion string,
+	action string,
+) error {
 	entry := ml.createMessageEntry(stationID, direction, message, protocolVersion)
+	if entry.Action == "" && action != "" {
+		entry.Action = action
+	}
 
 	// Broadcast to WebSocket clients in real-time (if broadcaster is set)
 	if ml.broadcaster != nil {
@@ -321,12 +340,12 @@ func (ml *MessageLogger) createMessageEntry(
 		entry.MessageType = "Call"
 		entry.Action = msg.Action
 		entry.MessageID = msg.UniqueID
-		entry.Payload = msg.Payload
+		entry.Payload = decodeRawPayload(msg.Payload)
 
 	case *ocpp.CallResult:
 		entry.MessageType = "CallResult"
 		entry.MessageID = msg.UniqueID
-		entry.Payload = msg.Payload
+		entry.Payload = decodeRawPayload(msg.Payload)
 
 	case *ocpp.CallError:
 		entry.MessageType = "CallError"
@@ -349,6 +368,19 @@ func (ml *MessageLogger) createMessageEntry(
 	}
 
 	return entry
+}
+
+// decodeRawPayload decodes a raw JSON payload into a map so it can be matched,
+// validated, streamed and stored consistently. Non-object payloads are returned unchanged.
+func decodeRawPayload(raw json.RawMessage) interface{} {
+	if len(raw) == 0 {
+		return nil
+	}
+	var m map[string]interface{}
+	if err := json.Unmarshal(raw, &m); err == nil {
+		return m
+	}
+	return raw
 }
 
 // updateStats updates logger statistics
